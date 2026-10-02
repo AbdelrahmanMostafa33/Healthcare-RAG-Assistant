@@ -1,0 +1,172 @@
+id,type,fact,verdict,score
+c001,consumer,fever,yes,1.0
+c001,consumer,cough,yes,1.0
+c001,consumer,sore throat,yes,1.0
+c001,consumer,body aches,yes,1.0
+c001,consumer,fatigue,yes,1.0
+c002,consumer,increased thirst,yes,1.0
+c002,consumer,frequent urination,yes,1.0
+c002,consumer,fatigue,yes,1.0
+c002,consumer,blurred vision,yes,1.0
+c002,consumer,slow-healing sores,yes,1.0
+c003,consumer,often has no symptoms,yes,1.0
+c003,consumer,detected by measuring blood pressure,yes,1.0
+c005,consumer,fatigue,yes,1.0
+c005,consumer,weakness,yes,1.0
+c005,consumer,pale skin,yes,1.0
+c005,consumer,shortness of breath,yes,1.0
+c005,consumer,dizziness,yes,1.0
+c006,consumer,wheezing,yes,1.0
+c006,consumer,shortness of breath,yes,1.0
+c006,consumer,chest tightness,yes,1.0
+c006,consumer,"coughing, often at night",yes,1.0
+c008,consumer,heartburn,yes,1.0
+c008,consumer,acid regurgitation,partial,0.5
+c008,consumer,chest burning after meals,yes,1.0
+c010,consumer,sore throat,yes,1.0
+c010,consumer,painful swallowing,yes,1.0
+c010,consumer,fever,yes,1.0
+c010,consumer,swollen tonsils or lymph nodes,yes,1.0
+c010,consumer,usually no cough,no,0.0
+c012,consumer,often no symptoms at first,yes,1.0
+c012,consumer,fatigue,yes,1.0
+c012,consumer,jaundice in later stages,partial,0.5
+c013,consumer,fasting blood glucose test,yes,1.0
+c013,consumer,HbA1c test,yes,1.0
+c013,consumer,oral glucose tolerance test,yes,1.0
+c014,consumer,repeated blood pressure measurements on more than one occasion,yes,1.0
+c014,consumer,home or ambulatory monitoring may be used,yes,1.0
+c016,consumer,physical exam listening to the lungs,yes,1.0
+c016,consumer,chest X-ray,yes,1.0
+c016,consumer,blood tests or sputum tests,yes,1.0
+c017,consumer,complete blood count (hemoglobin),yes,1.0
+c017,consumer,iron studies or ferritin to find the cause,yes,1.0
+c019,consumer,TSH blood test,yes,1.0
+c019,consumer,free T4 blood test,yes,1.0
+c021,consumer,blood tests for hepatitis B surface antigen and antibodies,yes,1.0
+c021,consumer,liver function tests,yes,1.0
+c022,consumer,rest and fluids,yes,1.0
+c022,consumer,"antiviral medicine such as oseltamivir, ideally started early or for high-risk people",yes,1.0
+c022,consumer,over-the-counter medicine for fever and aches,yes,1.0
+c023,consumer,diet and exercise,yes,1.0
+c023,consumer,metformin is a common first medicine,yes,1.0
+c023,consumer,other glucose-lowering medicines or insulin if needed,yes,1.0
+c023,consumer,regular blood glucose monitoring,yes,1.0
+c025,consumer,antibiotics prescribed by a clinician,yes,1.0
+c025,consumer,drinking fluids,yes,1.0
+c026,consumer,quick-relief inhaler (bronchodilator),yes,1.0
+c026,consumer,long-term controller medicine such as inhaled corticosteroids,yes,1.0
+c026,consumer,avoiding triggers,yes,1.0
+c028,consumer,lifestyle and diet changes,yes,1.0
+c028,consumer,antacids,yes,1.0
+c028,consumer,H2 blockers or proton pump inhibitors,yes,1.0
+c029,consumer,iron supplements,yes,1.0
+c029,consumer,treating the underlying cause,yes,1.0
+c029,consumer,iron-rich foods,yes,1.0
+c031,consumer,regular moisturizers,yes,1.0
+c031,consumer,topical corticosteroids for flare-ups,yes,1.0
+c031,consumer,avoiding triggers,yes,1.0
+c032,consumer,daily levothyroxine,yes,1.0
+c032,consumer,periodic TSH monitoring to adjust the dose,yes,1.0
+c034,consumer,annual flu vaccine,yes,1.0
+c034,consumer,frequent hand washing,yes,1.0
+c034,consumer,avoiding close contact with sick people,yes,1.0
+c035,consumer,maintaining a healthy weight,yes,1.0
+c035,consumer,regular physical activity,yes,1.0
+c035,consumer,healthy diet,yes,1.0
+c037,consumer,drinking plenty of water,yes,1.0
+c037,consumer,reducing salt intake,yes,1.0
+c038,consumer,drinking enough fluids,yes,1.0
+c038,consumer,urinating after sex,yes,1.0
+c038,consumer,wiping front to back,yes,1.0
+c040,consumer,hepatitis B vaccination,yes,1.0
+c040,consumer,not sharing needles,yes,1.0
+c040,consumer,safe sex practices,yes,1.0
+c042,consumer,sunscreen,yes,1.0
+c042,consumer,avoiding peak sun and tanning beds,yes,1.0
+c042,consumer,protective clothing,yes,1.0
+c043,consumer,persistently high pressure in the arteries,yes,1.0
+c043,consumer,risk factor for heart disease and stroke,yes,1.0
+c045,consumer,common long-term gut disorder,partial,0.5
+c045,consumer,abdominal pain with changes in bowel habits,yes,1.0
+c045,consumer,no structural damage to the gut,yes,1.0
+c046,consumer,minerals and salts crystallizing in urine,yes,1.0
+c046,consumer,dehydration and diet can contribute,yes,1.0
+c048,consumer,hormonal disorder in women,yes,1.0
+c048,consumer,irregular periods,yes,1.0
+c048,consumer,excess androgen (male hormone) levels,yes,1.0
+c048,consumer,small ovarian cysts may be present,yes,1.0
+c049,consumer,iron deficiency,yes,1.0
+c049,consumer,vitamin B12 or folate deficiency,yes,1.0
+c049,consumer,blood loss,yes,1.0
+c049,consumer,chronic disease,yes,1.0
+r001,research,"yes, smoking is strongly associated with lung cancer",yes,1.0
+r003,research,"yes, low-dose aspirin reduces recurrent cardiovascular events in secondary prevention",yes,1.0
+r003,research,bleeding risk is a trade-off,yes,1.0
+r004,research,"yes, excess weight increases knee osteoarthritis risk",yes,1.0
+r006,research,"yes, H. pylori is a major cause of peptic ulcers",yes,1.0
+r007,research,"yes, it reduces HPV infection and cervical precancer",yes,1.0
+r009,research,"yes, CBT for insomnia is effective and recommended as first-line",partial,0.5
+r010,research,"yes, statins lower LDL cholesterol",yes,1.0
+r012,research,"yes, exercise has a beneficial effect on depressive symptoms",yes,1.0
+r013,research,"yes, CKD increases cardiovascular risk",yes,1.0
+r014,research,"yes, early treatment improves outcomes and reduces transmission",yes,1.0
+r016,research,"yes, quitting lowers cardiovascular risk over time",yes,1.0
+r017,research,"yes, it raises the later risk of type 2 diabetes",yes,1.0
+r019,research,"yes, remission occurs in a substantial share of patients",yes,1.0
+m002,medication,they are different drug classes and can be used together at label doses,yes,1.0
+m002,medication,"check with a pharmacist if kidney, liver or stomach problems",partial,0.5
+m003,medication,pain relief,yes,1.0
+m003,medication,reducing fever,yes,1.0
+m005,medication,heavy alcohol raises the risk of lactic acidosis and low blood sugar,yes,1.0
+m005,medication,limit or avoid and ask a clinician,yes,1.0
+m006,medication,reduce cholesterol production in the liver (HMG-CoA reductase inhibition),yes,1.0
+m008,medication,"bacterial infections such as ear, throat, sinus or urinary infections",yes,1.0
+m008,medication,does not work on viruses,yes,1.0
+m009,medication,only effective against bacterial infections,yes,1.0
+m009,medication,take as prescribed and finish the course unless told otherwise,yes,1.0
+m009,medication,tell the doctor about allergies,yes,1.0
+m010,medication,dry cough,yes,1.0
+m010,medication,dizziness,yes,1.0
+m010,medication,high potassium,yes,1.0
+m010,medication,rarely facial swelling (angioedema),yes,1.0
+m012,medication,reduces stomach acid (proton pump inhibitor),yes,1.0
+m012,medication,used for GERD and ulcers,yes,1.0
+m013,medication,first-generation ones such as diphenhydramine commonly cause drowsiness,yes,1.0
+m013,medication,newer ones are less sedating,yes,1.0
+m015,medication,thyroid hormone replacement,yes,1.0
+m015,medication,usually taken on an empty stomach at a consistent time,yes,1.0
+m016,medication,weight gain,yes,1.0
+m016,medication,raised blood sugar,yes,1.0
+m016,medication,bone loss (osteoporosis),yes,1.0
+m016,medication,higher infection risk,yes,1.0
+m018,medication,rash or hives,yes,1.0
+m018,medication,itching,yes,1.0
+m018,medication,swelling of face or lips,yes,1.0
+m018,medication,difficulty breathing needs emergency care,yes,1.0
+m020,medication,"label maximum is generally up to 4 g in 24 hours, lower with liver disease or regular alcohol use",yes,1.0
+m020,medication,overdose can cause serious liver damage,yes,1.0
+m020,medication,follow the product label or ask a pharmacist,yes,1.0
+a001,ambiguous,depends on the child's age,yes,1.0
+a001,ambiguous,"seek medical care for infants, very high or persistent fever",yes,1.0
+a001,ambiguous,fluids and rest,partial,0.5
+a003,ambiguous,"causes include tension, poor sleep or sleep apnea, caffeine or medication overuse",partial,0.5
+a003,ambiguous,see a doctor if persistent or worsening,yes,1.0
+a004,ambiguous,flu is usually sudden and more severe with fever and body aches,yes,1.0
+a004,ambiguous,colds are milder,yes,1.0
+a006,ambiguous,sleep hygiene habits,yes,1.0
+a006,ambiguous,CBT for insomnia,no,0.0
+a006,ambiguous,see a doctor if it persists,yes,1.0
+a007,ambiguous,condition of high blood glucose,yes,1.0
+a007,ambiguous,type 1 and type 2 are the main forms,yes,1.0
+a009,ambiguous,"shake, exhale, inhale slowly while pressing",yes,1.0
+a009,ambiguous,hold breath a few seconds,yes,1.0
+a009,ambiguous,spacer can help,yes,1.0
+a010,ambiguous,take with food to reduce stomach irritation,yes,1.0
+a012,ambiguous,waxy fat-like substance in the blood,no,0.0
+a012,ambiguous,high LDL raises heart disease risk,yes,1.0
+a013,ambiguous,acute diarrhea often resolves within a few days,yes,1.0
+a013,ambiguous,stay hydrated,yes,1.0
+a013,ambiguous,"see a doctor for blood, high fever, dehydration or longer duration",yes,1.0
+a015,ambiguous,usual adult recommended intake is around 600-800 IU (15-20 mcg) per day,yes,1.0
+a015,ambiguous,too much can cause high calcium,yes,1.0

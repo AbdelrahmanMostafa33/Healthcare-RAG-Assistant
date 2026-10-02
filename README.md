@@ -1,474 +1,283 @@
-# 🏥 Healthcare RAG-Powered Medical Q&A Assistant
+# Healthcare RAG Assistant
 
-**eyouth × DEPI | Microsoft Machine Learning Track | 2026**
+A Retrieval-Augmented Generation (RAG) system for answering medical questions using a biomedical knowledge base.
 
-A Retrieval-Augmented Generation (RAG) system that answers medical questions
-using PubMedQA data, with a BioBERT classifier for intelligent query routing.
+The system combines semantic and keyword retrieval with query classification and LLM generation to produce grounded medical answers.
 
----
+## Architecture
 
-## 🚀 Quick Start (3 Commands)
-
-```bash
-# 1. Clone
-git clone https://github.com/AbdooMatrix/Healthcare-RAG-Powered-Medical-QA-Assistant.git
-cd Healthcare-RAG-Powered-Medical-QA-Assistant
-
-# 2. Install
-pip install -r requirements.txt
-pip install -e .   # registers src/ as a package so absolute imports resolve
-
-# 3. Download data + models (30 seconds)
-python download.py
+```text
+User Question
+      |
+      v
+Query Classification
+      |
+      v
++-------------------+
+| Hybrid Retrieval  |
+|                   |
+| FAISS + BM25      |
++---------+---------+
+          |
+          v
+      Reranking
+          |
+          v
+      LLM Generation
+          |
+          v
+        Answer
 ```
 
-That's it. Run any notebook now.
+## Main Components
 
----
+* **Query Classification**: assigns the question to one of the medical categories.
+* **FAISS**: semantic retrieval using biomedical embeddings.
+* **BM25**: keyword-based retrieval for exact medical terms.
+* **Reranking**: reorders retrieved candidates before passing them to the LLM.
+* **LLM**: generates the final answer using the retrieved context.
 
-## 📁 Project Structure
+## Dataset
 
-```
+The main knowledge base is built from the `pqa_artificial` subset of PubMedQA.
+
+| Item        | Value                                                           |
+| ----------- | --------------------------------------------------------------- |
+| Dataset     | PubMedQA                                                        |
+| Subset      | `pqa_artificial`                                                |
+| Size        | ~211K records                                                   |
+| Main fields | question, context, answer                                       |
+| Categories  | Symptoms, Diagnosis, Treatment, Medication, Prevention, General |
+
+The evaluation data is kept separately from the knowledge base to avoid using evaluation questions during retrieval.
+
+## Models
+
+### Query Classifier
+
+* Base model: `dmis-lab/biobert-v1.1`
+* Task: medical question classification
+* Classes: 6 medical categories
+
+### Embeddings
+
+* Model: `pritamdeka/S-PubMedBert-MS-MARCO`
+* Used to create embeddings for semantic retrieval
+* Vectors are stored in FAISS
+
+### Reranker
+
+* Model: `cross-encoder/ms-marco-MiniLM-L-6-v2`
+* Used to rerank retrieved candidates before generation
+
+### Generator
+
+* Model: `openai/gpt-oss-120b`
+* Provider: Groq
+* Interface: OpenAI-compatible API
+
+The model configuration is kept in `config/settings.py` so it does not need to be repeated throughout the project.
+
+## Project Structure
+
+```text
+Healthcare-RAG-Assistant/
+│
+├── api/
+│   ├── main.py
+│   ├── middleware/
+│   ├── routes/
+│   └── schemas/
+│
+├── config/
+│   └── settings.py
+│
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── embeddings/
+│       └── faiss_index/
+│
+├── models/
+│   └── classifier/
+│
 ├── notebooks/
-│   ├── 01_data_loading.ipynb            # Load raw PubMedQA data
-│   ├── 02_preprocessing.ipynb           # Clean & normalise text
-│   ├── 03_category_labelling.ipynb      # Assign 6 medical categories
-│   ├── 04_eda.ipynb                     # Exploratory data analysis
-│   ├── 05_embeddings_vectorstore.ipynb  # Build FAISS vector index
-│   ├── 06_rag_pipeline.ipynb            # RAG pipeline (Groq LLM)
-│   ├── 07_classification_model.ipynb    # Fine-tune BioBERT classifier
-│   ├── 08_evaluation.ipynb              # BLEU, ROUGE-L, hallucination
-│   ├── 09_integrated_pipeline.ipynb     # Classifier + RAG integration
-│   └── 10_end_to_end_test.ipynb         # Full pipeline verification
+│   ├── 01_data_loading.ipynb
+│   ├── 02_preprocessing.ipynb
+│   ├── 03_category_labelling.ipynb
+│   ├── 05_embeddings_vectorstore.ipynb
+│   ├── 06_rag_pipeline.ipynb
+│   ├── 08_evaluation.ipynb
+│   ├── 09_integrated_pipeline.ipynb
+│   └── 10_end_to_end_test.ipynb
 │
 ├── src/
-│   ├── data/
-│   │   ├── preprocessor.py              # Text cleaning pipeline
-│   │   ├── labeller.py                  # Medical category labelling
-│   │   ├── loader.py                    # Data loading utilities
-│   │   └── hub.py                       # HuggingFace data sync
-│   ├── rag/
-│   │   ├── pipeline.py                  # RAG pipeline (FAISS + Groq LLM)
-│   │   ├── embeddings.py                # Embedding utilities
-│   │   ├── vectorstore.py               # FAISS index utilities
-│   │   └── bm25_retriever.py            # BM25 hybrid retrieval
 │   ├── classification/
-│   │   └── classifier.py                # BioBERT classifier
+│   │   └── classifier.py
+│   │
+│   ├── data/
+│   │   ├── hub.py
+│   │   ├── labeller.py
+│   │   ├── loader.py
+│   │   └── preprocessor.py
+│   │
 │   ├── evaluation/
-│   │   └── metrics.py                   # BLEU, ROUGE-L metrics
-│   └── pipeline.py                      # Top-level entry point
+│   │   └── metrics.py
+│   │
+│   └── rag/
+│       ├── bm25_retriever.py
+│       ├── embeddings.py
+│       └── vectorstore.py
 │
-├── api/                                 # FastAPI REST API
-├── dashboard/                           # Streamlit KPI dashboard
-├── docker/                              # Docker deployment
-├── mlops/                               # MLflow tracking
-├── reports/                             # Generated reports & figures
-├── models/                              # Saved model weights
-├── data/                                # Raw, processed, embeddings
-├── config/                              # Settings
-├── tests/                               # Unit tests
+├── tests/
 │
-├── download.py                     # ← Run this after cloning
+├── docker/
+│   └── Dockerfile
+│
+├── download.py
 ├── requirements.txt
 ├── setup.py
+├── pytest.ini
+├── .env.example
 └── README.md
 ```
 
----
+## Setup
 
-## 🏗️ Architecture
-
-```
-User Query
-    │
-    ▼
-┌─────────────────────────┐
-│  BioBERT Classifier     │  → Predicts medical category
-└────────────┬────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│  FAISS Vector Store     │  → Retrieves top-15 candidates, reranks to top-3
-│  (category-prioritised) │     (category matches boosted)
-└────────────┬────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│  LLM (Groq)             │  → Generates answer from context
-└────────────┬────────────┘
-             │
-             ▼
-┌─────────────────────────┐
-│  Medical Disclaimer     │  → Appended to every response
-└─────────────────────────┘
-```
-
----
-
-## 📊 Dataset
-
-| Item | Value |
-|------|-------|
-| Source | [qiaojin/PubMedQA](https://huggingface.co/datasets/qiaojin/PubMedQA) |
-| Rows | ~211,000 (pqa_artificial subset)
-| Columns | question, context, answer, category |
-| Categories | Symptoms, Diagnosis, Treatment, Medication, Prevention, General |
-
----
-
-## 🧠 Models
-
-### BioBERT Classifier
-| Item | Value |
-|------|-------|
-| Base | `dmis-lab/biobert-v1.1` |
-| Classes | 6 medical categories |
-| HuggingFace | [AbdoMatrix/biobert-medical-classifier](https://huggingface.co/AbdoMatrix/biobert-medical-classifier) |
-
-### Fallback Classifier (DistilBERT)
-| Item | Value |
-|------|-------|
-| Location | `models/classifier/distilbert_classifier/` |
-| Status | Tokenizer configs present; weights are gitignored and downloaded separately |
-| Active | No — BioBERT is the primary classifier for all evaluation and deployment |
-| Purpose | Offline fallback for resource-constrained environments without HuggingFace access |
-
-### RAG Pipeline
-| Item | Value |
-|------|-------|
-| Embeddings | `pritamdeka/S-PubMedBert-MS-MARCO` (768d) |
-| Vector Store | FAISS IndexFlatIP + BM25 hybrid retrieval |
-| Generator | `meta-llama/llama-4-scout-17b-16e-instruct` via Groq API (falls back to `google/flan-t5-base` locally) |
-| Retrieval | Top-15 candidates → reranked top-3 with category routing |
-| HTTP Client | `openai` Python SDK pointed at `api.groq.com/openai/v1` |
-
----
-
-## 📋 Notebook Run Order
-
-Run in this order to reproduce everything from scratch:
-
-```
-01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10
-```
-
-Or skip to notebook 10 directly (auto-downloads data):
+Clone the repository:
 
 ```bash
-# Just run the verification notebook
-jupyter notebook notebooks/10_end_to_end_test.ipynb
+git clone https://github.com/AbdelrahmanMostafa33/Healthcare-RAG-Assistant.git
+cd Healthcare-RAG-Assistant
 ```
 
----
-
-## 🔌 API (FastAPI)
+Create and activate a virtual environment:
 
 ```bash
-uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+python -m venv .venv
 ```
 
-### Endpoints
+Windows:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/query` | Submit a medical question |
-| GET | `/health` | Health check (model loaded, classifier ready, Groq configured) |
-| GET | `/docs` | Swagger UI (interactive API docs) |
-| GET | `/` | Root info (project, docs link, version) |
+```bash
+.venv\Scripts\activate
+```
 
-### Example
+Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+pip install -e .
+```
+
+Add the required environment variables to `.env`:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+HF_TOKEN=your_huggingface_token
+```
+
+Download the project data:
+
+```bash
+python download.py
+```
+
+## Running the API
+
+Start the FastAPI application with:
+
+```bash
+uvicorn api.main:app --reload
+```
+
+The API will be available at:
+
+```text
+http://localhost:8000
+```
+
+Swagger documentation:
+
+```text
+http://localhost:8000/docs
+```
+
+### Example Request
 
 ```bash
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
-  -d '{"question": "What are the symptoms of diabetes?"}'
+  -d "{\"question\":\"What are the symptoms of diabetes?\"}"
 ```
 
-Response:
-```json
-{
-  "answer": "...",
-  "category": "Symptoms",
-  "retrieved_sources": ["chunk_12345", "chunk_67890"],
-  "source_citations": [
-    {
-      "chunk_id": 12345,
-      "question": "...",
-      "category": "Symptoms",
-      "distance": 0.8765,
-      "excerpt": "..."
-    }
-  ],
-  "disclaimer": "⚠️ MEDICAL DISCLAIMER: ..."
-}
+A typical response contains the generated answer, predicted category, and retrieved source information.
+
+## Evaluation
+
+Evaluation data is stored separately from the training and retrieval data.
+
+```text
+data/eval/questions.csv
 ```
 
-> **Note:** `source_citations` contains the full structured retrieval data. `retrieved_sources` is a legacy flat list of chunk ID strings.
+The evaluation file contains separate `dev` and `test` splits.
 
----
+* **dev**: used during development to compare configurations and improve the pipeline.
+* **test**: kept untouched until the final evaluation.
 
-## 📊 Streamlit Dashboard
+The evaluation workflow is implemented in:
+
+```text
+notebooks/08_evaluation.ipynb
+```
+
+The current development process compares a plain LLM baseline against the RAG pipeline using the same evaluation questions.
+
+## Notebooks
+
+The notebooks cover the main development steps:
+
+```text
+01 -> Load the raw data
+
+02 -> Clean and preprocess the data
+
+03 -> Assign medical categories
+
+05 -> Build embeddings and the FAISS index
+
+06 -> Build and test the RAG pipeline
+
+08 -> Run the evaluation experiments
+
+09 -> Integrate the classifier and RAG pipeline
+
+10 -> End-to-end verification
+```
+
+## Docker
+
+The project also includes a Dockerfile for running the API in a container.
+
+Build the image:
 
 ```bash
-streamlit run dashboard/app.py
+docker build -f docker/Dockerfile -t healthcare-rag .
 ```
 
----
-
-## 🐳 Docker
-
-The project ships a full containerised stack with three services:
-
-| Service | Container | Description |
-|---------|-----------|-------------|
-| **healthcare-rag** | `healthcare-rag-api` | FastAPI backend (port `8000`) |
-| **dashboard** | `healthcare-rag-dashboard` | Streamlit UI (port `8501`) |
-| **mlflow** | `healthcare-rag-mlflow` | MLflow experiment tracking (port `5000`) |
-
-Three Docker Compose files live in the `docker/` directory:
-
-| File | Purpose |
-|------|---------|
-| `docker-compose.yml` | **Base** — production-ready service definitions, health checks, named volumes |
-| `docker-compose.override.yml` | **Dev** — auto-loaded; adds source-code mounts + `--reload` for hot-reloading |
-| `docker-compose.prod.yml` | **Prod** — explicit `-f` override; adds resource limits, logging rotation, security hardening |
-
-### Quick Start
+Run it:
 
 ```bash
-# Development stack (auto-loads dev override with hot-reload)
-make docker-dev
-
-# Production stack (explicit -f overrides, no hot-reload)
-make docker-prod
+docker run -p 8000:8000 --env-file .env healthcare-rag
 ```
 
-Or manually:
+## Medical Disclaimer
 
-```bash
-# Dev (auto-loads docker-compose.override.yml)
-docker compose -f docker/docker-compose.yml up --build -d
+This project is for educational and research purposes only.
 
-# Prod (specify both files so dev override is NOT auto-loaded)
-docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up --build -d
-```
+It is not a substitute for professional medical advice, diagnosis, or treatment. Medical decisions should always be made with a qualified healthcare professional.
 
-### All Makefile Targets
-
-#### Build & Image Management
-
-| Target | Description |
-|--------|-------------|
-| `make docker-build` | Build the Docker image from the Dockerfile |
-| `make docker-build-no-cache` | Clean rebuild ignoring all layer cache (use after dependency changes) |
-| `make docker-push` | Tag and push the image to Azure Container Registry |
-| `make docker-pull` | Pull the latest image from ACR + third-party service images |
-| `make docker-login` | Authenticate Docker to ACR via `az acr login` (requires Azure CLI) |
-
-#### Run & Deploy
-
-| Target | Description |
-|--------|-------------|
-| `make docker-dev` | Start the full dev stack with hot-reloading (auto-loads override) |
-| `make docker-prod` | Start the full production stack with resource limits & security |
-| `make docker-run` | Run a standalone container locally (`docker run`) |
-
-#### Management
-
-| Target | Description |
-|--------|-------------|
-| `make docker-ps` | List all stack containers with status and ports |
-| `make docker-stats` | Live CPU, memory, network, and block I/O usage |
-| `make docker-top` | Show running processes inside each container |
-| `make docker-logs` | Tail logs from all three services simultaneously |
-| `make docker-restart` | Gracefully restart all stack services |
-| `make docker-exec` | Open an interactive shell (`sh`) inside the API container |
-| `make docker-test` | Run the test suite inside a disposable container |
-
-#### Cleanup & Air-Gapped
-
-| Target | Description |
-|--------|-------------|
-| `make docker-clean` | Stop stack, remove containers, volumes, and dangling images |
-| `make docker-save` | Export all stack images to `docker/images/` as `.tar` archives |
-| `make docker-load` | Restore all stack images from `docker/images/` archives |
-
-### Development Override (`docker-compose.override.yml`)
-
-When you run `make docker-dev`, Docker automatically merges the dev override:
-
-- **Source-code mounts** — `api/`, `src/`, `config/`, `dashboard/` are bind-mounted so edits reflect instantly
-- **Hot-reload** — uvicorn starts with `--reload`, auto-restarting on file changes
-- **Relaxed `depends_on`** — dashboard starts as soon as the API container is running (no need to wait for full health check)
-- **Shorter healthcheck grace periods** — 30s for API, 15s for dashboard
-
-### Production Override (`docker-compose.prod.yml`)
-
-Apply explicitly for production deployments (the dev override is NOT loaded):
-
-```bash
-docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up -d
-```
-
-| Feature | API | Dashboard | MLflow |
-|---------|-----|-----------|--------|
-| CPU limit | 2 cores | 1 core | 0.5 cores |
-| Memory limit | 4 GB | 2 GB | 1 GB |
-| Logging | JSON file, 10m/3-file rotation | Same | Same |
-| Security | `no-new-privileges` | `no-new-privileges` | `no-new-privileges` |
-| Restart | `unless-stopped` | `unless-stopped` | `unless-stopped` |
-
-### Air-Gapped Deployment
-
-For environments without internet access:
-
-```bash
-# On the internet-connected machine:
-make docker-build        # Build the image
-make docker-save         # Export images to docker/images/
-
-# Transfer docker/images/ to the target machine, then:
-make docker-load         # Restore images
-make docker-prod         # Start the stack
-```
-
-### Container Image
-
-The `Dockerfile` (`docker/Dockerfile`) produces a `python:3.10-slim`-based image:
-
-- Installs production dependencies from `requirements.txt`
-- Copies application source (`src/`, `api/`, `config/`, `mlops/`, `dashboard/`)
-- Classifier config files included; model weights downloaded at runtime from HuggingFace
-- FAISS vector index + CSVs downloaded inside the **FastAPI lifespan** — see [Startup Sequence](#startup-sequence)
-- Exposes port `8000` with `uvicorn` as the entrypoint
-
-### Startup Sequence
-
-The entrypoint (`docker/entrypoint.sh`) starts **uvicorn immediately** without
-blocking on data download:
-
-```
-entrypoint.sh
-    │
-    ▼  (immediate)
-exec uvicorn api.main:app  →  port 8000 is listening
-    │
-    ▼  (lifespan in api/main.py)
-  1. Download missing data artifacts from HuggingFace (~1-2 min)
-  2. Pre-load RAG pipeline + BioBERT classifier from local cache (~30s)
-    │
-    ▼
-  /health returns 200 ✅
-  (model_loaded=true if warm-up completed, false otherwise)
-```
-
-**First-query latency:** If the first query arrives before Step 2 finishes,
-the pipeline loads lazily on demand — the query still succeeds but is
-slower (~7–15s instead of ~2–3s). Call `GET /warmup` proactively to
-load the pipeline before routing user traffic.
-
-This design ensures the container port is open from the first second, so
-Azure App Service health probes succeed once the lifespan completes —
-preventing the 503 timeouts that occurred with the old sequential startup.
-
-> **Local development:** Use `python download.py` directly to fetch data
-> before running notebooks (data persists across container restarts via a
-> Docker volume). The lifespan download only runs when artifacts are missing.
-
-### `.dockerignore`
-
-The `.dockerignore` excludes everything not needed for the build:
-`notebooks/`, `reports/`, `tests/`, `docs/`, `azure/`, model weight files (`*.bin`, `*.safetensors`), `data/`, `.git/`, `__pycache__/`, and more — ensuring a lean build context and faster image transfers.
-
----
-
-## 📈 KPI Results
-
-### M1 — Data
-| KPI | Target | Result |
-|-----|--------|--------|
-| Missing values handled | ≥ 90% | ✅ |
-| Data accuracy | ≥ 85% | ✅ |
-| All 6 categories ≥ 1% | Yes | ✅ |
-| EDA with 4 visualisations | Yes | ✅ |
-
-### M2 — Models
-| KPI | Target | Result |
-|-----|--------|--------|
-| FAISS retrieval | < 500ms | ✅ |
-| Classification macro F1 | ≥ 78% | ✅ (90.66%) |
-| RAG ROUGE-L (abstractive) | ≥ 0.15 | ✅ (0.1887) |
-| BERTScore F1 (primary) | ≥ 0.80 | ✅ (0.8047) |
-| BLEU improvement (RAG vs plain) | ≥ +6% (secondary; see note) | ⚠️ (−13.4%) |
-| Faithfulness | ≥ 70% | ✅ (92.0%) |
-| Hallucination rate | ≤ 15% | ✅ (10%) |
-
-> **Note on BLEU:** For abstractive RAG systems, BERTScore F1 is the primary quality metric. BLEU is a secondary n-gram-overlap metric known to underperform for abstractive generation (Lewis et al. 2020). The −13.4% BLEU gap does not indicate a retrieval failure; BERTScore F1 (0.8047 ≥ 0.80 target) is the authoritative pass/fail metric.
-
----
-
-## 👥 Team
-
-| Name | Role |
-|------|------|
-| Abdelrahman Mostafa Sayed | Team Leader |
-| Ziad Ahmed El-Nady | Member |
-| Youssef George Youssef | Member |
-| Doha Khaled Mahmoud | Member |
-| Eman Khalid Ismail | Member |
-
----
-
-## 📄 Reports
-
-All generated reports are in the `reports/` folder:
-- `schema_validation_report.md` — Data schema validation
-- `eda_report.md` — Exploratory data analysis
-- `classification_report.md` — BioBERT classifier metrics
-- `evaluation_report.md` — RAG vs plain LLM evaluation (A/B)
-- `model_selection.md` — MLflow run selection & parameters
-- `model_development_doc.md` — Model architecture & development
-- `integration_doc.md` — Integration & deployment documentation
-- `mlops_doc.md` — MLflow experiment tracking
-- `monitoring_doc.md` — Monitoring & retraining strategy
-- `preprocessing_pipeline_doc.md` — Text preprocessing pipeline
-- `deployment_test_report.md` — Latency & disclaimer verification
-- `final_summary.md` — Final project summary with all KPIs
-- `integrated_pipeline_test_results.json` — Integrated test output
-- `rag_evaluation_results.csv` — RAG evaluation data
-- `rag_pipeline_test_log.json` — Pipeline test logs
-
----
-
-## ⚠️ Disclaimer
-
-This system is for **educational purposes only**. It is NOT a substitute
-for professional medical advice, diagnosis, or treatment. Always consult
-a qualified healthcare provider for medical decisions.
-
----
-
-## 📝 License
+## License
 
 MIT License
-```
-
-
-> **Expected output** from `python download.py`:
-> ```
-> ============================================================
-> 🏥 Healthcare RAG — Data Setup
-> ============================================================
->
-> ✅ Downloaded: data/raw/pubmedqa_raw.csv (15.2 MB)
-> ✅ Downloaded: data/processed/pubmedqa_cleaned.csv (12.1 MB)
-> ✅ Downloaded: data/processed/pubmedqa_labelled.csv (12.3 MB)
-> ✅ Downloaded: data/embeddings/faiss_index/pubmedqa_index_flatip.faiss (14.7 MB)
-> ✅ Downloaded: data/embeddings/faiss_index/chunk_mapping.pkl (11.8 MB)
-> ✅ Downloaded: data/processed/eval_holdout.csv (3.3 MB)
->
-> 🎉 Setup complete! You can now run any notebook.
-> ```
->
-> The BioBERT classifier auto-downloads from HuggingFace on first inference.
-> Open any notebook (e.g. `notebooks/10_end_to_end_test.ipynb`) and run all cells.

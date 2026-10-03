@@ -16,8 +16,8 @@ class Settings(BaseSettings):
 
     LLM_MODEL: str = "openai/gpt-oss-120b"
     LLM_BASE_URL: str = "https://api.groq.com/openai/v1"
-    JUDGE_MODEL: str = "llama-3.1-70b-versatile"
-
+    JUDGE_MODEL: str = "qwen/qwen3.8-27b"
+    
     USE_RERANKER: bool = True
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-12-v2"
 

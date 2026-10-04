@@ -1,17 +1,17 @@
 # EDA Report
 **Healthcare RAG-Powered Medical Q&A Assistant**
-**Generated:** 2026-10-03 21:47:32
+**Generated:** 2026-10-04 04:40:03
 
 ---
 
-## 1. KB composition (n = 258,494)
+## 1. KB composition (n = 256,841)
 
 | Source | Records | Share |
 |--------|---------|-------|
-| pubmedqa | 211,269 | 81.73% |
-| medredqa | 29,801 | 11.53% |
-| medquad | 16,407 | 6.35% |
-| medlineplus | 1,017 | 0.39% |
+| pubmedqa | 211,267 | 82.26% |
+| medredqa | 29,581 | 11.52% |
+| medquad | 14,978 | 5.83% |
+| medlineplus | 1,015 | 0.40% |
 
 PubMedQA holds 81.7% of the KB, so any aggregate statistic is effectively a PubMedQA statistic. Terms and lengths are reported per source.
 
@@ -19,10 +19,10 @@ PubMedQA holds 81.7% of the KB, so any aggregate statistic is effectively a PubM
 
 | Source | With category | Total | Coverage |
 |--------|---------------|-------|----------|
-| medlineplus | 0 | 1,017 | 0.0% |
-| medquad | 16,407 | 16,407 | 100.0% |
-| medredqa | 0 | 29,801 | 0.0% |
-| pubmedqa | 0 | 211,269 | 0.0% |
+| medlineplus | 0 | 1,015 | 0.0% |
+| medquad | 14,978 | 14,978 | 100.0% |
+| medredqa | 0 | 29,581 | 0.0% |
+| pubmedqa | 0 | 211,267 | 0.0% |
 
 Only MedQuAD carries real labels. The classifier is trained on MedQuAD alone.
 
@@ -30,32 +30,32 @@ Only MedQuAD carries real labels. The classifier is trained on MedQuAD alone.
 
 | Source | Question | Context | Answer |
 |--------|----------|---------|--------|
-| medlineplus | 4 | 0 | 192 |
-| medquad | 7 | 0 | 138 |
+| medlineplus | 4 | 0 | 193 |
+| medquad | 7 | 0 | 141 |
 | medredqa | 8 | 153 | 47 |
-| pubmedqa | 15 | 198 | 34 |
+| pubmedqa | 15 | 200 | 34 |
 
 PubMedQA and MedRedQA carry long contexts (153-198 words). MedQuAD and MedlinePlus have no context — the answer is the full unit.
 
-## 4. Classifier training set (n = 12,359)
+## 4. Classifier training set (n = 11,020)
 
 | Label | Count | Share |
 |-------|-------|-------|
-| General | 5,905 | 47.78% |
-| Symptoms | 2,748 | 22.23% |
-| Treatment | 2,442 | 19.76% |
-| Diagnosis | 730 | 5.91% |
-| Prevention | 534 | 4.32% |
+| General | 5,009 | 45.45% |
+| Symptoms | 2,683 | 24.35% |
+| Treatment | 2,213 | 20.08% |
+| Diagnosis | 687 | 6.23% |
+| Prevention | 428 | 3.88% |
 
-Imbalance ratio: 11.06x. Class weights should be applied during training.
+Imbalance ratio: 11.70x. Class weights should be applied during training.
 
 ## 5. Length correlation
 
 | Pair | Correlation |
 |------|-------------|
-| question ↔ answer | -0.077 |
-| context ↔ answer  | 0.154 |
-| question ↔ context| 0.083 |
+| question ↔ answer | -0.076 |
+| context ↔ answer  | 0.152 |
+| question ↔ context| 0.087 |
 
 No strong correlation. Length cannot leak label information.
 
@@ -63,9 +63,9 @@ No strong correlation. Length cannot leak label information.
 
 | Decision | Evidence |
 |----------|----------|
-| Chunk size 700 / overlap 150 | Median context is ~198 words; splitting by sentence boundaries keeps abstracts intact |
+| Chunk size 1000 / overlap 150 | Median context is ~198 words; 1000 characters keeps a full abstract section in one chunk |
 | Train classifier on MedQuAD only | Only source with real labels (12,359 mapped rows) |
-| Class-balance the classifier | 11.1x imbalance between largest and smallest class |
+| Class-balance the classifier | 11.7x imbalance between largest and smallest class |
 | Report terms per source | Global wordcloud would show only PubMedQA vocabulary |
 
 ## 7. Figures

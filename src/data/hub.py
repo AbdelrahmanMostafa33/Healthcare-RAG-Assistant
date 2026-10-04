@@ -35,20 +35,34 @@ HF_DATASET_REPO = "AbdoMatrix/healthcare-rag-data"
 
 # Files to check/download: (relative_path_in_repo, local_path)
 REQUIRED_FILES = [
-    ("raw/pubmedqa_raw.csv",
-     PROJECT_ROOT / "data" / "raw" / "pubmedqa_raw.csv"),
-    ("processed/pubmedqa_cleaned.csv",
-     PROJECT_ROOT / "data" / "processed" / "pubmedqa_cleaned.csv"),
-    ("processed/pubmedqa_labelled.csv",
-     PROJECT_ROOT / "data" / "processed" / "pubmedqa_labelled.csv"),
-    ("embeddings/pubmedqa_index_flatl2.faiss",
+    ("raw/pubmedqa_kb_raw.csv",
+     PROJECT_ROOT / "data" / "raw" / "pubmedqa_kb_raw.csv"),
+    ("raw/pubmedqa_eval_raw.csv",
+     PROJECT_ROOT / "data" / "raw" / "pubmedqa_eval_raw.csv"),
+    ("raw/medquad_raw.csv",
+     PROJECT_ROOT / "data" / "raw" / "medquad_raw.csv"),
+    ("raw/medlineplus_raw.csv",
+     PROJECT_ROOT / "data" / "raw" / "medlineplus_raw.csv"),
+    ("raw/medredqa_raw.csv",
+     PROJECT_ROOT / "data" / "raw" / "medredqa_raw.csv"),
+    ("raw/healthsearchqa_raw.csv",
+     PROJECT_ROOT / "data" / "raw" / "healthsearchqa_raw.csv"),
+    ("processed/kb_combined.csv",
+     PROJECT_ROOT / "data" / "processed" / "kb_combined.csv"),
+    ("processed/kb_enriched.csv",
+     PROJECT_ROOT / "data" / "processed" / "kb_enriched.csv"),
+    ("processed/eval_combined.csv",
+     PROJECT_ROOT / "data" / "processed" / "eval_combined.csv"),
+    ("processed/classifier_train.csv",
+     PROJECT_ROOT / "data" / "processed" / "classifier_train.csv"),
+    ("eval/questions.csv",
+     PROJECT_ROOT / "data" / "eval" / "questions.csv"),
+    ("embeddings/kb_index_flatip.faiss",
      PROJECT_ROOT
-     / "data" / "embeddings" / "faiss_index" / "pubmedqa_index_flatip.faiss"),
-    ("embeddings/chunk_mapping.pkl",
+     / "data" / "embeddings" / "faiss_index" / "kb_index_flatip.faiss"),
+    ("embeddings/kb_chunk_mapping.pkl",
      PROJECT_ROOT
-     / "data" / "embeddings" / "faiss_index" / "chunk_mapping.pkl"),
-    ("processed/eval_holdout.csv",
-     PROJECT_ROOT / "data" / "processed" / "eval_holdout.csv"),
+     / "data" / "embeddings" / "faiss_index" / "kb_chunk_mapping.pkl"),
 ]
 
 MIN_FILE_BYTES = {}

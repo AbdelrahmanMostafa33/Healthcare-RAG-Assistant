@@ -56,14 +56,9 @@ class BM25Retriever:
 
         self.mapping_df = mapping_df
 
-        # Build corpus: question + answer, tokenised with medical-aware tokeniser
-        corpus = [
-            _tokenize(str(q) + " " + str(a))
-            for q, a in zip(
-                mapping_df["question"].fillna(""),
-                mapping_df["answer"].fillna(""),
-            )
-        ]
+        # Build corpus from the chunk text, which already starts with the
+        # record's question, tokenised with the medical-aware tokeniser.
+        corpus = [_tokenize(str(t)) for t in mapping_df["text_chunk"].fillna("")]
         self.bm25 = BM25Okapi(corpus)
         print(f"[OK] BM25 index built over {len(corpus):,} documents")
 
@@ -86,13 +81,19 @@ class BM25Retriever:
             # score=10 → distance≈0.09 (strong match)
             # score=20 → distance≈0.05 (near-perfect match)
             dist = 1.0 / (1.0 + bm25_raw)
+            text = row["text_chunk"]
+            question = text.split("\n", 1)[0] if text.startswith("Question:") else ""
+            body = text.split("\n", 1)[1] if text.startswith("Question:") and "\n" in text else text
             results.append({
-                "chunk_id":   int(idx),
-                "question":   row["question"],
-                "context":    row["context"],
-                "answer":     row["answer"],
+                "chunk_id":   int(row["chunk_id"]) if "chunk_id" in self.mapping_df.columns else int(idx),
+                "doc_id":     int(row["doc_id"]),
+                "source":     str(row["source"]),
+                "source_id":  str(row["source_id"]),
                 "category":   row.get("category", "Unknown"),
-                "text_chunk": row["text_chunk"],
+                "text_chunk": text,
+                "question":   question,
+                "context":    text,
+                "answer":     body,
                 "distance":   dist,
                 "bm25_score": bm25_raw,
             })

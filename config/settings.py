@@ -6,13 +6,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class Settings(BaseSettings):
-    FAISS_INDEX_PATH: str = "data/embeddings/faiss_index/pubmedqa_index_flatip.faiss"
-    CHUNKS_PKL_PATH: str = "data/embeddings/faiss_index/chunk_mapping.pkl"
+    FAISS_INDEX_PATH: str = "data/embeddings/faiss_index/kb_index_flatip.faiss"
+    CHUNKS_PKL_PATH: str = "data/embeddings/faiss_index/kb_chunk_mapping.pkl"
 
     CLASSIFIER_PATH: str = "models/classifier/biobert_classifier"
     HF_CLASSIFIER_REPO: str = "AbdoMatrix/biobert-medical-classifier"
 
-    EMBEDDING_MODEL: str = "pritamdeka/S-PubMedBert-MS-MARCO"
+    EMBEDDING_MODEL: str = "BAAI/bge-m3"
 
     LLM_MODEL: str = "openai/gpt-oss-120b"
     LLM_BASE_URL: str = "https://api.groq.com/openai/v1"
@@ -33,7 +33,6 @@ class Settings(BaseSettings):
     API_KEY: str = ""
     GROQ_API_KEY: str = ""
     HF_TOKEN: str = ""
-
 
     model_config = SettingsConfigDict(
         env_file=REPO_ROOT / ".env",

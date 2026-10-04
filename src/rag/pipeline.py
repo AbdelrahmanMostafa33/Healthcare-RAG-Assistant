@@ -63,8 +63,8 @@ INSUFFICIENT_CONTEXT_MESSAGE = (
     "Could you try asking it in a different way?"
 )
 
-# Biomedical domain embedding model (PubMedBERT fine-tuned on MS-MARCO)
-DEFAULT_EMBEDDING_MODEL = "pritamdeka/S-PubMedBert-MS-MARCO"
+# Multilingual embedding model used to build the knowledge base
+DEFAULT_EMBEDDING_MODEL = "BAAI/bge-m3"
 
 # Local fallback LLM when GROQ_API_KEY is not set
 DEFAULT_FALLBACK_MODEL = "google/flan-t5-base"
@@ -104,11 +104,18 @@ CATEGORY_EXPANSION = {
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 FAISS_INDEX_PATH = (
     PROJECT_ROOT / "data" / "embeddings" / "faiss_index" /
-    "pubmedqa_index_flatip.faiss"
+    "kb_index_flatip.faiss"
 )
 CHUNK_MAPPING_PATH = (
-    PROJECT_ROOT / "data" / "embeddings" / "faiss_index" / "chunk_mapping.pkl"
+    PROJECT_ROOT / "data" / "embeddings" / "faiss_index" / "kb_chunk_mapping.pkl"
 )
+
+# Load .env into the environment so the pipeline works outside the notebooks too.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(PROJECT_ROOT / ".env")
+except ImportError:  # pragma: no cover - dotenv ships with the requirements
+    pass
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -214,6 +221,7 @@ class RAGPipeline:
         chunk_mapping_path: str = None,
         extractive: bool = False,
         category_expansion: dict = None,
+        use_bm25: bool = False,
     ):
         import faiss
         import numpy as np
@@ -244,14 +252,21 @@ class RAGPipeline:
         logger.info("Loading chunk mapping: %s", map_path)
         with open(map_path, "rb") as f:
             self.mapping_df = pickle.load(f)
+        # use the chunk_id from the mapping when the file has one
+        self._mapping_has_chunk_id = "chunk_id" in self.mapping_df.columns
 
         # ── BM25 (optional hybrid retrieval) ─────────────────────────
-        try:
-            from src.rag.bm25_retriever import BM25Retriever
-            self.bm25 = BM25Retriever(self.mapping_df)
-            self._use_bm25 = True
-        except ImportError:
-            self._use_bm25 = False
+        # Off by default. BM25Okapi keeps a token dictionary for every document,
+        # which no longer fits in memory now that the index holds 727k chunks.
+        # It needs a scalable implementation before it can be switched back on.
+        self._use_bm25 = False
+        if use_bm25:
+            try:
+                from src.rag.bm25_retriever import BM25Retriever
+                self.bm25 = BM25Retriever(self.mapping_df)
+                self._use_bm25 = True
+            except ImportError:
+                logger.warning("[WARN] rank-bm25 not installed - skipping BM25")
 
         try:
             from config.settings import settings
@@ -335,14 +350,25 @@ class RAGPipeline:
     # ── Retrieval ─────────────────────────────────────────────────────────────
 
     def _row_to_dict(self, idx: int, dist: float) -> dict:
+        """Turn a mapping row into the dict the rest of the pipeline uses.
+
+        The mapping only has chunk-level columns, so question, context and answer
+        are worked out from the chunk text.
+        """
         row = self.mapping_df.iloc[idx]
+        text = row["text_chunk"]
+        question = text.split("\n", 1)[0] if text.startswith("Question:") else ""
+        body = text.split("\n", 1)[1] if text.startswith("Question:") and "\n" in text else text
         return {
-            "chunk_id": idx,
-            "question": row["question"],
-            "context": row["context"],
-            "answer": row["answer"],
+            "chunk_id": int(row["chunk_id"]) if self._mapping_has_chunk_id else idx,
+            "doc_id": int(row["doc_id"]),
+            "source": str(row["source"]),
+            "source_id": str(row["source_id"]),
             "category": row.get("category", "Unknown"),
-            "text_chunk": row["text_chunk"],
+            "text_chunk": text,
+            "question": question,
+            "context": text,
+            "answer": body,
             "distance": dist,
         }
 

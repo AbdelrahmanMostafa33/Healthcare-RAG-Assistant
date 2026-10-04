@@ -252,8 +252,6 @@ class RAGPipeline:
         logger.info("Loading chunk mapping: %s", map_path)
         with open(map_path, "rb") as f:
             self.mapping_df = pickle.load(f)
-        # use the chunk_id from the mapping when the file has one
-        self._mapping_has_chunk_id = "chunk_id" in self.mapping_df.columns
 
         # ── BM25 (optional hybrid retrieval) ─────────────────────────
         # Off by default. BM25Okapi keeps a token dictionary for every document,
@@ -357,10 +355,15 @@ class RAGPipeline:
         """
         row = self.mapping_df.iloc[idx]
         text = row["text_chunk"]
-        question = text.split("\n", 1)[0] if text.startswith("Question:") else ""
-        body = text.split("\n", 1)[1] if text.startswith("Question:") and "\n" in text else text
+
+        # The row number is the chunk_id, and the question is the first line.
+        if text.startswith("Question:") and "\n" in text:
+            question, body = text.split("\n", 1)
+        else:
+            question, body = "", text
+
         return {
-            "chunk_id": int(row["chunk_id"]) if self._mapping_has_chunk_id else idx,
+            "chunk_id": idx,
             "doc_id": int(row["doc_id"]),
             "source": str(row["source"]),
             "source_id": str(row["source_id"]),

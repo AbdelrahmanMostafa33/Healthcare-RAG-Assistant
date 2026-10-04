@@ -85,7 +85,7 @@ class BM25Retriever:
             question = text.split("\n", 1)[0] if text.startswith("Question:") else ""
             body = text.split("\n", 1)[1] if text.startswith("Question:") and "\n" in text else text
             results.append({
-                "chunk_id":   int(row["chunk_id"]) if "chunk_id" in self.mapping_df.columns else int(idx),
+                "chunk_id":   int(idx),
                 "doc_id":     int(row["doc_id"]),
                 "source":     str(row["source"]),
                 "source_id":  str(row["source_id"]),

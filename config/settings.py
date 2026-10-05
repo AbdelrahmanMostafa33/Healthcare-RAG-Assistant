@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     HF_TOKEN: str = ""
 
+    DASHBOARD_URL: str = "http://localhost:8000/dashboard"
+    disclaimer: str = (
+        "This information is for education only and is not medical advice. "
+        "Please talk to a doctor about your own health."
+    )
+
     model_config = SettingsConfigDict(
         env_file=REPO_ROOT / ".env",
         env_file_encoding="utf-8",

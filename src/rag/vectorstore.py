@@ -12,8 +12,8 @@ import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_INDEX_PATH = PROJECT_ROOT / "data" / "embeddings" / "faiss_index" / "pubmedqa_index_flatip.faiss"
-DEFAULT_MAPPING_PATH = PROJECT_ROOT / "data" / "embeddings" / "faiss_index" / "chunk_mapping.pkl"
+DEFAULT_INDEX_PATH = PROJECT_ROOT / "data" / "embeddings" / "faiss_index" / "kb_index_flatip.faiss"
+DEFAULT_MAPPING_PATH = PROJECT_ROOT / "data" / "embeddings" / "faiss_index" / "kb_chunk_mapping.pkl"
 
 
 def build_index(embeddings: np.ndarray) -> faiss.IndexFlatIP:

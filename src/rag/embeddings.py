@@ -1,13 +1,11 @@
 """
 Embedding utilities for the RAG pipeline.
-Domain-specific biomedical embedding model (upgraded from all-MiniLM-L6-v2); now:
-pritamdeka/S-PubMedBert-MS-MARCO (biomedical domain).
+Uses BAAI/bge-m3, the same model the knowledge base was encoded with.
 """
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-# Medical-domain embedding model — trained on PubMed + MS-MARCO retrieval.
-DEFAULT_MODEL = "pritamdeka/S-PubMedBert-MS-MARCO"
+DEFAULT_MODEL = "BAAI/bge-m3"
 
 
 class EmbeddingModel:

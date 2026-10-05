@@ -52,10 +52,11 @@ class TestBM25RetrieverInit:
         mock_bm25_class = MagicMock(return_value=mock_bm25)
 
         mock_df = pd.DataFrame({
-            "question": ["q1", "q2"],
-            "answer": ["a1", "a2"],
-            "context": ["c1", "c2"],
-            "text_chunk": ["t1", "t2"],
+            "chunk_id": [0, 1],
+            "doc_id": [1000, 1001],
+            "source": ["pubmedqa", "pubmedqa"],
+            "source_id": ["src1", "src2"],
+            "text_chunk": ["Question: q1\na1", "Question: q2\na2"],
         })
 
         retriever = _make_bm25_retriever(mock_bm25_class, mock_df)
@@ -69,8 +70,11 @@ class TestBM25RetrieverInit:
         mock_bm25_class = MagicMock(return_value=mock_bm25)
 
         mock_df = pd.DataFrame({
-            "question": ["q1"], "answer": ["a1"],
-            "context": ["c1"], "text_chunk": ["t1"],
+            "chunk_id": [0],
+            "doc_id": [1000],
+            "source": ["pubmedqa"],
+            "source_id": ["src1"],
+            "text_chunk": ["Question: q1\na1"],
             "category": ["Symptoms"],
         })
 
@@ -89,10 +93,11 @@ class TestBM25RetrieverRetrieve:
         mock_bm25_class = MagicMock(return_value=mock_bm25)
 
         mock_df = pd.DataFrame({
-            "question": ["q1", "q2", "q3", "q4"],
-            "answer": ["a1", "a2", "a3", "a4"],
-            "context": ["c1", "c2", "c3", "c4"],
-            "text_chunk": ["t1", "t2", "t3", "t4"],
+            "chunk_id": [0, 1, 2, 3],
+            "doc_id": [1000, 1001, 1002, 1003],
+            "source": ["pubmedqa"] * 4,
+            "source_id": [f"src{i}" for i in range(4)],
+            "text_chunk": [f"Question: q{i}\na{i}" for i in range(1, 5)],
         })
 
         return _make_bm25_retriever(mock_bm25_class, mock_df)
@@ -112,6 +117,9 @@ class TestBM25RetrieverRetrieve:
         results = retriever.retrieve("test query", top_k=1)
         r = results[0]
         assert "chunk_id" in r
+        assert "doc_id" in r
+        assert "source" in r
+        assert "source_id" in r
         assert "question" in r
         assert "context" in r
         assert "answer" in r
@@ -119,6 +127,20 @@ class TestBM25RetrieverRetrieve:
         assert "text_chunk" in r
         assert "distance" in r
         assert "bm25_score" in r
+
+    def test_retrieve_derives_fields_from_text_chunk(self, retriever):
+        """question/context/answer are derived from text_chunk, and
+        doc_id/source/source_id come straight from the mapping row."""
+        results = retriever.retrieve("test query", top_k=1)
+        r = results[0]
+        assert r["chunk_id"] == 0
+        assert r["doc_id"] == 1000
+        assert r["source"] == "pubmedqa"
+        assert r["source_id"] == "src0"
+        assert r["question"] == "Question: q1"
+        assert r["context"] == "Question: q1\na1"
+        assert r["answer"] == "a1"
+        assert r["text_chunk"] == "Question: q1\na1"
 
     def test_retrieve_sorted_by_score(self, retriever):
         """Results are sorted by BM25 score descending."""
@@ -139,8 +161,11 @@ class TestBM25RetrieverRetrieve:
         mock_bm25_class = MagicMock(return_value=mock_bm25)
 
         mock_df = pd.DataFrame({
-            "question": ["q1"], "answer": ["a1"],
-            "context": ["c1"], "text_chunk": ["t1"],
+            "chunk_id": [0],
+            "doc_id": [1000],
+            "source": ["pubmedqa"],
+            "source_id": ["src1"],
+            "text_chunk": ["Question: q1\na1"],
         })
 
         retriever = _make_bm25_retriever(mock_bm25_class, mock_df)
@@ -173,8 +198,11 @@ class TestBM25RetrieverNotInstalled:
             _il.reload(bm25_mod)
 
             mock_df = pd.DataFrame({
-                "question": ["q1"], "answer": ["a1"],
-                "context": ["c1"], "text_chunk": ["t1"],
+                "chunk_id": [0],
+                "doc_id": [1000],
+                "source": ["pubmedqa"],
+                "source_id": ["src1"],
+                "text_chunk": ["Question: q1\na1"],
             })
             with pytest.raises(ImportError, match="rank-bm25"):
                 bm25_mod.BM25Retriever(mock_df)
@@ -223,9 +251,9 @@ class TestEmbeddingModelInit:
     """Tests for EmbeddingModel.__init__()."""
 
     def test_default_model_constant(self):
-        """DEFAULT_MODEL is the biomedical PubMedBERT model."""
+        """DEFAULT_MODEL is the multilingual embedding model used for the KB."""
         emb_mod = _make_embeddings_module()
-        assert emb_mod.DEFAULT_MODEL == "pritamdeka/S-PubMedBert-MS-MARCO"
+        assert emb_mod.DEFAULT_MODEL == "BAAI/bge-m3"
 
     def test_init_creates_model(self):
         """EmbeddingModel loads a SentenceTransformer."""
@@ -410,7 +438,7 @@ class TestVectorstoreIO:
             load_index()
             mock_read.assert_called_once()
             args, _ = mock_read.call_args
-            assert "pubmedqa_index_flatip.faiss" in str(args[0])
+            assert "kb_index_flatip.faiss" in str(args[0])
 
 
 class TestVectorstoreMapping:
@@ -423,9 +451,10 @@ class TestVectorstoreMapping:
 
         df = pd.DataFrame({
             "chunk_id": [0, 1],
-            "question": ["q1", "q2"],
-            "context": ["c1", "c2"],
-            "text_chunk": ["t1", "t2"],
+            "doc_id": [1000, 1001],
+            "source": ["pubmedqa", "pubmedqa"],
+            "source_id": ["src1", "src2"],
+            "text_chunk": ["Question: q1\na1", "Question: q2\na2"],
         })
         mapping_path = tmp_path / "chunk_mapping.pkl"
         with open(mapping_path, "wb") as f:
@@ -434,7 +463,7 @@ class TestVectorstoreMapping:
         loaded = load_mapping(str(mapping_path))
         assert isinstance(loaded, pd.DataFrame)
         assert len(loaded) == 2
-        assert list(loaded["question"]) == ["q1", "q2"]
+        assert list(loaded["text_chunk"]) == ["Question: q1\na1", "Question: q2\na2"]
 
     def test_load_mapping_none_path_defaults(self):
         """load_mapping with path=None uses DEFAULT_MAPPING_PATH."""
@@ -454,7 +483,7 @@ class TestVectorstoreDefaultPaths:
     def test_default_index_path_ends_correctly(self):
         """DEFAULT_INDEX_PATH ends with the expected filename."""
         from src.rag.vectorstore import DEFAULT_INDEX_PATH
-        assert str(DEFAULT_INDEX_PATH).endswith("pubmedqa_index_flatip.faiss")
+        assert str(DEFAULT_INDEX_PATH).endswith("kb_index_flatip.faiss")
 
     def test_default_mapping_path_ends_correctly(self):
         """DEFAULT_MAPPING_PATH ends with the expected filename."""
@@ -517,10 +546,10 @@ class TestRAGPipelineCategoryExpansion:
 
         mock_df = pd.DataFrame({
             "chunk_id": list(range(100)),
-            "question": [f"q{i}" for i in range(100)],
-            "answer": [f"a{i}" for i in range(100)],
-            "context": [f"c{i}" for i in range(100)],
-            "text_chunk": [f"t{i}" for i in range(100)],
+            "doc_id": [1000 + i for i in range(100)],
+            "source": ["pubmedqa"] * 100,
+            "source_id": [f"src{i}" for i in range(100)],
+            "text_chunk": [f"Question: q{i}\na{i}" for i in range(100)],
             "category": ["General"] * 100,
         })
 
@@ -623,12 +652,13 @@ class _HybridPipelineBuilder:
             mock_rank_bm25.BM25Okapi = MagicMock()
         else:
             mock_bm25 = None
-            # When BM25 is unavailable, we do NOT mock src.rag.bm25_retriever
-            # in sys.modules, so the real import runs.
-            # We also mock rank_bm25 to lack BM25Okapi, ensuring
-            # HAS_BM25 = False inside bm25_retriever.py, which causes
-            # BM25Retriever.__init__ to raise ImportError -- exercising
-            # the pipeline's except ImportError fallback path.
+            # BM25 is opt-in: without use_bm25=True the pipeline never touches
+            # src.rag.bm25_retriever, so we do NOT mock it in sys.modules
+            # (a None entry guarantees an ImportError if it ever is imported).
+            # rank_bm25 is mocked without BM25Okapi so HAS_BM25 is False inside
+            # bm25_retriever.py, which makes BM25Retriever.__init__ raise
+            # ImportError -- exercising the pipeline's except ImportError path
+            # if a future default flips BM25 back on.
             mock_bm25_mod = None  # Will NOT be placed in sys.modules
             mock_rank_bm25 = MagicMock(spec=[])  # No BM25Okapi attribute
 
@@ -640,10 +670,10 @@ class _HybridPipelineBuilder:
         if mock_df is None:
             mock_df = pd.DataFrame({
                 "chunk_id": list(range(100)),
-                "question": [f"q{i}" for i in range(100)],
-                "answer": [f"a{i}" for i in range(100)],
-                "context": [f"c{i}" for i in range(100)],
-                "text_chunk": [f"t{i}" for i in range(100)],
+                "doc_id": [1000 + i for i in range(100)],
+                "source": ["pubmedqa"] * 100,
+                "source_id": [f"src{i}" for i in range(100)],
+                "text_chunk": [f"Question: q{i}\na{i}" for i in range(100)],
                 "category": ["General"] * 100,
             })
 
@@ -672,7 +702,9 @@ class _HybridPipelineBuilder:
                 patch("pickle.load", return_value=mock_df),
                 patch.dict(os.environ, {"GROQ_API_KEY": "test-key"}),
             ):
-                self._pipeline = rp.RAGPipeline(top_k=top_k, use_reranker=use_reranker)
+                self._pipeline = rp.RAGPipeline(
+                    top_k=top_k, use_reranker=use_reranker, use_bm25=use_bm25
+                )
 
         # Wire the BM25 threshold if provided (to avoid depending on settings.py)
         if bm25_threshold is not None:
@@ -1048,10 +1080,10 @@ class TestHybridRetrievalByCategory:
         # DataFrame with diverse categories
         mock_df = pd.DataFrame({
             "chunk_id": list(range(100)),
-            "question": [f"q{i}" for i in range(100)],
-            "answer": [f"a{i}" for i in range(100)],
-            "context": [f"c{i}" for i in range(100)],
-            "text_chunk": [f"t{i}" for i in range(100)],
+            "doc_id": [1000 + i for i in range(100)],
+            "source": ["pubmedqa"] * 100,
+            "source_id": [f"src{i}" for i in range(100)],
+            "text_chunk": [f"Question: q{i}\na{i}" for i in range(100)],
             "category": (
                 ["Symptoms"] * 20 + ["General"] * 20
                 + ["Treatment"] * 20 + ["Diagnosis"] * 20
@@ -1196,7 +1228,8 @@ class TestHybridRetrievalEdgeCases:
         """Empty mapping DataFrame is handled gracefully."""
         builder = _HybridPipelineBuilder(
             mock_df=pd.DataFrame(columns=[
-                "chunk_id", "question", "answer", "context", "text_chunk", "category"
+                "chunk_id", "doc_id", "source", "source_id",
+                "text_chunk", "category",
             ]),
             use_bm25=True, top_k=5, bm25_threshold=12.0
         )

@@ -79,10 +79,10 @@ def mock_clf_mod():
 def mock_df():
     return pd.DataFrame({
         "chunk_id": list(range(100)),
-        "question": [f"q{i}" for i in range(100)],
-        "answer": [f"a{i}" for i in range(100)],
-        "context": [f"c{i}" for i in range(100)],
-        "text_chunk": [f"t{i}" for i in range(100)],
+        "doc_id": [1000 + i for i in range(100)],
+        "source": ["pubmedqa"] * 100,
+        "source_id": [f"src{i}" for i in range(100)],
+        "text_chunk": [f"Question: q{i}\na{i}" for i in range(100)],
         "category": (["Symptoms"] * 20 + ["General"] * 20
                      + ["Treatment"] * 20 + ["Diagnosis"] * 20
                      + ["Medication"] * 20),

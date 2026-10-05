@@ -260,13 +260,20 @@ def mock_clf_mod():
 
 @pytest.fixture
 def mock_df():
-    """Build a standard test DataFrame."""
+    """Build a standard slim chunk-mapping DataFrame.
+
+    The current mapping only stores chunk-level columns
+    (``chunk_id, doc_id, source, source_id, category, text_chunk``).
+    ``question``, ``context`` and ``answer`` are derived from ``text_chunk``
+    by ``RAGPipeline._row_to_dict()``, so the chunk text is shaped as
+    ``"Question: <q>\\n<body>"`` to exercise that derivation.
+    """
     return pd.DataFrame({
         "chunk_id": list(range(100)),
-        "question": [f"q{i}" for i in range(100)],
-        "answer": [f"a{i}" for i in range(100)],
-        "context": [f"c{i}" for i in range(100)],
-        "text_chunk": [f"t{i}" for i in range(100)],
+        "doc_id": [1000 + i for i in range(100)],
+        "source": ["pubmedqa"] * 100,
+        "source_id": [f"src{i}" for i in range(100)],
+        "text_chunk": [f"Question: q{i}\na{i}" for i in range(100)],
         "category": (["Symptoms"] * 20 + ["General"] * 20
                      + ["Treatment"] * 20 + ["Diagnosis"] * 20
                      + ["Medication"] * 20),
@@ -292,7 +299,7 @@ class _PipelineBuilder:
     def __init__(self, mock_faiss, mock_index, mock_st_mod, mock_encoder,
                  mock_openai_mod, mock_bm25_mod, mock_bm25, mock_clf_mod,
                  mock_df, mock_rank_bm25, use_reranker=False, top_k=15,
-                 groq_key="test-key", use_bm25=True):
+                 groq_key="test-key", use_bm25=False):
         self._mock_index = mock_index
         self._mock_bm25 = mock_bm25
         self._mock_encoder = mock_encoder
@@ -320,7 +327,7 @@ class _PipelineBuilder:
                 else patch.dict(os.environ, {}, clear=True),
             ):
                 self._pipeline = rp.RAGPipeline(
-                    top_k=top_k, use_reranker=use_reranker
+                    top_k=top_k, use_reranker=use_reranker, use_bm25=use_bm25
                 )
 
         # Wire index.search to return deterministic results
@@ -362,7 +369,7 @@ class _PipelineBuilder:
 def builder(mock_faiss, mock_index, mock_st_mod, mock_encoder,
             mock_openai_mod, mock_bm25_mod, mock_bm25, mock_clf_mod,
             mock_df, mock_rank_bm25):
-    """Build a standard pipeline builder with Groq client."""
+    """Build a standard pipeline builder with Groq client (BM25 off, the default)."""
     return _PipelineBuilder(
         mock_faiss=mock_faiss,
         mock_index=mock_index,
@@ -377,6 +384,36 @@ def builder(mock_faiss, mock_index, mock_st_mod, mock_encoder,
         use_reranker=False,
         top_k=15,
         groq_key="test-key",
+        use_bm25=False,
+    )
+
+
+@pytest.fixture
+def bm25_builder(mock_faiss, mock_index, mock_st_mod, mock_encoder,
+                 mock_openai_mod, mock_bm25_mod, mock_bm25, mock_clf_mod,
+                 mock_df, mock_rank_bm25):
+    """Build a builder whose pipeline is constructed with use_bm25=True.
+
+    Hybrid retrieval is opt-in now: ``BM25Okapi`` cannot hold the full
+    727k-chunk mapping in memory, so ``_use_bm25`` is only True when the
+    caller asks for it. These fixtures/tests keep the hybrid merge path
+    covered for when BM25 comes back.
+    """
+    return _PipelineBuilder(
+        mock_faiss=mock_faiss,
+        mock_index=mock_index,
+        mock_st_mod=mock_st_mod,
+        mock_encoder=mock_encoder,
+        mock_openai_mod=mock_openai_mod,
+        mock_bm25_mod=mock_bm25_mod,
+        mock_bm25=mock_bm25,
+        mock_clf_mod=mock_clf_mod,
+        mock_df=mock_df,
+        mock_rank_bm25=mock_rank_bm25,
+        use_reranker=False,
+        top_k=15,
+        groq_key="test-key",
+        use_bm25=True,
     )
 
 
@@ -437,12 +474,36 @@ class TestRowToDict:
         """_row_to_dict maps a row index and distance to a dict with expected keys."""
         result = builder.pipeline._row_to_dict(idx=5, dist=0.75)
         assert result["chunk_id"] == 5
-        assert result["question"] == "q5"
+        # doc_id/source/source_id are read straight from the slim mapping row
+        assert result["doc_id"] == 1005
+        assert result["source"] == "pubmedqa"
+        assert result["source_id"] == "src5"
+        # question/context/answer are derived from text_chunk
+        assert result["question"] == "Question: q5"
         assert result["answer"] == "a5"
-        assert result["context"] == "c5"
-        assert result["text_chunk"] == "t5"
+        assert result["context"] == "Question: q5\na5"
+        assert result["text_chunk"] == "Question: q5\na5"
         assert result["category"] in ("Symptoms", "General", "Treatment", "Diagnosis", "Medication")
         assert result["distance"] == 0.75
+
+    def test_derived_fields_without_question_prefix(self, builder):
+        """A chunk without a leading 'Question:' line yields no question and
+        an answer/context equal to the whole chunk text."""
+        pipeline = builder.pipeline
+        pipeline.mapping_df = pd.DataFrame({
+            "chunk_id": [0],
+            "doc_id": [7],
+            "source": ["pubmedqa"],
+            "source_id": ["src7"],
+            "text_chunk": ["Plain finding body with no question line."],
+            "category": ["General"],
+        })
+
+        result = pipeline._row_to_dict(idx=0, dist=0.25)
+        assert result["question"] == ""
+        assert result["answer"] == "Plain finding body with no question line."
+        assert result["context"] == "Plain finding body with no question line."
+        assert result["text_chunk"] == "Plain finding body with no question line."
 
     def test_category_from_dataframe(self, builder):
         """category comes from the DataFrame's category column."""
@@ -1193,7 +1254,11 @@ class TestInitBm25ImportError:
         mock_openai_mod, mock_clf_mod,
         mock_df, mock_rank_bm25,
     ):
-        """When BM25Retriever is not importable, _use_bm25 is False."""
+        """When BM25Retriever is not importable, _use_bm25 is False.
+
+        BM25 is opt-in now, so use_bm25=True must be passed explicitly for the
+        import to be attempted at all.
+        """
         import types
 
         # Module without BM25Retriever attribute -> ImportError on from...import
@@ -1216,7 +1281,9 @@ class TestInitBm25ImportError:
                 patch("pickle.load", return_value=mock_df),
                 patch.dict(os.environ, {"GROQ_API_KEY": "test-key"}),
             ):
-                pipeline = rp.RAGPipeline(top_k=15, use_reranker=False)
+                pipeline = rp.RAGPipeline(
+                    top_k=15, use_reranker=False, use_bm25=True
+                )
 
         assert pipeline._use_bm25 is False
         assert not hasattr(pipeline, "bm25")
@@ -1379,13 +1446,13 @@ class TestRetrieveByCategory:
         for r in results:
             assert r.get("category_score", 0) == 0
 
-    def test_retrieve_by_category_bm25_enabled(self, builder):
+    def test_retrieve_by_category_bm25_enabled(self, bm25_builder):
         """BM25 hybrid merge works in retrieve_by_category."""
-        pipeline = builder.pipeline
+        pipeline = bm25_builder.pipeline
         assert pipeline._use_bm25 is True
 
         # Make BM25 return a result
-        builder.mock_bm25.retrieve.return_value = [{
+        bm25_builder.mock_bm25.retrieve.return_value = [{
             "chunk_id": 5, "bm25_score": 15.0, "question": "q5",
             "answer": "a5", "context": "c5", "category": "Symptoms",
             "text_chunk": "t5",
@@ -1396,11 +1463,11 @@ class TestRetrieveByCategory:
         )
         assert len(results) > 0
 
-    def test_retrieve_by_category_bm25_threshold_filter(self, builder):
+    def test_retrieve_by_category_bm25_threshold_filter(self, bm25_builder):
         """BM25 results below threshold are filtered out in retrieve_by_category."""
-        pipeline = builder.pipeline
+        pipeline = bm25_builder.pipeline
         # BM25 result below threshold
-        builder.mock_bm25.retrieve.return_value = [{
+        bm25_builder.mock_bm25.retrieve.return_value = [{
             "chunk_id": 99, "bm25_score": 5.0, "question": "q99",
             "answer": "a99", "context": "c99", "category": "Symptoms",
             "text_chunk": "t99",
@@ -1410,6 +1477,8 @@ class TestRetrieveByCategory:
         )
         # Low-score BM25 result should be filtered out, but FAISS results remain
         assert len(results) > 0
+        ids = [r["chunk_id"] for r in results]
+        assert 99 not in ids
 
     def test_empty_index_returns_empty(self, builder):
         """retrieve_by_category with k=0 returns empty list."""
@@ -1538,11 +1607,12 @@ class TestRetrieve:
         results = builder.pipeline.retrieve("test query", top_k=999)
         assert len(results) <= 3
 
-    def test_retrieve_bm25_merge(self, builder):
+    def test_retrieve_bm25_merge(self, bm25_builder):
         """retrieve merges BM25 results when _use_bm25 is True."""
-        pipeline = builder.pipeline
-        # The builder already has BM25 enabled
-        builder.mock_bm25.retrieve.return_value = [{
+        pipeline = bm25_builder.pipeline
+        # bm25_builder constructs the pipeline with use_bm25=True
+        assert pipeline._use_bm25 is True
+        bm25_builder.mock_bm25.retrieve.return_value = [{
             "chunk_id": 99, "bm25_score": 15.0, "question": "q99",
             "answer": "a99", "context": "c99", "category": "General",
             "text_chunk": "t99",
@@ -1551,10 +1621,10 @@ class TestRetrieve:
         results = pipeline.retrieve("test query", top_k=50)
         assert len(results) > 0
 
-    def test_retrieve_bm25_threshold_filter(self, builder):
+    def test_retrieve_bm25_threshold_filter(self, bm25_builder):
         """retrieve filters BM25 results below threshold."""
-        pipeline = builder.pipeline
-        builder.mock_bm25.retrieve.return_value = [{
+        pipeline = bm25_builder.pipeline
+        bm25_builder.mock_bm25.retrieve.return_value = [{
             "chunk_id": 99, "bm25_score": 2.0, "question": "q99",
             "answer": "a99", "context": "c99", "category": "General",
             "text_chunk": "t99",

@@ -1,13 +1,16 @@
 """The one pipeline that the notebooks, the evaluation and the API all use.
 
-    question -> retrieve (FAISS top 20 -> rerank -> top 5)
+    question -> emergency check -> retrieve (FAISS top 20 -> rerank -> top 5)
              -> best rerank score below the threshold?  yes -> abstain, no LLM call
                                                          no  -> grounded prompt -> one LLM call
              -> answer + the sources that were in the prompt + disclaimer
+
+An emergency query short-circuits before retrieval and returns a fixed response.
 """
 import time
 
 from src import config
+from src.emergency import detect_emergency, emergency_response
 from src.generator import generate, make_client
 from src.retriever import load_retriever
 
@@ -37,6 +40,22 @@ class RAGPipeline:
             raise ValueError("question must not be empty")
 
         start = time.perf_counter()
+
+        # Emergency detection runs before retrieval so an acute emergency never
+        # gets a general information answer and never reaches the LLM.
+        emergency_kind = detect_emergency(question) if config.EMERGENCY_ENABLED else None
+        if emergency_kind:
+            return {
+                "answer": emergency_response(emergency_kind),
+                "abstained": False,
+                "emergency": True,
+                "sources": [],
+                "passages": [],
+                "top_score": None,
+                "latency_ms": round((time.perf_counter() - start) * 1000, 1),
+                "disclaimer": DISCLAIMER,
+            }
+
         passages = self.retriever.retrieve(question)
         top_score = passages[0]["rerank_score"] if passages else None
 
@@ -49,6 +68,7 @@ class RAGPipeline:
         return {
             "answer": answer,
             "abstained": abstained,
+            "emergency": False,
             # the passages that were in the prompt; n matches the [n] citations in the answer
             "sources": [{"n": n, "source": p["source"], "title": p["title"], "url": p["url"]}
                         for n, p in enumerate(passages, start=1)],

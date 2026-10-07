@@ -31,6 +31,9 @@ MAX_TOKENS = 2048
 # Placeholder until notebook 04 calibrates a real value on the dev questions.
 DEFAULT_THRESHOLD = 0.0
 
+# Emergency detection runs before retrieval. Turn off only for testing.
+EMERGENCY_ENABLED = True
+
 
 def load_threshold():
     """Returns (threshold, calibrated)."""

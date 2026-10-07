@@ -29,6 +29,7 @@ class Source(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     abstained: bool   # True when the sources did not contain enough relevant evidence
+    emergency: bool   # True when the query was handled by the emergency path (no retrieval, no LLM)
     sources: list[Source]
     disclaimer: str
 

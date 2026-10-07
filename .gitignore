@@ -1,109 +1,19 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-# Healthcare RAG-Powered Medical Q&A Assistant — .gitignore (PRODUCTION READY)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ─── Python ───────────────────────────────────────────────────────────────────
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg
-*.egg-info/
-dist/
-build/
-healthcare_rag.egg-info/
-
-# ─── Virtual Environments ─────────────────────────────────────────────────────
-.venv/
-venv/
-env/
-ENV/
-
-# ─── Environment Variables / Secrets ─────────────────────────────────────────
+# secrets
 .env
-.env.*
-!.env.example
-creds_temp.json
 
-# ─── Model Weights (ALL classifiers) ─────────────────────────────────────────
-models/classifier/**/
-!models/classifier/**/config.json
-!models/classifier/**/tokenizer_config.json
-!models/classifier/**/special_tokens_map.json
-!models/classifier/**/README.md
-
-# ─── Checkpoints ──────────────────────────────────────────────────────────────
-models/**/checkpoints/
-
-# ─── Data Files (reproducible / externalized) ─────────────────────────────────
-data/raw/*.csv
-data/processed/*.csv
-
-# ─── FAISS / Embeddings (rebuildable artifacts) ───────────────────────────────
-data/embeddings/faiss_index/
-*.faiss
-*.pkl
-
-# ─── Jupyter Notebook ─────────────────────────────────────────────────────────
-.ipynb_checkpoints/
-*.ipynb_checkpoints
-
-# ─── IDE / Editor ─────────────────────────────────────────────────────────────
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-*.sublime-project
-*.sublime-workspace
-
-# ─── OS Files ────────────────────────────────────────────────────────────────
-.DS_Store
-.DS_Store?
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-nul
-data;C/
-
-# ─── Logs & Temp Files ────────────────────────────────────────────────────────
-*.log
-LogFiles/
-webapp_logs/
-webapp_logs_*/
-*.tmp
-*.bak
-*.orig
-tmp/
-temp/
-
-# ─── Build Artifacts (archives, exports) ──────────────────────────────────────
-*.zip
-Healthcare RAG Medical Q&A Assistant.html
-
-# ─── MLflow (local tracking) ──────────────────────────────────────────────────
-mlruns/
-mlartifacts/
-
-# ─── Docker ───────────────────────────────────────────────────────────────────
-docker/.env
-
-# ─── Node.js ──────────────────────────────────────────────────────────────────
-node_modules/
-package-lock.json
-server_log.txt
-
-# ─── Testing & Linting Tools ───────────────────────────────────────────────────
+# python
+__pycache__/
+*.pyc
+.venv/
 .pytest_cache/
-.bin/
+.ipynb_checkpoints/
+.DS_Store
 
-.coverage
-htmlcov/
-reports/coverage_html/
-.tox/
-tests/.github_workflow_schema.json
-
-# ─── HuggingFace / Transformers Cache ─────────────────────────────────────────
-.cache/
-huggingface/
-**/.cache/
+# generated data: rebuild with notebooks 01 and 02
+data/raw/*
+data/processed/*
+data/index/*
+data/legacy/
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/index/.gitkeep

@@ -14,11 +14,26 @@ RAG (retrieval-augmented generation) addresses this: the system first searches a
 
 ## Scope
 
+The assistant is an **educational health-information assistant**. 
+It is not an AI doctor.
+
 | | |
 |---|---|
-| **In scope** | What a condition is, its symptoms, causes and risk factors, prevention, tests and diagnosis, and how it is generally treated |
-| **Partly in scope** | Medicines, but only as far as the sources describe them (for example the kinds of medicine used for a condition). There is no drug-specific source, so questions like "what are the side effects of metformin?" will often get an abstention. |
-| **Out of scope** | Diagnosing the user, personal advice, doses, whether to start, stop or combine medicines, interpreting someone's test results, live or current information |
+| **In scope** | Diseases and conditions: what they are, their symptoms, causes and risk factors, prevention, tests and diagnosis, and how they are treated in general |
+| **Out of scope** | Specific medicines (doses, side effects, interactions, whether to start, stop or combine), diagnosing the user, personal advice, interpreting someone's test results, and live or current information |
+
+**Why medicines are out of scope.** The sources used here describe 
+how conditions are treated in general — the kinds of medicine used, not 
+specific drugs. Neither MedQuAD's open subset nor MedlinePlus covers 
+drug-specific information (both removed for copyright). So the assistant 
+is scoped to what the sources support, and questions about named drugs 
+are expected to abstain. The evaluation includes such questions to check 
+this behaviour.
+
+**Why this is a design choice, not a limitation.** A health assistant 
+that abstains on medicines is safer than one that tries to answer from 
+its own memory. Every abstention is an explicit "I don't know", not a 
+confident guess.
 
 ## How it works
 

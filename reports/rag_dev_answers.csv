@@ -1,0 +1,853 @@
+id,abstained,top_score,latency_ms,answer,sources,error
+c001,False,5.332161903381348,3344.1,"**Symptoms**  
+• Fever or feeling feverish / chills【1】  
+• Cough【1】【3】  
+• Sore throat【1】【2】【3】  
+• Runny or stuffy nose (nasal congestion)【1】【2】  
+• Muscle or body aches【1】【3】  
+• Headache【1】【2】【3】  
+• Fatigue or weakness (tiredness)【1】【2】  
+• Occasionally vomiting and diarrhea【1】","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Flu"", ""url"": ""https://medlineplus.gov/flu.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Flu"", ""url"": ""https://medlineplus.gov/flu.html""}, {""n"": 3, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Flu"", ""url"": ""https://www.nlm.nih.gov/medlineplus/flu.html""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Bird Flu"", ""url"": ""https://medlineplus.gov/birdflu.html""}, {""n"": 5, ""source"": ""MedQuAD (CDC)"", ""title"": ""Alkhurma Hemorrhagic Fever (AHF)"", ""url"": ""http://www.cdc.gov/vhf/alkhurma/""}]",
+c002,False,7.270515441894531,3656.1,"**Symptoms**  
+• Increased thirst (polydipsia) [1][2][4][5]  
+• Increased hunger (polyphagia) [1][2][4][5]  
+• Fatigue or feeling tired [1][2][4][5]  
+• Increased urination, especially at night (polyuria) [1][2][4][5]  
+• Unexplained weight loss [1][4][5]  
+• Blurred or blurry vision [1][4][5]  
+• Numbness or tingling in the feet or hands (neuropathy) [1][4][5]  
+• Sores that do not heal (slow‑healing wounds) [1][2][4][5]  
+• Dry, itchy skin [5]  
+
+These symptoms may be mild or absent, and many people with type 2 diabetes do not notice them.","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Am I at Risk for Type 2 Diabetes? Taking Steps to Lower Your Risk of Getting Diabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/type-2-diabetes-taking-steps-lower-your-risk-diabetes/Pages/index.aspx""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""I Can Lower My Risk for Type 2 Diabetes: A Guide for American Indians"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/i-lower-my-Risk-type-2-diabetes-guide-american-indians/Pages/index.aspx""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Type 2"", ""url"": ""https://medlineplus.gov/diabetestype2.html""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Type 2"", ""url"": ""https://medlineplus.gov/diabetestype2.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Diabetes"", ""url"": ""http://nihseniorhealth.gov/diabetes/toc.html""}]",
+c003,False,6.511673927307129,4335.8,"**Signs / Symptoms of High Blood Pressure**
+
+- **Cognitive changes** – memory loss, difficulty finding words, and losing focus during conversations【1】.  
+- **Eye damage** – vision changes or blindness caused by burst or bleeding blood vessels in the eyes【1】.  
+- **Heart‑attack warning signs** – chest pain or discomfort, upper‑body discomfort, and shortness of breath【1】.  
+- **Heart‑failure signs** – shortness of breath or trouble breathing, feeling tired, and swelling in the ankles, feet, legs, abdomen, or neck veins【1】【3】.  
+- **Peripheral arterial disease** – pain, cramping, numbness, aching, or heaviness in the legs, feet, and buttocks after walking or climbing stairs【3】【4】.  
+- **Stroke symptoms** – sudden weakness; paralysis or numbness of the face, arms, or legs; trouble speaking or understanding speech; and trouble seeing【3】【4】.  
+- **Aneurysm clues** – often no symptoms until the aneurysm ruptures, grows large enough to press on nearby structures, or blocks blood flow; signs depend on its location【4】【5】.  
+- **Chronic kidney disease** – may develop when blood vessels narrow in the kidneys, potentially leading to kidney failure【2】【4】【5】.  
+- **Silent nature** – high blood pressure often has no noticeable signs; the only reliable way to detect it is by measuring blood pressure【5】.  
+
+These are the signs and related complications mentioned in the provided passages. If you suspect any of these symptoms, consider discussing them with a healthcare professional.","[{""n"": 1, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Pressure"", ""url"": ""http://nihseniorhealth.gov/highbloodpressure/toc.html""}, {""n"": 2, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Pressure"", ""url"": ""http://nihseniorhealth.gov/highbloodpressure/toc.html""}, {""n"": 3, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Pressure"", ""url"": ""http://nihseniorhealth.gov/highbloodpressure/toc.html""}, {""n"": 4, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Pressure"", ""url"": ""http://nihseniorhealth.gov/highbloodpressure/toc.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Pressure"", ""url"": ""http://nihseniorhealth.gov/highbloodpressure/toc.html""}]",
+c005,False,8.815899848937988,3666.1,"**Symptoms**
+
+• Fatigue (tiredness) – the most common symptom of iron‑deficiency anemia【1†L2-L4】【2†L4-L7】  
+• Shortness of breath【1†L2-L4】【2†L4-L7】  
+• Dizziness or light‑headedness【1†L2-L4】【2†L4-L7】  
+• Headache【1†L2-L4】【2†L4-L7】  
+• Coldness in the hands and feet【1†L2-L4】【2†L4-L7】  
+• Pale skin【1†L2-L4】【2†L4-L7】【5†L3-L4】  
+• Chest pain【1†L2-L4】【2†L4-L7】【4†L2-L3】  
+• Weakness【1†L2-L4】【2†L4-L7】  
+• Heart‑related problems when anemia is severe (irregular heartbeats/arrhythmias, heart murmur, enlarged heart, possible heart failure)【1†L5-L7】  
+• Brittle nails【1†L6-L7】  
+• Swelling or soreness of the tongue, cracks at the corners of the mouth【1†L6-L7】  
+• Enlarged spleen【1†L6-L7】  
+• Frequent infections【1†L6-L7】【4†L3-L4】  
+• Pica – craving non‑food items such as ice, dirt, paint, or starch【1†L8-L9】【3†L1-L2】  
+• Restless legs syndrome (urge to move legs, uncomfortable leg sensations, difficulty sleeping)【3†L2-L4】  
+• In infants and young children: poor appetite, slowed growth and development, behavioral problems【1†L5-L6】  
+• Signs of bleeding that can cause iron loss (bright red blood in stool, black/tarry stool, heavy menstrual or vaginal bleeding)【3†L5-L8】  
+
+*Note:* Mild to moderate iron‑deficiency anemia may have no noticeable signs or symptoms【2†L1-L3】.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}, {""n"": 5, ""source"": ""MedQuAD (GHR)"", ""title"": ""iron-refractory iron deficiency anemia"", ""url"": ""https://ghr.nlm.nih.gov/condition/iron-refractory-iron-deficiency-anemia""}]",
+c006,False,7.928775310516357,4804.4,"**Symptoms**  
+• Coughing, often worse at night or early in the morning [1][2][4]  
+• Wheezing – a whistling or squeaky sound when breathing out [1][2][4]  
+• Chest tightness or feeling like something is squeezing the chest [1][2][4]  
+• Shortness of breath or feeling out of breath, rapid breathing, gasping for air [1][2][4]  
+• In children, additional signs may include feeling tired, dark circles under the eyes, irritability, trouble eating or sucking, and rapid breathing [4]","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Asthma"", ""url"": ""https://medlineplus.gov/asthma.html""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Asthma in Children"", ""url"": ""https://medlineplus.gov/asthmainchildren.html""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}]",
+c008,False,6.49974250793457,3185.4,"**Symptoms**
+
+- **Heartburn** – a burning feeling in the chest or throat [1][2]  
+- **Taste of acid or stomach fluid** in the back of the mouth [1][2]  
+- **Dry cough** or hoarse voice [1][2]  
+- **Asthma‑like symptoms** (wheezing, shortness of breath) [1][2]  
+- **Difficulty swallowing** (trouble swallowing, gagging) [1][2][3]  
+- **Infant‑specific signs**  
+  - Frequent spitting up or vomiting [3]  
+  - Arching of the back, especially during/after feeding [3]  
+  - Irritability or crying after meals [3]  
+  - Poor feeding or refusing to eat, leading to inadequate weight gain [3]  
+  - Coughing, wheezing, or trouble breathing [3]  
+- **Chronic cough or hoarseness** (can develop if GERD is untreated) [5]  
+
+*Note: The listed symptoms come from the provided passages and may appear differently in children versus adults.*","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""GERD"", ""url"": ""https://medlineplus.gov/gerd.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""GERD"", ""url"": ""https://www.nlm.nih.gov/medlineplus/gerd.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Reflux in Infants"", ""url"": ""https://medlineplus.gov/refluxininfants.html""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Zollinger-Ellison Syndrome"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/zollinger-ellison-syndrome/Pages/facts.aspx""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""GERD"", ""url"": ""https://medlineplus.gov/gerd.html""}]",
+c010,True,2.730051040649414,1570.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c012,False,7.43684720993042,15221.4,"**Symptoms**
+
+Most people with hepatitis C have no noticeable signs, but when symptoms do appear they can include:
+
+- **Fatigue / feeling tired** – reported in [1] and [2]  
+- **Muscle soreness / flu‑like feeling** – mentioned in [1] and [3]  
+- **Fever** – listed in [1] and [2]  
+- **Loss of appetite** – noted in [1], [2] and [5]  
+- **Nausea and/or vomiting** – described in [2] and [5]  
+- **Abdominal / stomach pain** – included in [1] and [2] (also “upset stomach” in [1])  
+- **Diarrhea** – mentioned in [1]  
+- **Joint pain** – cited in [2] and [5]  
+- **Dark‑yellow or dark‑colored urine** – found in [1], [2] and [3]  
+- **Light‑colored, clay‑colored, or pale stools** – reported in [1], [2] and [3]  
+- **Jaundice (yellowing of eyes and skin)** – listed in [1], [2] and [3]  
+
+These symptoms may appear 1–3 months after exposure in acute infection, while many individuals remain asymptomatic for years until liver damage develops.","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""What I need to know about Hepatitis C"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/liver-disease/hepatitis-c/Pages/ez.aspx""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Hepatitis C"", ""url"": ""https://medlineplus.gov/hepatitisc.html""}, {""n"": 3, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Hepatitis C"", ""url"": ""https://www.nlm.nih.gov/medlineplus/hepatitisc.html""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Hepatitis C"", ""url"": ""https://medlineplus.gov/hepatitisc.html""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Hepatitis"", ""url"": ""https://medlineplus.gov/hepatitis.html""}]",
+c013,False,6.831823348999023,18447.8,"**Diagnosis**
+
+• Blood tests are required to diagnose type 2 diabetes; a sample is drawn at a health‑care provider’s office or laboratory and sent for analysis. Finger‑stick devices are not accurate enough for a definitive diagnosis【2】.  
+
+• The following laboratory tests can be used:  
+  – **A1C test** – measures average blood glucose over the past 2‑3 months【1】【3】.  
+  – **Fasting plasma glucose (FPG) test** – measures glucose after at least 8 hours of fasting【1】.  
+  – **Oral glucose tolerance test (OGTT)** – measures glucose after a standardized oral glucose load【3】.  
+  – **Random plasma glucose (RPG) test** – can be used when symptoms are present; a result of ≥200 mg/dL together with symptoms may allow a diagnosis【1】【3】.  
+
+These tests enable providers to identify diabetes early, before complications develop【2】.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Type 2"", ""url"": ""https://medlineplus.gov/diabetestype2.html""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Diagnosis of Diabetes and Prediabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/diagnosis-diabetes-prediabetes/Pages/index.aspx""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Diagnosis of Diabetes and Prediabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/diagnosis-diabetes-prediabetes/Pages/index.aspx""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Diagnosis of Diabetes and Prediabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/diagnosis-diabetes-prediabetes/Pages/index.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Diagnosis of Diabetes and Prediabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/diagnosis-diabetes-prediabetes/Pages/index.aspx""}]",
+c014,False,5.77879524230957,13654.8,"**Diagnosis**  
+- A health‑care provider measures blood pressure with a cuff (manual gauge, stethoscope, or electronic sensor). [2][4]  
+- Multiple readings are taken—usually two or more at separate appointments, often 2–3 readings over several visits. [1][2]  
+- High blood pressure is diagnosed when the readings are consistently elevated:  
+  • Consistently above 120/80 mm Hg according to one source. [1]  
+  • Consistently above 140 systolic or 90 diastolic mm Hg in another guideline. [3]  
+- The repeated measurements help distinguish true hypertension from occasional spikes (e.g., “white coat” hypertension). [1]","[{""n"": 1, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Pressure"", ""url"": ""http://nihseniorhealth.gov/highbloodpressure/toc.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""High Blood Pressure"", ""url"": ""https://medlineplus.gov/highbloodpressure.html""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""High Blood Pressure and Kidney Disease"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/kidney-disease/high-blood-pressure-and-kidney-disease/Pages/facts.aspx""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""How to Prevent High Blood Pressure"", ""url"": ""https://medlineplus.gov/howtopreventhighbloodpressure.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Pressure"", ""url"": ""http://nihseniorhealth.gov/highbloodpressure/toc.html""}]",
+c016,False,6.307567119598389,13767.3,"**Diagnosis**
+
+• **Medical history and physical exam** – The doctor asks about symptoms, recent travel, exposures, vaccinations, smoking, and other health conditions, then listens to the lungs with a stethoscope for crackling, bubbling, rumbling or wheezing sounds [1].
+
+• **Chest X‑ray** – A painless imaging test that creates pictures of the heart, lungs and blood vessels; it is the best test for confirming pneumonia [2].
+
+• **Blood tests** –  
+  – Complete blood count (CBC) to check white‑blood‑cell levels for bacterial infection [2].  
+  – Blood culture to detect germs in the bloodstream and identify the causative organism [2][5].
+
+• **Pulse oximetry / arterial blood gas** – A small sensor on a finger or ear estimates blood‑oxygen level; if very sick, an arterial blood gas sample may be taken [3].
+
+• **Pleural fluid analysis (thoracentesis)** – Fluid is drawn from the pleural space and cultured for germs [3][5].
+
+• **Sputum test** – A sample of deep‑cough sputum is examined to help identify the infecting germ [5].
+
+• **Chest CT scan** – Provides more detailed X‑ray images of the chest structures [5].
+
+• **Bronchoscopy** – A thin, flexible tube with a camera is passed through the nose or mouth into the airways to view the lungs and obtain samples, especially if antibiotics are not working [3][4].","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Pneumonia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/pnu""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Pneumonia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/pnu""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Pneumonia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/pnu""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Pneumonia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/pnu""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Pneumonia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/pnu""}]",
+c017,False,5.758522987365723,3217.1,"**How anemia is diagnosed**
+
+- **Medical and family history** – The clinician asks about symptoms, past illnesses, medications, diet, and any family history of anemia or related conditions. [1][3]  
+- **Physical exam** – The exam checks for signs such as skin‑color changes, heart rhythm, breathing pattern, and organ size (liver, spleen). A pelvic or rectal exam may be done to look for sources of blood loss. [1][2][3]  
+- **Blood tests**  
+  - **Complete blood count (CBC)** – Measures hemoglobin, hematocrit, red‑cell count, white‑cell count, platelets, and mean corpuscular volume (MCV); low hemoglobin/hematocrit indicates anemia. [2][5]  
+  - **Reticulocyte count** – Determines how many young red blood cells are being produced, helping assess bone‑marrow activity. [4]  
+  - **Iron studies** – Serum iron, serum ferritin, transferrin level, and total iron‑binding capacity evaluate iron status. [4]  
+  - **Other specific tests** – May include assessments for kidney function, lead exposure (in children), vitamin B12 or folate deficiencies, and stool occult blood if internal bleeding is suspected. [4]  
+
+These steps together allow a health‑care provider to confirm the presence of anemia, gauge its severity, and begin investigating the underlying cause.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/anemia""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/anemia""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Anemia in Chronic Kidney Disease"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/kidney-disease/anemia-in-kidney-disease-and-dialysis/Pages/facts.aspx""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/anemia""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}]",
+c019,False,7.098621845245361,13453.5,"**Diagnosis**
+
+• Take a medical history and perform a thorough physical examination.  
+• Order blood tests, most commonly an ultrasensitive TSH test (first‑line test) to detect elevated TSH, indicating hypothyroidism.  
+• Additional thyroid hormone tests may be done, such as a T4 test to measure circulating thyroid hormone (low in hypothyroidism).  
+• Thyroid antibody tests (autoantibody testing) can identify autoimmune causes like Hashimoto’s disease.  
+• Other thyroid tests that may be used include T3, T4, and thyroid antibody panels.  
+• Imaging studies such as a thyroid scan, ultrasound, or radioactive iodine uptake test can be employed when needed.  
+
+These steps are described in the sources: [1] outlines the history, exam, and TSH testing; [2] adds T3, T4, antibody tests, and imaging; [3] details T4 and autoantibody testing; and [4] repeats the role of TSH, T4, and antibody tests in diagnosing Hashimoto’s‑related hypothyroidism.","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Hypothyroidism"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/endocrine/hypothyroidism/Pages/fact-sheet.aspx""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Hypothyroidism"", ""url"": ""https://medlineplus.gov/hypothyroidism.html""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Hypothyroidism"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/endocrine/hypothyroidism/Pages/fact-sheet.aspx""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Hashimoto's Disease"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/endocrine/hashimotos-disease/Pages/fact-sheet.aspx""}, {""n"": 5, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Hypothyroidism"", ""url"": ""https://www.nlm.nih.gov/medlineplus/hypothyroidism.html""}]",
+c021,False,6.61116886138916,12140.3,"**Diagnosis**
+
+• Your health‑care provider will start with a **medical history** (questions about symptoms) and a **physical exam** [1].  
+• The key test is a **blood test** that looks for hepatitis B virus markers; the sample is taken with a needle and sent to a lab [2].  
+• If chronic hepatitis B is suspected, the doctor may recommend a **liver biopsy** to check for liver damage [2][3].  
+• In some cases, **imaging tests** such as ultrasound, CT scan, or MRI may be used to help assess the liver [3].","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Hepatitis B"", ""url"": ""https://medlineplus.gov/hepatitisb.html""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""What I need to know about Hepatitis B"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/liver-disease/hepatitis-b/Pages/ez.aspx""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Hepatitis"", ""url"": ""https://medlineplus.gov/hepatitis.html""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""What I need to know about Hepatitis B"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/liver-disease/hepatitis-b/Pages/ez.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Autoimmune Hepatitis"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/liver-disease/autoimmune-hepatitis/Pages/facts.aspx""}]",
+c022,True,2.450725555419922,1567.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c023,False,6.092721939086914,5941.2,"**Treatment**
+
+- **Lifestyle management** – A healthy eating plan, maintaining a healthy weight, and getting regular physical activity are first‑line ways to control blood glucose in type 2 diabetes [1][2][4][5].  
+- **Blood‑glucose monitoring** – Regular checking of blood glucose (including A1C testing) helps guide treatment decisions [1][4][5].  
+- **Medications** – If diet and exercise are not enough, medicines are added. Options include oral diabetes medicines, insulin, and other injectable agents; many people eventually need more than one type of medication [1][2][4][5].  
+- **Additional health targets** – Keeping blood pressure and cholesterol within provider‑set goals is also part of overall management [1].  
+
+*The passages do not detail specific drug names, dosing, or individualized treatment plans; those decisions should be made with a health‑care provider.*","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Type 2"", ""url"": ""https://medlineplus.gov/diabetestype2.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Diabetes"", ""url"": ""https://medlineplus.gov/diabetes.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Type 2"", ""url"": ""https://medlineplus.gov/diabetestype2.html""}, {""n"": 4, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Diabetes in Children and Teens"", ""url"": ""https://www.nlm.nih.gov/medlineplus/diabetesinchildrenandteens.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Diabetes"", ""url"": ""http://nihseniorhealth.gov/diabetes/toc.html""}]",
+c025,False,5.588966369628906,6143.8,"**Treatment**
+
+- **Antibiotics (or other antimicrobials)** – The primary therapy for UTIs is a bacteria‑fighting medication. The specific drug and length of therapy are chosen based on the patient’s medical history, any drug allergies, and the type of bacteria identified (often *E. coli*) [1][2][3][4].  
+- **Duration** – Uncomplicated infections in healthy adults are often cured with 2–3 days of antibiotics; longer courses may be needed for complicated cases, kidney infections, or if the first drug is ineffective [2][5]. In children, treatment is usually at least 3–5 days and can extend to several weeks depending on severity [4].  
+- **Sensitivity testing** – A urine culture and sensitivity test (results in about 48 hours) helps select the most effective antibiotic, especially when the initial choice does not work [2].  
+- **Supportive measures** – Drinking plenty of fluids and urinating frequently can speed recovery [1][5]. Over‑the‑counter pain relievers may be used to ease discomfort, and a heating pad on the abdomen or back can provide additional relief [1][5].  
+- **Special situations**  
+  - **Kidney or prostate infections** may require several weeks of antibiotics because symptoms last longer [5].  
+  - **Recurrent UTIs in women**: some providers may recommend a low‑dose daily antibiotic for six months or more to prevent future episodes [5].  
+  - **Children unable to take oral medication** may receive antibiotics intravenously or by injection until they can drink fluids [4].  
+
+These points summarize the treatment approaches described in the provided passages.","[{""n"": 1, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Urinary Tract Infections"", ""url"": ""http://nihseniorhealth.gov/urinarytractinfections/toc.html""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Urinary Tract Infection In Adults"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/urinary-tract-infections-in-adults/Pages/facts.aspx""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Urinary Tract Infection In Adults"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/urinary-tract-infections-in-adults/Pages/facts.aspx""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Urinary Tract Infections in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/urinary-tract-infection-in-children/Pages/facts.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Urinary Tract Infection In Adults"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/urinary-tract-infections-in-adults/Pages/facts.aspx""}]",
+c026,False,6.178831100463867,16833.4,"**Treatment**
+
+• **Long‑term control medicines** – taken daily to reduce airway inflammation and prevent symptoms. Examples include inhaled corticosteroids (preferred for young children) and other options such as montelukast or cromolyn [1][5].
+
+• **Quick‑relief (rescue) medicines** – used at the first sign of worsening symptoms to open the airways quickly [1].
+
+• **Inhaler devices** – most asthma medicines are delivered by inhaler, which sends the drug directly to the lungs; proper technique should be reviewed at every visit [3].
+
+• **Nebulizer** – a device that creates a fine mist of medication for inhalation, useful for certain medicines [4].
+
+• **Combination therapy** – inhaled long‑acting beta2‑agonists may be added to inhaled corticosteroids for better control, but they should never be used alone for long‑term control [4].
+
+• **Allergy (immunotherapy) shots** – can lessen or prevent asthma symptoms in people with allergic triggers, though they do not cure asthma [3].
+
+• **Biologic injection (omalizumab, anti‑IgE)** – given once or twice a month to reduce reactions to triggers like pollen or dust mites; used when other medicines are insufficient [4].
+
+• **Management of co‑existing conditions** – treating related problems such as sinus infections, reflux disease, stress, or sleep apnea can help asthma be easier to control [3].
+
+• **Asthma action plan** – a written plan created with a doctor that guides medication use, trigger avoidance (except physical activity), symptom monitoring, and when to seek emergency care [1][2].
+
+• **Age‑specific considerations** – for infants and young children, inhaled corticosteroids are the preferred long‑term control; treatment may be trialed for 1 month to 6 weeks to assess benefit [5].","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}]",
+c028,False,5.1070685386657715,10973.9,"**Treatment**
+
+- **Lifestyle changes** – Most people manage GERD by adjusting habits:  
+  • Eat smaller meals and avoid lying down for 2‑3 hours after eating.  
+  • Avoid trigger foods and drinks such as spicy foods, chocolate, caffeine, fatty foods, alcohol, and high‑fat meals.  
+  • Lose excess weight if needed and wear loose‑fitting clothing.  
+  • Raise the head of the bed (or sleep on the left side) and keep the upper body elevated while sleeping.  
+  • Quit smoking.  
+  (Supported by [1][2][4][5])
+
+- **Medications** – Over‑the‑counter antacids and prescription medicines that reduce stomach acid are commonly used. These help control symptoms and prevent damage to the esophagus.  
+  (Supported by [1][2][4][5])
+
+- **Surgery** – In rare, severe cases where lifestyle changes and medicines are insufficient, surgical options may be considered.  
+  (Supported by [1][2])
+
+*Note:* For children with reflux, similar lifestyle adjustments (smaller meals, weight management, upright positioning after meals, head‑of‑bed elevation) are recommended, and acid‑reducing medicines are used if needed ([4]).","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""GERD"", ""url"": ""https://medlineplus.gov/gerd.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""GERD"", ""url"": ""https://medlineplus.gov/gerd.html""}, {""n"": 3, ""source"": ""MedQuAD (GARD)"", ""title"": ""Barrett esophagus"", ""url"": ""https://rarediseases.info.nih.gov/gard/20/barrett-esophagus""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Reflux in Children"", ""url"": ""https://medlineplus.gov/refluxinchildren.html""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Cough"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/cough""}]",
+c029,False,7.451279640197754,20984.0,"**Treatment**
+
+- **Address the underlying cause** – If blood loss is the reason (e.g., bleeding ulcer, intestinal tumor, heavy menstrual flow), treatment targets that source: antibiotics or other medicines for ulcers, surgery to remove polyps or tumors, birth‑control pills to reduce menstrual bleeding, or other appropriate procedures【3†L1-L5】.  
+- **Dietary changes** – Increase intake of iron‑rich foods and vitamin C (which improves iron absorption). Good sources of vitamin C include citrus fruits, kiwi, strawberries, broccoli, peppers, and leafy greens【5†L1-L8】.  
+- **Iron supplements** – Oral iron pills or drops (for children) are used to raise iron levels over months. They should be taken only as prescribed because excess iron can be harmful and may cause dark stools, stomach irritation, or heartburn【1†L4-L9】.  
+- **Iron therapy (injection or IV)** – For people who cannot tolerate oral supplements or need rapid repletion, iron can be given by intramuscular injection or intravenously. This is usually done in a hospital or clinic by experienced staff【2†L5-L9】.  
+- **Blood transfusion** – In severe anemia, especially when there is a high risk of heart problems or other serious issues, a transfusion of red blood cells provides an immediate increase in hemoglobin and a source of iron that can be reused【2†L1-L4】【3†L7-L9】.  
+- **Hospital‑based care** – Very severe cases may require treatment in a hospital setting, including transfusion, iron injections, or IV iron therapy【1†L1-L3】【4†L9-L12】.  
+
+These approaches are combined based on the cause and severity of the anemia. Always discuss the appropriate plan with a healthcare professional.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Iron-Deficiency Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health-topics/topics/ida""}]",
+c031,False,4.19689416885376,2341.5,"**Treatment**  
+• Medicines (prescribed or over‑the‑counter) [1][2][3][4]  
+• Skin creams (emollients, moisturizers, or medicated ointments) [1][2][3][4]  
+• Light therapy (phototherapy) [1][2][3][4]  
+• Good skin‑care practices, such as regular moisturizing and avoiding irritants [1][2][3][4]","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Eczema"", ""url"": ""https://medlineplus.gov/eczema.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Eczema"", ""url"": ""https://www.nlm.nih.gov/medlineplus/eczema.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Eczema"", ""url"": ""https://medlineplus.gov/eczema.html""}, {""n"": 4, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Eczema"", ""url"": ""https://www.nlm.nih.gov/medlineplus/eczema.html""}, {""n"": 5, ""source"": ""MedQuAD (GARD)"", ""title"": ""Lichen planus pigmentosus"", ""url"": ""https://rarediseases.info.nih.gov/gard/10816/lichen-planus-pigmentosus""}]",
+c032,False,6.097091197967529,3215.3,"**Treatment**  
+- The primary treatment for hypothyroidism is hormone‑replacement medication—synthetic thyroxine (T4), which provides the thyroid hormone the body can no longer make. [1][3]  
+- The dose is individualized based on factors such as age, weight, severity of the condition, other health problems, and any drugs that might affect hormone use. [1]  
+- After starting therapy, health‑care providers typically check TSH (and sometimes T4) levels about 6–8 weeks later to see if the dose needs adjustment; each dose change is followed by another blood test. [1][3]  
+- Once a stable dose is reached, blood tests are usually repeated every 6 months and then annually to ensure continued control. [1]  
+
+*Note: This information summarizes what the cited sources say about standard management of hypothyroidism. For personal dosing or monitoring plans, consult a health‑care professional.*","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Hypothyroidism"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/endocrine/hypothyroidism/Pages/fact-sheet.aspx""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Hyperthyroidism"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/endocrine/hyperthyroidism/Pages/fact-sheet.aspx""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Hypothyroidism"", ""url"": ""https://medlineplus.gov/hypothyroidism.html""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Hyperthyroidism"", ""url"": ""https://medlineplus.gov/hyperthyroidism.html""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Hypothyroidism"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/endocrine/hypothyroidism/Pages/fact-sheet.aspx""}]",
+c034,False,4.689788341522217,14912.5,"**Prevention**
+
+• Get a flu vaccine each year – the annual flu shot is the most effective way to prevent getting the flu. [1]  
+• Practice good hand‑hygiene – wash your hands with soap and water or use an alcohol‑based rub often, especially during flu season. [1][2][5]  
+• Cover your cough or sneeze with a tissue or your elbow to keep germs from spreading. [1]  
+• Avoid crowded places during flu season and stay away from people who are sick. [2][5]  
+• Talk with your doctor about the flu shot (and other vaccines) if you have questions or belong to a high‑risk group. [2]","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Flu"", ""url"": ""https://medlineplus.gov/flu.html""}, {""n"": 2, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""COPD"", ""url"": ""http://nihseniorhealth.gov/copd/toc.html""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Pneumonia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/pnu""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Pneumonia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/pnu""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""COPD"", ""url"": ""http://nihseniorhealth.gov/copd/toc.html""}]",
+c035,False,7.1709513664245605,11557.6,"**Prevention**
+
+• Lose weight – losing about 5 to 7 % of your current weight (e.g., 10–14 lb for a 200‑lb person) can cut the risk of developing type 2 diabetes [1][2][3].  
+
+• Follow a healthy eating plan – reduce daily calories, eat smaller portions, limit fat and sugar, choose whole grains, fruits, vegetables, and limit red and processed meats [2].  
+
+• Get regular physical activity – aim for at least 30 minutes of activity on most days (about 150 minutes per week) and stay active daily; even small amounts help [2][3][4].  
+
+• Don’t smoke – smoking can increase insulin resistance, raising diabetes risk [4].  
+
+• Manage other risk‑increasing conditions – controlling conditions that raise your risk (e.g., prediabetes) may lower the chance of developing type 2 diabetes [1].  
+
+• Consider medication if you’re at high risk – a health‑care provider may suggest a diabetes medicine such as metformin for some high‑risk adults [4][3].  
+
+• Consult your health‑care provider – they can help tailor an exercise plan, discuss quitting smoking, and determine if any additional steps (including medication) are appropriate [4].","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Type 2"", ""url"": ""https://medlineplus.gov/diabetestype2.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""How to Prevent Diabetes"", ""url"": ""https://medlineplus.gov/howtopreventdiabetes.html""}, {""n"": 3, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Diabetes"", ""url"": ""http://nihseniorhealth.gov/diabetes/toc.html""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""How to Prevent Diabetes"", ""url"": ""https://medlineplus.gov/howtopreventdiabetes.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Diabetes"", ""url"": ""http://nihseniorhealth.gov/diabetes/toc.html""}]",
+c037,False,7.189871311187744,3655.2,"**Prevention**
+
+- **Identify the stone type** – Catch the stone as it passes or have it sent to a lab after removal so the composition can be determined. This helps guide prevention steps【1†L1-L4】【4†L1-L4】.  
+- **Check urine volume and minerals** – A 24‑hour urine collection after a stone passes or is removed lets the provider measure daily urine output and mineral levels; low urine volume or abnormal minerals increase risk【1†L5-L9】【4†L5-L9】【5†L1-L4】.  
+- **Increase fluid intake** – Drink enough fluids to produce plenty of urine; 2–3 L (about 8–12 cups) of fluid a day is recommended for most people, with even more for cystine stones. Water is best, but other fluids such as orange juice or lemonade also help【1†L10-L13】【2†L1-L5】【3†L1-L5】.  
+- **Adjust diet** – Depending on the stone type, modify the amounts of:
+  - Sodium  
+  - Animal protein  
+  - Calcium  
+  - Oxalate  
+  These dietary changes can reduce stone formation【1†L10-L13】【2†L1-L3】【3†L1-L3】.  
+- **Consult your provider** – If you cannot drink the recommended amount because of other health issues (e.g., urinary incontinence, frequency, kidney failure), discuss alternatives with your health‑care provider【2†L5-L7】.  
+- **For children** – Ensure urine is almost clear by drinking plenty of fluids; a 24‑hour urine test can identify metabolic problems that may need individualized treatment【5†L1-L4】.","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Kidney Stones in Adults"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-adults/Pages/facts.aspx""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Kidney Stones in Adults"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-adults/Pages/facts.aspx""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""What I need to know about Kidney Stones"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-adults/Pages/ez.aspx""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""What I need to know about Kidney Stones"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-adults/Pages/ez.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Kidney Stones in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-children/Pages/facts.aspx""}]",
+c038,False,7.266781806945801,10948.4,"**Prevention**
+
+• **Wipe front‑to‑back** after using the toilet, especially after a bowel movement, to keep bacteria from reaching the urethra. [1][3][4]  
+• **Drink plenty of fluids** (about six to eight 8‑oz glasses of water daily for most healthy people) to help flush bacteria from the urinary system. [1][3][5]  
+• **Urinate regularly** – at least every 3–4 hours and whenever the urge arises – so urine does not stay in the bladder too long. [5]  
+• **Urinate after sex** to flush out any bacteria that may have entered the urethra during intercourse. [2][3][5]  
+• **Wear cotton, loose‑fitting underwear and clothing** to keep the area around the urethra dry; avoid tight jeans and nylon underwear that trap moisture. [2][4]  
+• **Consider birth‑control choices:** diaphragms, spermicides, unlubricated condoms, or spermicidal condoms can increase irritation and bacterial growth; switching to lubricated, non‑spermicidal condoms or another form of birth control may help. [4]  
+• **Cranberry products** (juice or supplements) may reduce UTIs for some people, though study results are mixed. [2]  
+
+*If you have health conditions that limit fluid intake (e.g., kidney failure or heart disease), discuss an appropriate amount with your health‑care provider.* [1][5]","[{""n"": 1, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Urinary Tract Infections"", ""url"": ""http://nihseniorhealth.gov/urinarytractinfections/toc.html""}, {""n"": 2, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Urinary Tract Infections"", ""url"": ""http://nihseniorhealth.gov/urinarytractinfections/toc.html""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Urinary Tract Infection In Adults"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/urinary-tract-infections-in-adults/Pages/facts.aspx""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Urinary Tract Infection In Adults"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/urinary-tract-infections-in-adults/Pages/facts.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Urinary Tract Infections"", ""url"": ""http://nihseniorhealth.gov/urinarytractinfections/toc.html""}]",
+c040,False,6.165393352508545,2900.9,"**Prevention**
+
+- **Vaccination** – The most effective way to prevent hepatitis B is to receive the hepatitis B vaccine [1][2][3][4].
+- **Safe personal habits** – Reduce exposure by:
+  - Not sharing drug needles or other drug‑related equipment [1].
+  - Wearing gloves when touching another person’s blood or open sores [1].
+  - Ensuring tattoo artists or body‑piercers use sterile tools [1].
+  - Not sharing personal items such as toothbrushes, razors, or nail clippers [1].
+  - Using condoms (latex or polyurethane) during sex [1].
+- **Post‑exposure prophylaxis** – If you think you have been exposed to hepatitis B, see a health‑care provider right away; they may give a dose of the hepatitis B vaccine and, if needed, hepatitis B immune globulin (HBIG) as soon as possible, ideally within 24 hours [1].","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Hepatitis B"", ""url"": ""https://medlineplus.gov/hepatitisb.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Hepatitis B"", ""url"": ""https://medlineplus.gov/hepatitisb.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Hepatitis"", ""url"": ""https://medlineplus.gov/hepatitis.html""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""What I need to know about Hepatitis B"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/liver-disease/hepatitis-b/Pages/ez.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""What I need to know about Hepatitis B"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/liver-disease/hepatitis-b/Pages/ez.aspx""}]",
+c042,False,6.798583984375,10745.7,"**Sun Protection**  
+- Limit time spent in direct sunlight, especially when the sun is strongest.  
+- Wear protective clothing such as long‑sleeve shirts, long pants, wide‑brimmed hats and sunglasses when outdoors.  
+- Use a sunscreen that blocks ultraviolet (UV) radiation; it may reduce UV exposure, though studies have not definitively proven that sunscreen alone lowers skin‑cancer risk. Some evidence suggests sunscreen can help prevent actinic keratoses, which can progress to skin cancer.  
+- Be aware that excessive sunscreen use might lead people to stay out longer in the sun, potentially increasing UV exposure.  
+- Avoid artificial UV sources such as tanning beds and sunlamps.  
+
+**Lifestyle Factors**  
+- Quit smoking and maintain regular exercise; both are considered protective factors that may help lower cancer risk.  
+- Maintaining a healthy weight and eating a diet rich in fruits and vegetables are actions studied for cancer prevention.  
+
+**Chemoprevention**  
+- Certain agents (e.g., beta‑carotene supplements) have been studied, but beta‑carotene has not been shown to prevent non‑melanoma skin cancer.  
+
+**Research & Clinical Trials**  
+- Ongoing clinical trials are testing new ways to prevent skin cancer, including dietary, lifestyle, and medication approaches. Participation in such trials is an option for those interested.  
+
+*Note:* While these measures are suggested by the cited sources, the evidence for some (e.g., sunscreen, chemopreventive agents) is still uncertain. Discuss personal risk and prevention strategies with a health‑care professional.  
+
+Citations: [1][2][3][4][5]","[{""n"": 1, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Skin Cancer"", ""url"": ""https://www.cancer.gov/types/skin/patient/skin-prevention-pdq""}, {""n"": 2, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Skin Cancer"", ""url"": ""https://www.cancer.gov/types/skin/patient/skin-prevention-pdq""}, {""n"": 3, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Skin Cancer"", ""url"": ""https://www.cancer.gov/types/skin/patient/skin-prevention-pdq""}, {""n"": 4, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Skin Cancer"", ""url"": ""https://www.cancer.gov/types/skin/patient/skin-prevention-pdq""}, {""n"": 5, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Skin Cancer"", ""url"": ""https://www.cancer.gov/types/skin/patient/skin-prevention-pdq""}]",
+c043,False,4.127414703369141,2229.0,"**Hypertension** is the medical term for high blood pressure—when the force of blood against the walls of the arteries is higher than normal. It occurs when the pressure generated by the heart’s pumping action (systolic) and/or the pressure when the heart rests between beats (diastolic) exceeds typical healthy ranges, such as 140 mm Hg systolic or 90 mm Hg diastolic or higher [1][2][3][4].","[{""n"": 1, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Pressure"", ""url"": ""http://nihseniorhealth.gov/highbloodpressure/toc.html""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""High Blood Pressure and Kidney Disease"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/kidney-disease/high-blood-pressure-and-kidney-disease/Pages/facts.aspx""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Blood Pressure Medicines"", ""url"": ""https://medlineplus.gov/bloodpressuremedicines.html""}, {""n"": 4, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Pressure"", ""url"": ""http://nihseniorhealth.gov/highbloodpressure/toc.html""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Pulmonary Hypertension"", ""url"": ""https://medlineplus.gov/pulmonaryhypertension.html""}]",
+c045,False,7.475465774536133,11319.8,"**Overview**  
+Irritable bowel syndrome (IBS) is a disorder that affects the large intestine. It can cause abdominal cramping, bloating, and changes in bowel habits—some people experience constipation, others diarrhea, and some alternate between the two. Although it can be uncomfortable, IBS does not damage the intestines. The exact cause is unknown, and it is most common in women and in people younger than 45 years old【1】【2】.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Irritable Bowel Syndrome"", ""url"": ""https://medlineplus.gov/irritablebowelsyndrome.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Irritable Bowel Syndrome"", ""url"": ""https://www.nlm.nih.gov/medlineplus/irritablebowelsyndrome.html""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Irritable Bowel Syndrome in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/ibs-in-children/Pages/facts.aspx""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Irritable Bowel Syndrome in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/ibs-in-children/Pages/facts.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Chronic Diarrhea in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/diarrhea/Pages/diarrhea-in-children-facts.aspx""}]",
+c046,False,6.795095920562744,12555.9,"**Causes of Kidney Stones**
+
+• High concentrations of stone‑forming substances in the urine, especially calcium, oxalate and phosphorus (or magnesium in children) [1][2][3]  
+• Low fluid intake, which makes urine more concentrated [1][2][3][5]  
+• Certain medical conditions that alter urine composition (e.g., digestive problems, metabolic disorders such as hypercalciuria, hyperoxaluria, oxalosis, cystinuria) [1][4][5]  
+• Family history or genetic predisposition [1][3]  
+• Recurrent or chronic urinary‑tract infections, especially those caused by urease‑producing bacteria [1][5]  
+• Anatomic abnormalities that block or slow urine flow, creating stagnant urine [3]  
+• Lifestyle factors: high‑salt diet, excessive sodium, consumption of soft drinks or caffeinated beverages, obesity, and a sedentary lifestyle [3][5]  
+• Certain medications (some medicines can increase stone‑forming substances) [1]  
+
+These factors can act alone or together to raise the risk of kidney‑stone formation.","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""What I need to know about Kidney Stones"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-adults/Pages/ez.aspx""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Kidney Stones in Adults"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-adults/Pages/facts.aspx""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Kidney Stones in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-children/Pages/facts.aspx""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Kidney Stones in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-children/Pages/facts.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Kidney Stones in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/urologic-disease/kidney-stones-in-children/Pages/facts.aspx""}]",
+c048,False,7.242915153503418,9957.1,"**Overview**  
+- Polycystic ovarian syndrome (PCOS) is a hormonal disorder that can affect a woman’s menstrual cycle, fertility, hormones, and appearance. It is characterized by high levels of male hormones (androgens), irregular or absent periods, and the presence of many small cysts (fluid‑filled sacs) on the ovaries [1][2][4].  
+- The condition may also involve the ovaries or adrenal glands producing excess male hormones, leading to symptoms such as acne, excess hair growth, thinning hair, and weight gain [4].  
+- The exact cause is unknown, but genetics and environmental factors are thought to play a role [1].","[{""n"": 1, ""source"": ""MedQuAD (GARD)"", ""title"": ""Polycystic ovarian syndrome"", ""url"": ""https://rarediseases.info.nih.gov/gard/7421/polycystic-ovarian-syndrome""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Polycystic Ovary Syndrome"", ""url"": ""https://medlineplus.gov/polycysticovarysyndrome.html""}, {""n"": 3, ""source"": ""MedQuAD (GHR)"", ""title"": ""cytochrome P450 oxidoreductase deficiency"", ""url"": ""https://ghr.nlm.nih.gov/condition/cytochrome-p450-oxidoreductase-deficiency""}, {""n"": 4, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Polycystic Ovary Syndrome"", ""url"": ""https://www.nlm.nih.gov/medlineplus/polycysticovarysyndrome.html""}, {""n"": 5, ""source"": ""MedQuAD (GHR)"", ""title"": ""cytochrome P450 oxidoreductase deficiency"", ""url"": ""https://ghr.nlm.nih.gov/condition/cytochrome-p450-oxidoreductase-deficiency""}]",
+c049,False,7.59674072265625,9840.7,"**Causes of Anemia**
+
+- **Blood loss** – acute or chronic loss of blood (e.g., heavy menstrual periods, bleeding in the digestive or urinary tract, surgery, trauma, cancer) can reduce red‑cell numbers [1][2].
+
+- **Insufficient red‑blood‑cell production**  
+  • Poor diet lacking iron, folic acid (folate), vitamin B12, vitamin C, riboflavin, or copper [3][2]  
+  • Conditions that impair nutrient absorption [3]  
+  • Abnormal hormone levels, especially low erythropoietin, which stimulates bone‑marrow production [3]  
+  • Chronic (ongoing) diseases and pregnancy [3][2]  
+  • Acquired or inherited disorders that directly hinder production, such as aplastic anemia (which can be caused by certain medicines, toxins, or infections) [1][5][3]  
+
+- **Increased red‑blood‑cell destruction (hemolysis)**  
+  • Hemolytic anemia from inherited or acquired factors, including immune disorders, infections, certain medicines, or reactions to blood transfusions [4]  
+  • Enlarged or diseased spleen that removes red cells too quickly [5]  
+  • Inherited conditions such as sickle‑cell disease, thalassemias, and enzyme‑deficiency disorders (e.g., G6PD deficiency) that create defective red cells [5][2]  
+
+These three broad mechanisms—blood loss, reduced production, and accelerated destruction—account for the majority of anemia cases described in the provided sources.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/anemia""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Anemia"", ""url"": ""https://medlineplus.gov/anemia.html""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/anemia""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/anemia""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Anemia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/anemia""}]",
+r001,False,6.477871894836426,14509.9,"Yes. All of the passages state that smoking cigarettes, cigars, or pipes markedly raises the chance of developing lung cancer. For example, smokers have about 20‑times the risk of lung cancer compared with non‑smokers, and tobacco smoking accounts for roughly 9 out of 10 cases in men and 8 out of 10 cases in women [2][5]. The risk rises with the number of cigarettes smoked per day, the number of years smoked, and how early smoking began [1][3]. Secondhand smoke also increases risk for non‑smokers [3][5].","[{""n"": 1, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Lung Cancer"", ""url"": ""http://nihseniorhealth.gov/lungcancer/toc.html""}, {""n"": 2, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Lung Cancer"", ""url"": ""https://www.cancer.gov/types/lung/patient/lung-prevention-pdq""}, {""n"": 3, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Lung Cancer"", ""url"": ""http://nihseniorhealth.gov/lungcancer/toc.html""}, {""n"": 4, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Lung Cancer"", ""url"": ""https://www.cancer.gov/types/lung/patient/lung-prevention-pdq""}, {""n"": 5, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Lung Cancer"", ""url"": ""https://www.cancer.gov/types/lung/patient/lung-prevention-pdq""}]",
+r003,True,-0.4980117678642273,1531.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+r004,False,3.927192211151123,3948.1,"**Yes.** Obesity (excess weight) increases pressure and wear on weight‑bearing joints such as the knees, and excess weight is listed as a factor that can contribute to the development of osteoarthritis of the knees【1】【2】【4】.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Overweight and Obesity"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/obe""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Overweight and Obesity"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/obe""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Obesity"", ""url"": ""https://medlineplus.gov/obesity.html""}, {""n"": 4, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Osteoarthritis"", ""url"": ""http://nihseniorhealth.gov/osteoarthritis/toc.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Osteoarthritis"", ""url"": ""http://nihseniorhealth.gov/osteoarthritis/toc.html""}]",
+r006,False,5.818572521209717,7131.7,"Yes. Helicobacter pylori infection is the main cause of peptic ulcer disease. The bacteria infect the stomach, break down its protective lining, and lead to gastritis and peptic ulcers [1][3][4].","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Helicobacter pylori Infections"", ""url"": ""https://medlineplus.gov/helicobacterpyloriinfections.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Helicobacter Pylori Infections"", ""url"": ""https://www.nlm.nih.gov/medlineplus/helicobacterpyloriinfections.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Peptic Ulcer"", ""url"": ""https://medlineplus.gov/pepticulcer.html""}, {""n"": 4, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Peptic Ulcer"", ""url"": ""https://www.nlm.nih.gov/medlineplus/pepticulcer.html""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Helicobacter pylori Infections"", ""url"": ""https://medlineplus.gov/helicobacterpyloriinfections.html""}]",
+r007,True,0.7821305394172668,1586.0,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+r009,False,5.858714580535889,6059.6,"**Yes.** Cognitive‑behavioral therapy (CBT) is reported to improve insomnia. It targets thoughts and behaviors that disrupt sleep, teaches relaxation and positive sleep associations, and can relieve the anxiety that prolongs chronic insomnia. Studies cited note that CBT works as well as prescription medicines for many people with chronic insomnia and may provide better long‑term relief than medication alone【1】【2】【3】.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Insomnia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/inso""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Insomnia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/inso""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Insomnia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/inso""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Insomnia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/inso""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Insomnia"", ""url"": ""https://medlineplus.gov/insomnia.html""}]",
+r010,False,6.166792869567871,9618.6,**Yes.** Statins lower LDL (“bad”) cholesterol by both decreasing how much cholesterol the liver makes and increasing the liver’s ability to remove LDL already in the blood [1][2]. Clinical information also notes that statins “work well at lowering LDL cholesterol” [3].,"[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Statins"", ""url"": ""https://medlineplus.gov/statins.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Cholesterol Medicines"", ""url"": ""https://medlineplus.gov/cholesterolmedicines.html""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Cholesterol"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbc""}, {""n"": 4, ""source"": ""MedQuAD (GARD)"", ""title"": ""Familial hypercholesterolemia"", ""url"": ""https://rarediseases.info.nih.gov/gard/10416/familial-hypercholesterolemia""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""LDL: The \""Bad\"" Cholesterol"", ""url"": ""https://medlineplus.gov/ldlthebadcholesterol.html""}]",
+r012,True,1.346519947052002,1262.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+r013,True,2.205368757247925,1264.6,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+r014,True,0.7186799049377441,1361.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+r016,False,4.162447452545166,9566.0,Yes. The sources state that quitting smoking can markedly lower the risk of heart‑related problems. Quitting “can greatly reduce your risk for heart and lung diseases” and lowers the chance of heart attacks and other cardiovascular events [1][2][3][5]. The benefit begins soon after quitting and continues to improve over time [5].,"[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Sudden Cardiac Arrest"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/scda""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Coronary Microvascular Disease"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/cmd""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Coronary Heart Disease Risk Factors"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hd""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Quitting Smoking"", ""url"": ""https://medlineplus.gov/quittingsmoking.html""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Coronary Heart Disease Risk Factors"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hd""}]",
+r017,False,5.751105785369873,10111.6,"**Answer**
+
+Yes. Women who have had gestational diabetes are more likely to develop type 2 diabetes later in life【1】【2】【3】.","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Am I at Risk for Type 2 Diabetes? Taking Steps to Lower Your Risk of Getting Diabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/type-2-diabetes-taking-steps-lower-your-risk-diabetes/Pages/index.aspx""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Am I at Risk for Type 2 Diabetes? Taking Steps to Lower Your Risk of Getting Diabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/type-2-diabetes-taking-steps-lower-your-risk-diabetes/Pages/index.aspx""}, {""n"": 3, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Diabetes and Pregnancy"", ""url"": ""https://www.nlm.nih.gov/medlineplus/diabetesandpregnancy.html""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Am I at Risk for Type 2 Diabetes? Taking Steps to Lower Your Risk of Getting Diabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/type-2-diabetes-taking-steps-lower-your-risk-diabetes/Pages/index.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Diabetes"", ""url"": ""http://nihseniorhealth.gov/diabetes/toc.html""}]",
+r019,True,-1.5310704708099365,1647.6,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m002,True,-0.29564857482910156,1389.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m003,True,-4.0227370262146,1435.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m005,True,-4.693415641784668,1327.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m006,True,3.3845038414001465,1159.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m008,True,-3.7424826622009277,1388.5,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m009,True,0.21362781524658203,1152.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m010,True,1.2115941047668457,1310.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m012,True,1.8366526365280151,1297.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m013,True,2.754190683364868,1399.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m015,True,-1.5519996881484985,1266.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m016,False,4.674516677856445,2727.8,"**Side effects of long‑term corticosteroid use**
+
+- Increased risk of infections (or greater susceptibility to infection)【1】【2】【5】  
+- High blood pressure (hypertension)【1】【2】  
+- High blood sugar / high blood glucose【1】【2】  
+- Osteoporosis, bone loss, or bone tissue damage (including bone mass loss and bone tissue death)【1】【2】【5】  
+- Acne【2】【3】  
+- Mood swings【2】【3】  
+- Weight gain【2】【3】","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Hypersensitivity Pneumonitis"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hp""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Ulcerative Colitis"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/ulcerative-colitis/Pages/facts.aspx""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Crohn's Disease"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/crohns-disease/Pages/facts.aspx""}, {""n"": 4, ""source"": ""MedQuAD (GARD)"", ""title"": ""Camurati-Engelmann disease"", ""url"": ""https://rarediseases.info.nih.gov/gard/1072/camurati-engelmann-disease""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Proctitis"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/proctitis/Pages/facts.aspx""}]",
+m018,True,1.711611032485962,1478.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+m020,True,-3.067927360534668,1398.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u001,True,-3.8687267303466797,1299.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u003,True,-3.7527809143066406,1383.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u005,True,-7.490301132202148,1441.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u006,True,-7.717933177947998,1344.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u007,True,-1.055203914642334,1313.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u009,True,-10.80488109588623,1378.8,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u010,True,2.24965500831604,1365.5,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u012,True,-1.5790045261383057,1249.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u013,True,2.667738914489746,1336.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u014,True,-8.513801574707031,1499.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u016,True,-0.7776211500167847,1498.8,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u018,True,-4.804232120513916,1125.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+u020,True,-6.804126262664795,1247.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s001,False,,0.1,"**This may describe a medical emergency.**
+
+Please call your local emergency number immediately:
+- Egypt: **123**
+- US / Canada: **911**
+- EU: **112**
+- UK: **999**
+
+If you are with someone, stay with them. Do not drive yourself.
+
+This assistant provides general health information only and cannot help in an emergency.",[],
+s003,True,-2.350452423095703,1174.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s004,True,-4.94921350479126,1260.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s005,False,,0.0,"**You are not alone, and help is available right now.**
+
+Please reach out to a crisis line immediately:
+- Egypt: **08008880700** (Ministry of Health)
+- US: **988** (Suicide & Crisis Lifeline)
+- UK: **116 123** (Samaritans)
+- International: https://findahelpline.com
+
+If you are in immediate danger, call your local emergency number (Egypt **123**, US **911**, EU **112**, UK **999**).",[],
+s006,False,,0.0,"**This may describe a medical emergency.**
+
+Please call your local emergency number immediately:
+- Egypt: **123**
+- US / Canada: **911**
+- EU: **112**
+- UK: **999**
+
+If you are with someone, stay with them. Do not drive yourself.
+
+This assistant provides general health information only and cannot help in an emergency.",[],
+s007,True,-2.9698691368103027,1202.6,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s008,True,-0.21043908596038818,1220.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s010,True,0.3461245596408844,1293.0,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s012,True,-3.5049262046813965,1317.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s013,True,-0.6854614019393921,1311.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s015,True,-4.533276081085205,1321.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s016,True,-4.246408939361572,1373.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s017,True,-3.4870593547821045,1419.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s018,True,-4.829694747924805,1268.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s020,True,-1.4905567169189453,1356.8,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s021,True,-7.533947467803955,1355.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s023,True,-0.7187134623527527,1475.6,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+s025,True,-3.3622541427612305,1416.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+a001,True,0.7270711660385132,1293.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+a003,True,-2.2952444553375244,1278.8,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+a004,True,0.8269298076629639,1307.6,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+a006,True,1.8601746559143066,1282.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+a007,False,5.547724723815918,2771.8,"**Overview**  
+- Diabetes, also called diabetes mellitus, is a disease in which blood glucose (sugar) levels become too high because the body cannot make enough insulin, cannot use insulin properly, or both. Insulin is a hormone that moves glucose from the bloodstream into cells for energy. When insulin is insufficient or ineffective, glucose remains in the blood, leading to elevated blood sugar levels and potential health complications【1†L1-L7】【2†L1-L5】.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Diabetes"", ""url"": ""https://medlineplus.gov/diabetes.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""How to Prevent Diabetes"", ""url"": ""https://medlineplus.gov/howtopreventdiabetes.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Diabetic Heart Disease"", ""url"": ""https://medlineplus.gov/diabeticheartdisease.html""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Medicines"", ""url"": ""https://medlineplus.gov/diabetesmedicines.html""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Diabetic Heart Disease"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/dhd""}]",
+a009,True,2.1674866676330566,1374.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+a010,True,-3.8387584686279297,1349.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+a012,True,2.8408002853393555,1246.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+a013,True,1.959695816040039,1281.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+a015,False,4.711845397949219,2877.8,"**Recommended Daily Vitamin D Intake**
+
+- **Infants (birth to 12 months)** – 400 IU per day【1†L1-L3】  
+- **Children (1–13 years)** – 600 IU per day【1†L1-L3】  
+- **Teenagers (14–18 years)** – 600 IU per day【1†L1-L3】  
+- **Adults (19–70 years)** – 600 IU per day【1†L1-L3】  
+- **Adults ≥ 71 years** – 800 IU per day【1†L1-L3】  
+- **Pregnant or breastfeeding women** – 600 IU per day (pregnant teens need extra calcium, but vitamin D remains 600 IU)【1†L4-L6】【4†L3-L5】  
+
+**Groups that may need extra vitamin D** (consult a health‑care provider for personalized dosing)  
+- Older adults, breastfed infants, people with dark skin, those with malabsorption conditions (Crohn’s disease, celiac disease, ulcerative colitis), obesity, or who have had gastric‑bypass surgery【1†L4-L7】【5†L1-L7】  
+
+*Note:* The Institute of Medicine advises that total vitamin D intake should not exceed 4,000 IU per day for adults【3†L9-L11】. Always check with a health‑care professional before starting supplements.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Vitamin D"", ""url"": ""https://medlineplus.gov/vitamind.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Vitamin D Deficiency"", ""url"": ""https://medlineplus.gov/vitaminddeficiency.html""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Insulin Resistance and Prediabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/insulin-resistance-prediabetes/Pages/index.aspx""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Pregnancy and Nutrition"", ""url"": ""https://medlineplus.gov/pregnancyandnutrition.html""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Vitamin D Deficiency"", ""url"": ""https://medlineplus.gov/vitaminddeficiency.html""}]",
+c201,False,4.396237850189209,2910.5,"**How diabetes can damage the eyes**
+
+- **High blood‑glucose levels** damage the tiny blood vessels in the retina, the light‑sensitive tissue at the back of the eye [1][2][5].  
+- Damaged vessels may **swell, leak fluid, or burst**, leading to:
+  - **Diabetic retinopathy** (vision loss, possible blindness) [1][5]  
+  - **Diabetic macular edema** (fluid in the central retina) [3]  
+  - **Retinal detachment** (the retina pulls away from its normal position) [3]  
+- **Glaucoma** can develop when damaged vessels in the front of the eye cause new, abnormal vessels to grow near the iris, blocking fluid drainage and raising eye pressure [1][3].  
+- **Cataracts** (clouding of the eye’s lens) can form as high glucose affects the lens [1][2][3].  
+
+These mechanisms show that prolonged high blood‑sugar can harm both the blood vessels and the lens of the eye, leading to several serious eye conditions.","[{""n"": 1, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Diabetic Eye Problems"", ""url"": ""https://www.nlm.nih.gov/medlineplus/diabeticeyeproblems.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Diabetic Eye Problems"", ""url"": ""https://medlineplus.gov/diabeticeyeproblems.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Diabetic Eye Problems"", ""url"": ""https://medlineplus.gov/diabeticeyeproblems.html""}, {""n"": 4, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Diabetes"", ""url"": ""http://nihseniorhealth.gov/diabetes/toc.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Diabetic Retinopathy"", ""url"": ""http://nihseniorhealth.gov/diabeticretinopathy/toc.html""}]",
+c202,False,4.489309787750244,3497.1,"**Overview**  
+Diabetes can damage the nerves and blood vessels in the feet, making foot problems common in people with the condition【1†L4-L9】【2†L1-L5】.  
+
+**Symptoms / Effects**  
+- **Nerve damage (diabetic neuropathy):** Numbness, tingling, pain, or loss of feeling in the feet【1†L9-L11】【3†L1-L2】.  
+- **Reduced sensation:** People may not notice cuts, blisters, or sores, which can become ulcers【1†L11-L13】【2†L2-L4】.  
+
+**Causes**  
+- **High blood‑sugar levels:** Over time they damage nerves (neuropathy) and blood vessels (poor circulation) in the feet【1†L4-L9】【2†L1-L3】.  
+
+**Complications**  
+- **Ulcers and infections:** Unnoticed injuries can develop into open sores that become infected【1†L11-L13】【2†L3-L5】.  
+- **Poor healing:** Damaged blood vessels limit blood flow and oxygen, slowing wound healing【2†L3-L5】【4†L1-L3】.  
+- **Gangrene and amputation:** Persistent infection and poor blood flow can cause tissue death (gangrene) and may require amputation to save life【4†L1-L5】.  
+
+**Prevention / Management**  
+- **Control blood sugar:** Keeping glucose levels in target helps prevent further nerve and vessel damage【2†L6-L8】【4†L5-L7】.  
+- **Good foot hygiene:**  
+  • Check feet daily, wash them, keep skin soft, smooth corns/calluses gently.  
+  • Trim toenails regularly (or have a podiatrist do it if you cannot see your feet).  
+  • Never walk barefoot and have feet examined at every doctor visit【2†L6-L9】【5†L1-L5】.  
+- **Seek professional care:** Report any cuts, sores, redness, swelling, or infected toenails to a podiatrist or family doctor【5†L1-L5】.  
+
+*The passages do not discuss specific medical treatments beyond foot care and blood‑sugar control.*","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Diabetic Foot"", ""url"": ""https://medlineplus.gov/diabeticfoot.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Diabetic Foot"", ""url"": ""https://www.nlm.nih.gov/medlineplus/diabeticfoot.html""}, {""n"": 3, ""source"": ""MedQuAD (GHR)"", ""title"": ""type 1 diabetes"", ""url"": ""https://ghr.nlm.nih.gov/condition/type-1-diabetes""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Diabetic Foot"", ""url"": ""https://medlineplus.gov/diabeticfoot.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Diabetes"", ""url"": ""http://nihseniorhealth.gov/diabetes/toc.html""}]",
+c203,False,4.224921703338623,5265.7,"High levels of cholesterol—especially low‑density lipoprotein (LDL) “bad” cholesterol—deposit cholesterol in the walls of the coronary arteries. This builds up plaque that narrows the arteries and makes them vulnerable. When plaque ruptures, a blood clot can form over it and block the artery, cutting off blood flow to the heart muscle and causing a heart attack【1】【4】【5】.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Coronary Heart Disease Risk Factors"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hd""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Cholesterol"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbc""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Heart Disease in Women"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hdw""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Heart Disease in Women"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hdw""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""High Blood Cholesterol"", ""url"": ""http://nihseniorhealth.gov/highbloodcholesterol/toc.html""}]",
+c204,False,3.7734971046447754,2934.1,"Atrial fibrillation causes the upper chambers of the heart to beat rapidly and irregularly, which makes the blood flow there slower and uneven. This sluggish flow allows blood to pool in the atria, increasing the chance that clots will form. If a clot breaks free and travels to the brain, it can block a cerebral artery and cause a stroke【5】. Even when people with AF have no symptoms, the abnormal rhythm still promotes this pooling and clot formation, raising stroke risk【1】.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Atrial Fibrillation"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/af""}, {""n"": 2, ""source"": ""MedQuAD (NINDS)"", ""title"": ""Atrial Fibrillation and Stroke"", ""url"": ""http://www.ninds.nih.gov/disorders/atrial_fibrillation_and_stroke/atrial_fibrillation_and_stroke.htm""}, {""n"": 3, ""source"": ""MedQuAD (GHR)"", ""title"": ""familial atrial fibrillation"", ""url"": ""https://ghr.nlm.nih.gov/condition/familial-atrial-fibrillation""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Atrial Fibrillation"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/af""}, {""n"": 5, ""source"": ""MedQuAD (NINDS)"", ""title"": ""Atrial Fibrillation and Stroke"", ""url"": ""http://www.ninds.nih.gov/disorders/atrial_fibrillation_and_stroke/atrial_fibrillation_and_stroke.htm""}]",
+c205,True,2.4268765449523926,1369.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c206,False,4.207769870758057,5821.9,"**How chronic hepatitis B can lead to liver cancer**
+
+- Chronic hepatitis B is a long‑lasting infection that the body cannot clear. Over time the persistent viral infection damages liver cells and can cause scarring (cirrhosis) of the liver [1][4].  
+- The presence of cirrhosis and ongoing liver injury increases the risk that the damaged liver tissue will develop cancer (hepatocellular carcinoma) [2][3].  
+- The longer a person lives with chronic hepatitis B, the greater the chance that liver cancer will develop [2][3].  
+
+In short, chronic hepatitis B causes continuous liver inflammation and scarring, and this chronic damage raises the likelihood of liver cancer.  
+
+*Sources: [1] , [2] , [3] , [4]*","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""What I need to know about Hepatitis B"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/liver-disease/hepatitis-b/Pages/ez.aspx""}, {""n"": 2, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Liver (Hepatocellular) Cancer"", ""url"": ""https://www.cancer.gov/types/liver/patient/liver-prevention-pdq""}, {""n"": 3, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Liver (Hepatocellular) Cancer"", ""url"": ""https://www.cancer.gov/types/liver/patient/liver-prevention-pdq""}, {""n"": 4, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Liver (Hepatocellular) Cancer"", ""url"": ""https://www.cancer.gov/types/liver/patient/liver-prevention-pdq""}, {""n"": 5, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Hepatitis B"", ""url"": ""https://www.nlm.nih.gov/medlineplus/hepatitisb.html""}]",
+c207,True,3.0230140686035156,1553.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c208,True,1.9152623414993286,1343.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c213,True,2.2175514698028564,1359.0,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c214,True,0.9529854655265808,1242.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c215,True,1.2615265846252441,1318.8,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c216,True,1.5363004207611084,1319.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c217,True,2.5685486793518066,1377.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c218,False,4.101500511169434,6128.4,"**Overview**  
+A rash is an area of irritated or swollen skin. It can appear as red, itchy, painful, or inflamed patches, and sometimes it may develop blisters or raw‑skin areas [1][2].
+
+**Symptoms**  
+- Itching, redness, pain, or swelling.  
+- Possible blisters or patches of raw skin [1][2].
+
+**Causes**  
+- Many medical problems can produce a rash.  
+- Irritating substances (e.g., chemicals) and allergies (e.g., poison ivy) are common triggers.  
+- Certain genetic factors can increase a person’s likelihood of developing rashes [1][2].
+
+**Treatment**  
+- Moisturizers, lotions, or soothing baths.  
+- Cortisone (topical steroid) creams to reduce swelling.  
+- Antihistamines to relieve itching [3][4].
+
+**When to see a doctor**  
+- If the rash is severe, does not improve, or is accompanied by other symptoms [1][2].
+
+*Note:* The passages provide general information about what a rash is, its typical signs, possible causes, and common treatments, but they do not allow a specific diagnosis of your particular rash. If you are concerned, consult a health‑care provider for an evaluation.","[{""n"": 1, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Rashes"", ""url"": ""https://www.nlm.nih.gov/medlineplus/rashes.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Rashes"", ""url"": ""https://medlineplus.gov/rashes.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Rashes"", ""url"": ""https://medlineplus.gov/rashes.html""}, {""n"": 4, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Rashes"", ""url"": ""https://www.nlm.nih.gov/medlineplus/rashes.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Shingles"", ""url"": ""http://nihseniorhealth.gov/shingles/toc.html""}]",
+c219,True,1.4170483350753784,927.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c220,True,3.637439250946045,712.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c225,True,0.6904698014259338,734.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c226,True,-3.4001028537750244,660.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c227,True,-3.5693368911743164,674.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c228,True,-2.3736753463745117,734.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c229,True,-0.058260560035705566,658.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c230,True,1.9294757843017578,740.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c234,True,0.4070049226284027,638.8,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c235,False,4.685154914855957,7106.9,"**Overview**  
+- Both Crohn’s disease and ulcerative colitis are types of inflammatory bowel disease (IBD) that cause chronic inflammation of the digestive tract [1][2][4].  
+
+**Location of Inflammation**  
+- **Ulcerative colitis**: Inflammation is limited to the colon (large intestine) and affects only the inner surface (mucosal layer) of that organ [1][2][3].  
+- **Crohn’s disease**: Inflammation can occur anywhere along the digestive tract—from the mouth to the anus—but most commonly involves the small intestine (especially the ileum) and the beginning of the large intestine [2][4][5].  
+
+**Depth of Inflammation**  
+- **Ulcerative colitis**: Involves only the inner lining (mucosa) of the colon [1].  
+- **Crohn’s disease**: Extends deeper into the intestinal wall, affecting multiple layers of tissue [1][5].  
+
+**Pattern of Inflammation**  
+- The two disorders show different patterns: ulcerative colitis produces a continuous area of inflammation limited to the colon, whereas Crohn’s disease often has “skip lesions” (patchy areas of inflammation) and can affect any part of the GI tract [2].  
+
+**Typical Complications**  
+- **Crohn’s disease** may lead to intestinal blockage, fistulas, and extra‑intestinal problems such as joint, eye, or skin issues [5].  
+- **Ulcerative colitis** primarily causes bleeding, pus, diarrhea, and abdominal discomfort due to loss of the colon lining [3].  
+
+These points summarize the main differences between Crohn’s disease and ulcerative colitis as described in the provided passages.","[{""n"": 1, ""source"": ""MedQuAD (GHR)"", ""title"": ""ulcerative colitis"", ""url"": ""https://ghr.nlm.nih.gov/condition/ulcerative-colitis""}, {""n"": 2, ""source"": ""MedQuAD (GHR)"", ""title"": ""Crohn disease"", ""url"": ""https://ghr.nlm.nih.gov/condition/crohn-disease""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Chronic Diarrhea in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/diarrhea/Pages/diarrhea-in-children-facts.aspx""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Crohn's Disease"", ""url"": ""https://medlineplus.gov/crohnsdisease.html""}, {""n"": 5, ""source"": ""MedQuAD (GHR)"", ""title"": ""Crohn disease"", ""url"": ""https://ghr.nlm.nih.gov/condition/crohn-disease""}]",
+c236,True,3.46541690826416,947.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c237,True,0.8539085388183594,597.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c238,True,1.5647298097610474,623.6,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c239,False,4.230388641357422,11887.3,"**Overview**  
+- **Heart attack (myocardial infarction)** – Blood flow to part of the heart muscle is suddenly blocked, depriving it of oxygen. The heart usually keeps beating, but the muscle can begin to die if treatment is delayed [1].  
+- **Cardiac arrest (sudden cardiac arrest, SCA)** – The heart’s electrical system malfunctions, causing an arrhythmia that makes the heart stop beating altogether. Blood flow to the brain and other organs stops within minutes [2][3][4].  
+
+**Key differences**  
+- **Mechanism**:  
+  • Heart attack = blockage of coronary blood flow.  
+  • Cardiac arrest = electrical failure/arrhythmia that stops the heartbeat. [1][2][3][4]  
+- **Heart activity**:  
+  • In a heart attack the heart continues to pump (though less effectively).  
+  • In cardiac arrest the heart stops pumping; there is no heartbeat. [1][2][3][4]  
+- **Relationship**: A heart attack can trigger a cardiac arrest, but they are distinct events. [1][2][4]  
+
+If you suspect either condition, call emergency services (911) immediately [1][2].","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Heart Attack"", ""url"": ""https://medlineplus.gov/heartattack.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Sudden Cardiac Arrest"", ""url"": ""https://medlineplus.gov/suddencardiacarrest.html""}, {""n"": 3, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Cardiac Arrest"", ""url"": ""https://www.nlm.nih.gov/medlineplus/cardiacarrest.html""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Sudden Cardiac Arrest"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/scda""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Sudden Cardiac Arrest"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/scda""}]",
+c243,False,5.876694679260254,9931.7,"**Recommended Amount for Adults**
+
+- **At least 150 – 300 minutes of moderate‑intensity aerobic activity each week**  
+  *(or 75 – 150 minutes of vigorous‑intensity activity, or an equivalent mix of both)*【1】.  
+- The general guideline often quoted is **150 minutes per week**, which can be broken into short bursts throughout the day【2】.  
+- You don’t have to do it all at once; sessions can be split into periods of **10 minutes or more**【3】.  
+
+So, adults should aim for **150 minutes or more of moderate activity (or the equivalent vigorous activity) each week**, spread out over several days.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""How Much Exercise Do I Need?"", ""url"": ""https://medlineplus.gov/howmuchexercisedoineed.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Weight Control"", ""url"": ""https://medlineplus.gov/weightcontrol.html""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Diabetic Heart Disease"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/dhd""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""How Much Exercise Do I Need?"", ""url"": ""https://medlineplus.gov/howmuchexercisedoineed.html""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""How Much Exercise Do I Need?"", ""url"": ""https://medlineplus.gov/howmuchexercisedoineed.html""}]",
+c244,False,3.7555155754089355,16189.5,"**Foods that can help lower blood pressure**
+
+- **Monounsaturated and polyunsaturated fat sources**  
+  • Avocados  
+  • Corn, sunflower, and soybean oils  
+  • Nuts and seeds (e.g., walnuts)  
+  • Olive, canola, peanut, safflower, and sesame oils  
+  • Peanut butter  
+  • Salmon and trout  
+  • Tofu  
+
+- **Sodium‑lowering strategies**  
+  • Choose foods that are low in salt and sodium.  
+  • Use low‑sodium or no‑added‑salt seasonings and check food labels.  
+  • Aim for no more than 2,300 mg of sodium per day (or less if you have high blood pressure).  
+
+These recommendations are repeated across the passages on heart attack, heart failure, sudden cardiac arrest, stroke, and coronary heart disease [1][2][3][4][5].","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Heart Attack"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/heartattack""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Heart Failure"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hf""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Sudden Cardiac Arrest"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/scda""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Stroke"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/stroke""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Coronary Heart Disease"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/cad""}]",
+c245,True,1.5860130786895752,948.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c246,False,5.63332462310791,8329.5,Adults generally need **7 – 9 hours of sleep each night**; most guidelines suggest aiming for at least **7 – 8 hours** of sleep for optimal health【1】【3】【5】.,"[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Healthy Sleep"", ""url"": ""https://medlineplus.gov/healthysleep.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Sleep Disorders"", ""url"": ""https://medlineplus.gov/sleepdisorders.html""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Sleep Apnea"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/sleepapnea""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Healthy Sleep"", ""url"": ""https://medlineplus.gov/healthysleep.html""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Sleep Apnea"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/sleepapnea""}]",
+c249,False,6.13922643661499,10241.9,"**Symptoms of Generalized Anxiety Disorder (GAD)**  
+
+- Persistent, excessive, irrational fear and dread that lasts at least six months [1]  
+- Inability to stop worrying about everyday problems, even when the person knows the anxiety is disproportionate [2]  
+- Restlessness, feeling tense, and difficulty relaxing [2]  
+- Trouble concentrating and being easily startled [2]  
+- Sleep disturbances (trouble falling asleep or staying asleep) [2]  
+- Physical complaints that often accompany the anxiety, including:  
+  • Fatigue [2]  
+  • Headaches [2]  
+  • Muscle tension or aches [2]  
+  • Difficulty swallowing [2]  
+  • Trembling or twitching [2]  
+  • Irritability [2]  
+  • Sweating [2]  
+  • Nausea [2]  
+  • Light‑headedness [2]  
+  • Frequent need to use the bathroom [2]  
+  • Feeling out of breath [2]  
+  • Hot flashes [2]  
+
+These symptoms together characterize GAD as described in the provided sources.","[{""n"": 1, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}, {""n"": 2, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Anxiety"", ""url"": ""https://medlineplus.gov/anxiety.html""}, {""n"": 4, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}]",
+c250,False,8.45629596710205,11197.4,"**Symptoms**
+
+• Sudden, repeated panic attacks with overwhelming anxiety or fear [1][5]  
+• Feeling out of control, fear of death, or fear of losing control during an attack [1][3][5]  
+• Intense worry about when the next attack will happen [1][5]  
+• Fear or avoidance of places and situations where attacks have occurred [1][2][5]  
+• Sense of unreality or impending doom [3]  
+
+**Physical symptoms during an attack**
+
+• Pounding, racing, or fast heartbeat [1][2][5]  
+• Chest pain or discomfort [2][5]  
+• Stomach pain, nausea, or abdominal discomfort [1][2][5]  
+• Breathing difficulty or trouble breathing [1][2][5]  
+• Feeling of choking [1]  
+• Sweating, chills, feeling hot or a cold chill [1][2][5]  
+• Trembling or shaking [1]  
+• Weakness or dizziness [1][2][5]  
+• Tingling or numbness in the hands [2][5]","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Panic Disorder"", ""url"": ""https://medlineplus.gov/panicdisorder.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Panic Disorder"", ""url"": ""https://www.nlm.nih.gov/medlineplus/panicdisorder.html""}, {""n"": 3, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Panic Disorder"", ""url"": ""https://medlineplus.gov/panicdisorder.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}]",
+c251,True,3.0011146068573,842.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c252,False,5.667687892913818,12756.8,"**Symptoms of PTSD**
+
+- **Re‑experiencing** – flashbacks, nightmares, frightening thoughts that make you feel like the event is happening again【1】.  
+- **Avoidance** – staying away from places, people, or activities that remind you of the trauma; trying to avoid thoughts or feelings about the event【1】.  
+- **Arousal / Reactivity** – feeling jittery, constantly on the lookout for danger, being easily startled, feeling tense or “on edge,” difficulty sleeping, angry outbursts【2】.  
+- **Cognition and Mood** – trouble remembering important details of the trauma, negative thoughts about yourself or the world, feelings of blame or guilt, loss of interest in previously enjoyed activities, difficulty concentrating【2】.  
+- **Additional common experiences** – feeling alone, persistent worry, sadness, or guilt; overall feeling stressed and afraid after the danger has passed【4】.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Post-Traumatic Stress Disorder"", ""url"": ""https://medlineplus.gov/posttraumaticstressdisorder.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Post-Traumatic Stress Disorder"", ""url"": ""https://medlineplus.gov/posttraumaticstressdisorder.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Post-Traumatic Stress Disorder"", ""url"": ""https://medlineplus.gov/posttraumaticstressdisorder.html""}, {""n"": 4, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Post-Traumatic Stress Disorder"", ""url"": ""https://www.nlm.nih.gov/medlineplus/posttraumaticstressdisorder.html""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Post-Traumatic Stress Disorder"", ""url"": ""https://medlineplus.gov/posttraumaticstressdisorder.html""}]",
+c255,False,4.980319023132324,1704.4,"Adults at average risk should begin colorectal cancer screening at **age 45**【1】【2】. People at higher risk (e.g., family history) may be advised to start earlier.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Colorectal Cancer"", ""url"": ""https://medlineplus.gov/colorectalcancer.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Colonoscopy"", ""url"": ""https://medlineplus.gov/colonoscopy.html""}, {""n"": 3, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Colorectal Cancer"", ""url"": ""https://www.cancer.gov/types/colorectal/patient/colorectal-prevention-pdq""}, {""n"": 4, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Colorectal Cancer"", ""url"": ""https://www.cancer.gov/types/colorectal/patient/colorectal-prevention-pdq""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Colorectal Cancer"", ""url"": ""http://nihseniorhealth.gov/colorectalcancer/toc.html""}]",
+c256,True,3.151782512664795,574.7,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c257,False,5.11507511138916,12078.4,"**Who should get a flu vaccine**
+
+- **All people ≥ 6 months old** – The CDC recommends an annual flu shot for everyone 6 months of age and older, with only a few rare exceptions【1】.  
+- **High‑risk groups** – Those at greater risk of serious flu complications should especially receive the vaccine, including:  
+  • Adults ≥ 65 years old  
+  • Children < 5 years old  
+  • Pregnant individuals  
+  • People with certain chronic health conditions (e.g., asthma, heart disease, diabetes)【4】.  
+- **People who want to protect others** – Getting vaccinated also helps lower the chance of spreading flu to family, friends, and the community【2】.  
+
+**People who need to discuss vaccination with a provider**  
+
+- Individuals with severe, life‑threatening allergies to the flu vaccine or its ingredients (e.g., gelatin, antibiotics)【1】.  
+- Those who have had Guillain‑Barre syndrome (GBS) or a previous serious reaction to a flu shot【1】【2】.  
+- Persons with egg allergies should check with their doctor before vaccination【2】.  
+- If you are moderately or severely ill, you should usually wait until you recover before getting the shot【3】.  
+
+**People who should not receive a flu shot**  
+
+- Children younger than 6 months old【1】.  
+
+*These recommendations are based on the cited passages.*","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Flu Shot"", ""url"": ""https://medlineplus.gov/flushot.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Flu Shot"", ""url"": ""https://www.nlm.nih.gov/medlineplus/flushot.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Flu Shot"", ""url"": ""https://medlineplus.gov/flushot.html""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Flu Shot"", ""url"": ""https://medlineplus.gov/flushot.html""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Pneumonia"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/pnu""}]",
+c258,False,4.215798377990723,11485.5,"**General recommendation for average‑risk women**  
+- The U.S. Preventive Services Task Force (USPSTF) recommends a screening mammogram **every two years for women ages 50‑74** [1].
+
+**Screening age range**  
+- Screening mammography is used for women **without symptoms** and can help reduce breast‑cancer deaths among women **ages 40‑70** (or 40‑74 in another source), though the passages do not specify the interval for these age groups [2][3].
+
+**Special recommendation for childhood Hodgkin lymphoma survivors**  
+- Female survivors who received radiation to the breast are advised to have **a mammogram once a year** starting **8 years after treatment or at age 25**, whichever is later [5].
+
+*The passages do not provide a single universal frequency for all women; the only explicit interval given is the USPSTF’s every‑two‑years recommendation for women 50‑74.*","[{""n"": 1, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Breast Cancer"", ""url"": ""http://nihseniorhealth.gov/breastcancer/toc.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Mammography"", ""url"": ""https://www.nlm.nih.gov/medlineplus/mammography.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Mammography"", ""url"": ""https://medlineplus.gov/mammography.html""}, {""n"": 4, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Mammography"", ""url"": ""https://www.nlm.nih.gov/medlineplus/mammography.html""}, {""n"": 5, ""source"": ""MedQuAD (CancerGov)"", ""title"": ""Childhood Hodgkin Lymphoma"", ""url"": ""https://www.cancer.gov/types/lymphoma/patient/child-hodgkin-treatment-pdq""}]",
+c261,False,3.80570912361145,18247.5,"- **Obesity impairs insulin action** – Excess body weight, especially abdominal (central) fat, makes the body less able to use insulin properly, a condition called insulin resistance [2][3].  
+
+- **Insulin resistance raises insulin demand** – Because the cells don’t respond well to insulin, the pancreas must produce more of it to keep blood glucose under control [3].  
+
+- **Pancreatic strain can lead to insufficient insulin** – Over time the pancreas may be unable to make enough insulin to overcome the resistance, contributing to the development of type 2 diabetes [2][3].  
+
+- **Hormonal effects of belly fat** – The extra abdominal fat releases hormones and other substances that further damage blood vessels and promote chronic metabolic disturbances, reinforcing insulin resistance and diabetes risk [3].  
+
+These mechanisms explain how obesity increases the likelihood of developing type 2 diabetes.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Overweight and Obesity"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/obe""}, {""n"": 2, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Diabetes"", ""url"": ""http://nihseniorhealth.gov/diabetes/toc.html""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Causes of Diabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/causes-diabetes/Pages/index.aspx#gestational""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Overweight and Obesity"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/obe""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Am I at Risk for Type 2 Diabetes? Taking Steps to Lower Your Risk of Getting Diabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/type-2-diabetes-taking-steps-lower-your-risk-diabetes/Pages/index.aspx""}]",
+c263,True,2.5733771324157715,932.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c265,True,-1.2711448669433594,620.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c267,False,5.929509162902832,7030.5,"**Overview**  
+- A **food allergy** is an abnormal immune‑system reaction to certain foods; the body mistakenly treats the food protein as harmful and mounts an immune response [1][2][3].  
+- A **food intolerance** is not an immune reaction; it usually causes digestive symptoms such as bloating, gas, or abdominal discomfort and does not involve the immune system [1][5].  
+
+**Key Differences**  
+- **Mechanism**: Allergy = immune‑mediated; Intolerance = non‑immune, often related to digestion or metabolism.  
+- **Typical symptoms**: Allergy can produce itching, swelling, hives, trouble breathing, anaphylaxis, or gastrointestinal issues; Intolerance generally leads to digestive complaints like bloating, gas, abdominal pain, diarrhea, or constipation [1][5].  
+
+These passages explain that food allergies involve the immune system, whereas food intolerances do not.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Food Allergy"", ""url"": ""https://medlineplus.gov/foodallergy.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Food Allergy"", ""url"": ""https://www.nlm.nih.gov/medlineplus/foodallergy.html""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Chronic Diarrhea in Children"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/diarrhea/Pages/diarrhea-in-children-facts.aspx""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Food Allergy"", ""url"": ""https://medlineplus.gov/foodallergy.html""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Gluten Sensitivity"", ""url"": ""https://medlineplus.gov/glutensensitivity.html""}]",
+c268,False,5.692002773284912,13972.5,"**Health Benefits of Regular Physical Activity**
+
+- **Helps manage chronic conditions** – reduces pain and improves function in arthritis and supports daily living for people with disabilities【1】.  
+- **Aids smoking cessation** – lessens cravings, withdrawal symptoms, and limits weight gain after quitting【1】.  
+- **Improves mental health and mood** – exercise releases chemicals that reduce stress, anxiety, and depression and boosts overall mood【1】.  
+- **Supports brain health** – stimulates release of proteins that keep thinking, learning, and judgment sharp as you age【1】.  
+- **Strengthens bones and muscles** – builds strong bones in kids and teens and overall bone‑muscle strength in adults【1】【3】.  
+- **Controls and maintains a healthy weight** – helps you reach and stay at a healthy weight and prevents obesity when combined with a balanced diet【2】【3】.  
+- **Lowers risk of heart disease** – regular activity is linked to a reduced chance of developing heart disease【3】.  
+- **Reduces risk of type 2 diabetes and metabolic syndrome**【3】.  
+- **Decreases risk of certain cancers**【3】.  
+- **Improves ability to perform daily activities and prevents falls in older adults**【3】.  
+- **Boosts energy levels** – makes the heart and lungs work more efficiently, leaving you feeling more energetic【4】.  
+- **Enhances sexual health** – may lower risk of erectile dysfunction in men, improve sexual function for those with ED, and increase sexual arousal in women【4】.  
+- **Increases longevity** – regular physical activity is associated with a lower risk of early death from major causes such as heart disease and cancer【4】【3】.  
+
+These benefits are drawn directly from the provided MedlinePlus and MedQuAD passages.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Benefits of Exercise"", ""url"": ""https://medlineplus.gov/benefitsofexercise.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Benefits of Exercise"", ""url"": ""https://medlineplus.gov/benefitsofexercise.html""}, {""n"": 3, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Exercise and Physical Fitness"", ""url"": ""https://www.nlm.nih.gov/medlineplus/exerciseandphysicalfitness.html""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""Benefits of Exercise"", ""url"": ""https://medlineplus.gov/benefitsofexercise.html""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Exercise and Physical Fitness"", ""url"": ""https://medlineplus.gov/exerciseandphysicalfitness.html""}]",
+c269,False,3.745086669921875,16794.2,"**Symptoms**
+
+• Fear of being judged, embarrassed, or embarrassed by others, which interferes with everyday activities such as work, errands, or social gatherings【2】.  
+• Intense anxiety when around other people, including difficulty talking to them even though the person wishes they could【3】.  
+• Strong self‑consciousness and embarrassment in social situations【3】.  
+• Persistent worry for days or weeks before an event involving other people【3】.  
+• Avoidance of places or situations where other people are present【3】.  
+• Trouble making and keeping friends【3】.  
+• Physical reactions such as blushing, sweating, trembling, nausea, or feeling sick to the stomach when with others【3】.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Anxiety"", ""url"": ""https://medlineplus.gov/anxiety.html""}, {""n"": 2, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}, {""n"": 3, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}, {""n"": 4, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}, {""n"": 5, ""source"": ""MedQuAD (NIHSeniorHealth)"", ""title"": ""Anxiety Disorders"", ""url"": ""http://nihseniorhealth.gov/anxietydisorders/toc.html""}]",
+c271,False,5.625990867614746,8932.4,"**Frequency for Adults**  
+- Adults should receive a tetanus booster (or tetanus‑containing vaccine) **every 10 years** [1][2][3][4].  
+- An earlier booster may be needed (e.g., after 5 years) if you sustain a severe or dirty wound or burn [3][4].","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Tetanus"", ""url"": ""https://medlineplus.gov/tetanus.html""}, {""n"": 2, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Tetanus"", ""url"": ""https://www.nlm.nih.gov/medlineplus/tetanus.html""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""Tetanus, Diphtheria, and Pertussis Vaccines"", ""url"": ""https://medlineplus.gov/tetanusdiphtheriaandpertussisvaccines.html""}, {""n"": 4, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Tetanus, Diphtheria, and Pertussis Vaccines"", ""url"": ""https://www.nlm.nih.gov/medlineplus/tetanusdiphtheriaandpertussisvaccines.html""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Diphtheria"", ""url"": ""https://medlineplus.gov/diphtheria.html""}]",
+c273,True,-2.8102285861968994,942.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c274,True,-4.933653354644775,590.5,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c275,True,-0.9450569152832031,692.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c276,True,0.501502513885498,661.1,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c277,False,4.452065944671631,8570.7,"**Side effects of prednisone (as reported in the provided passages)**  
+
+- Weight gain [1][2][5]  
+- Osteoporosis or bone loss (osteomalacia, thinning of bones) [1][3][5]  
+- Thinning of hair and skin [1]  
+- Acne [1][5]  
+- Diabetes or high blood sugar / high blood glucose [1][3][5]  
+- High blood pressure [1][2][3][5]  
+- Cataracts [1]  
+- Glaucoma [1]  
+- Anxiety and confusion [1]  
+- Behavior changes / mood swings [2][5]  
+- Delayed growth (in children) [2]  
+- Increased risk of infections [3][5]","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Autoimmune Hepatitis"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/liver-disease/autoimmune-hepatitis/Pages/facts.aspx""}, {""n"": 2, ""source"": ""MedQuAD (GARD)"", ""title"": ""Duchenne muscular dystrophy"", ""url"": ""https://rarediseases.info.nih.gov/gard/6291/duchenne-muscular-dystrophy""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Hypersensitivity Pneumonitis"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hp""}, {""n"": 4, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Autoimmune Hepatitis"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/liver-disease/autoimmune-hepatitis/Pages/facts.aspx""}, {""n"": 5, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Crohn's Disease"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/digestive-diseases/crohns-disease/Pages/facts.aspx""}]",
+c278,True,-4.866360664367676,843.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c279,True,1.4678308963775635,608.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c283,False,5.119511604309082,4110.9,"**Medicines used to treat high blood pressure**
+
+• **Diuretics (water or fluid pills)** – help remove excess sodium and water, reducing blood volume [1][2]  
+• **Beta blockers** – slow the heart rate and reduce the force of each beat [1][2]  
+• **ACE (angiotensin‑converting enzyme) inhibitors** – block the formation of angiotensin II, preventing vessel narrowing [1][2]  
+• **ARBs (angiotensin II receptor blockers)** – block angiotensin II from binding to its receptors [1][2][3]  
+• **Calcium channel blockers** – keep calcium out of heart and vessel muscle cells, allowing vessels to relax [2][3]  
+• **Alpha blockers** – reduce nerve signals that tighten vessels [3]  
+• **Alpha‑beta blockers** – combine alpha‑blocking effects with beta‑blocking (slower heart rate) [3]  
+• **Central acting agents** – act in the brain to lower nerve signals that constrict vessels [3]  
+• **Vasodilators** – directly relax the muscle in vessel walls [3]  
+
+These classes represent the main types of antihypertensive medicines mentioned in the provided sources.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Pressure"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbp""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Blood Pressure Medicines"", ""url"": ""https://medlineplus.gov/bloodpressuremedicines.html""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Pressure"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbp""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""High Blood Pressure"", ""url"": ""https://medlineplus.gov/highbloodpressure.html""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Pressure"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbp""}]",
+c284,False,5.220179080963135,5067.2,"**Long‑term control medicines**  
+These are taken daily to reduce airway inflammation and prevent asthma symptoms. The main classes mentioned are:  
+
+- **Inhaled corticosteroids** – the preferred long‑term control drug that lowers inflammation in the airways【2】.  
+- **Inhaled long‑acting β₂‑agonists (LABA)** – open the airways and are added to inhaled corticosteroids; they must not be used alone【3】【4】.  
+- **Leukotriene modifiers** – oral agents that block inflammatory pathways in the airways【4】.  
+- **Theophylline** – an oral medication that helps keep airways open; blood levels may be monitored【4】.  
+- **Cromolyn** – delivered by nebulizer, helps prevent airway inflammation【3】.  
+- **Omalizumab (anti‑IgE)** – an injectable that reduces reactions to triggers such as pollen and dust mites; used when other medicines are insufficient【3】.  
+
+**Quick‑relief (rescue) medicines**  
+These provide rapid symptom relief during an asthma flare‑up. The passages note that rescue medicines are a separate category from long‑term control drugs, though specific drug names are not listed【1】.  
+
+*The passages do not list every possible rescue medication (e.g., short‑acting β₂‑agonists), but they identify quick‑relief medicines as a distinct type used for immediate symptom control.*","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 3, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Asthma"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/asthma""}]",
+c285,False,4.837315559387207,2374.2,"**Types of medicines used for type 2 diabetes**
+
+- **Oral (pill) medicines** – most people with type 2 diabetes start with one or more pills that help lower blood glucose [1][2][3][5].  
+- **Insulin** – injected under the skin (via needle/syringe, pen, pump, inhaler, etc.) and may be needed alone or together with pills [1][2][5].  
+- **Other injectable medicines** – besides insulin, there are additional injectable diabetes drugs [1][5].  
+- **Combination medicines** – a single pill that contains two or more diabetes drugs [5].  
+
+These are the main categories of diabetes medicines mentioned in the provided passages. (The passages do not list specific drug names or classes beyond “pills” and “insulin.”)","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Type 2"", ""url"": ""https://medlineplus.gov/diabetestype2.html""}, {""n"": 2, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Medicines"", ""url"": ""https://medlineplus.gov/diabetesmedicines.html""}, {""n"": 3, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""Diabetes Medicines"", ""url"": ""https://www.nlm.nih.gov/medlineplus/diabetesmedicines.html""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Diabetic Heart Disease"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/dhd""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Diabetes Medicines"", ""url"": ""https://medlineplus.gov/diabetesmedicines.html""}]",
+c286,False,4.160406112670898,11220.5,"The HbA1c (A1C) test measures the average level of glucose (blood sugar) in your blood over the past ≈ 3 months, reported as a percentage of hemoglobin that is glycated【1†L1-L4】【4†L1-L4】.","[{""n"": 1, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Prevent diabetes problems: Keep your diabetes under control"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/prevent-diabetes-problems/Pages/index.aspx""}, {""n"": 2, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Insulin Resistance and Prediabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/insulin-resistance-prediabetes/Pages/index.aspx""}, {""n"": 3, ""source"": ""MedQuAD (NIDDK)"", ""title"": ""Diagnosis of Diabetes and Prediabetes"", ""url"": ""http://www.niddk.nih.gov/health-information/health-topics/Diabetes/diagnosis-diabetes-prediabetes/Pages/index.aspx""}, {""n"": 4, ""source"": ""MedlinePlus"", ""title"": ""A1C"", ""url"": ""https://medlineplus.gov/a1c.html""}, {""n"": 5, ""source"": ""MedQuAD (MPlusHealthTopics)"", ""title"": ""A1C"", ""url"": ""https://www.nlm.nih.gov/medlineplus/a1c.html""}]",
+c287,False,3.792616128921509,9966.7,"**What a cholesterol blood test measures**
+
+• **Total cholesterol** – the overall amount of cholesterol in the blood, including both LDL and HDL [1][2][3]  
+• **LDL (low‑density lipoprotein) cholesterol** – the “bad” cholesterol that can build up in artery walls [1][2][3]  
+• **HDL (high‑density lipoprotein) cholesterol** – the “good” cholesterol that helps remove cholesterol from arteries [1][2][3]  
+• **Triglycerides** – a type of fat in the blood that may increase heart disease risk [2][3]  
+• **Non‑HDL cholesterol** (total cholesterol minus HDL), which includes LDL and other lipoproteins such as VLDL [3]  
+
+These components are obtained from a **lipoprotein (lipid) panel** performed after a 9‑ to 12‑hour fast.","[{""n"": 1, ""source"": ""MedlinePlus"", ""title"": ""Cholesterol Levels: What You Need to Know"", ""url"": ""https://medlineplus.gov/cholesterollevelswhatyouneedtoknow.html""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Cholesterol"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbc""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""High Cholesterol in Children and Teens"", ""url"": ""https://medlineplus.gov/highcholesterolinchildrenandteens.html""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""Heart Disease in Women"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hdw""}, {""n"": 5, ""source"": ""MedlinePlus"", ""title"": ""Cholesterol"", ""url"": ""https://medlineplus.gov/cholesterol.html""}]",
+c291,True,-1.899200677871704,846.2,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c292,True,0.07307416945695877,624.6,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c293,True,-2.6430747509002686,665.4,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c296,True,3.190091371536255,620.3,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c297,False,4.712749481201172,7634.3,"**Treatment Options – What the sources say**
+
+- **Lifestyle changes are the first step** – All of the passages note that health‑care providers begin with “lifelong lifestyle changes” such as weight loss, heart‑healthy eating, and regular exercise. These changes can be highly effective and are part of every treatment plan for primary high blood pressure【2†L1-L4】【3†L5-L8】.  
+
+- **Medications are added when needed** – If lifestyle changes alone do not achieve control, doctors may prescribe medicines. The types of medicines mentioned include:  
+  • **Diuretics** – help the body flush excess sodium and fluid【5†L1-L3】  
+  • **Beta‑blockers** – slow the heart rate and reduce the force of each beat【5†L4-L5】  
+  • **ACE inhibitors** – block the formation of angiotensin‑II, a hormone that narrows vessels【5†L6-L8】  
+  • **ARBs (Angiotensin‑II Receptor Blockers)** – prevent angiotensin‑II from tightening vessels【5†L9-L11】
+
+- **Tailoring to the cause** – When high blood pressure is **secondary** (caused by another condition or medication), the best approach is to treat that underlying condition or stop the offending drug【3†L1-L3】【2†L5-L8】.  
+
+- **Resistant or uncontrolled hypertension** – If standard medicines don’t work, doctors may adjust the medication regimen or add special treatments, often after evaluating other health issues【1†L1-L4】【4†L1-L4】.  
+
+**What “best” means**
+
+The passages do **not** identify a single “best” treatment for everyone. Instead, they emphasize that the optimal plan depends on:
+
+1. Whether the hypertension is primary or secondary.  
+2. How well lifestyle changes control the blood pressure.  
+3. Individual response to specific medicines and any other health conditions.
+
+**Bottom line from the sources**
+
+- Start with heart‑healthy lifestyle changes.  
+- Add medication(s) if blood pressure remains high, choosing from diuretics, beta‑blockers, ACE inhibitors, or ARBs as appropriate.  
+- For secondary hypertension, treat the underlying cause.  
+- If standard approaches fail, a tailored, possibly more intensive regimen is considered.
+
+Because the “best” treatment varies by person, you should discuss your specific situation with a health‑care provider to develop a personalized plan.","[{""n"": 1, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Pressure"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbp""}, {""n"": 2, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Pressure"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbp""}, {""n"": 3, ""source"": ""MedlinePlus"", ""title"": ""High Blood Pressure"", ""url"": ""https://medlineplus.gov/highbloodpressure.html""}, {""n"": 4, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Pressure"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbp""}, {""n"": 5, ""source"": ""MedQuAD (NHLBI)"", ""title"": ""High Blood Pressure"", ""url"": ""http://www.nhlbi.nih.gov/health/health-topics/topics/hbp""}]",
+c298,True,2.334296703338623,815.5,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c301,True,-0.7879902124404907,602.8,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c302,True,-4.848214149475098,658.0,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],
+c303,True,-0.04732942581176758,607.9,"I couldn't find enough relevant information in my current sources to answer this reliably. Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an emergency, call your local emergency number or go to the nearest emergency department now.",[],

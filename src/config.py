@@ -18,7 +18,7 @@ CHUNK_MAX_CHARS = 1000
 CHUNK_OVERLAP_CHARS = 200
 
 EMBEDDING_MODEL = "BAAI/bge-m3"
-RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-12-v2"
+RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
 LLM_MODEL = "openai/gpt-oss-120b"
 JUDGE_MODEL = "qwen/qwen3.8-27b"   # grades answers in notebook 04, never the generator
 LLM_BASE_URL = "https://api.groq.com/openai/v1"

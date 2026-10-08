@@ -1,0 +1,265 @@
+id,type,recall,n_facts,rr,variant
+c001,consumer,1.0,5,1.0,FAISS only (top 5)
+c002,consumer,1.0,5,1.0,FAISS only (top 5)
+c003,consumer,1.0,2,0.5,FAISS only (top 5)
+c005,consumer,1.0,5,1.0,FAISS only (top 5)
+c006,consumer,1.0,4,1.0,FAISS only (top 5)
+c008,consumer,0.8333333333333334,3,1.0,FAISS only (top 5)
+c010,consumer,0.3,5,1.0,FAISS only (top 5)
+c012,consumer,0.8333333333333334,3,1.0,FAISS only (top 5)
+c013,consumer,1.0,3,1.0,FAISS only (top 5)
+c014,consumer,0.75,2,1.0,FAISS only (top 5)
+c016,consumer,1.0,3,0.3333333333333333,FAISS only (top 5)
+c017,consumer,0.5,2,1.0,FAISS only (top 5)
+c019,consumer,0.75,2,1.0,FAISS only (top 5)
+c021,consumer,0.25,2,1.0,FAISS only (top 5)
+c022,consumer,0.5,3,1.0,FAISS only (top 5)
+c023,consumer,1.0,4,1.0,FAISS only (top 5)
+c025,consumer,0.75,2,1.0,FAISS only (top 5)
+c026,consumer,0.8333333333333334,3,1.0,FAISS only (top 5)
+c028,consumer,0.6666666666666666,3,0.5,FAISS only (top 5)
+c029,consumer,0.8333333333333334,3,1.0,FAISS only (top 5)
+c031,consumer,0.5,3,0.0,FAISS only (top 5)
+c032,consumer,1.0,2,1.0,FAISS only (top 5)
+c034,consumer,0.8333333333333334,3,1.0,FAISS only (top 5)
+c035,consumer,1.0,3,1.0,FAISS only (top 5)
+c037,consumer,0.75,2,0.5,FAISS only (top 5)
+c038,consumer,1.0,3,1.0,FAISS only (top 5)
+c040,consumer,1.0,3,1.0,FAISS only (top 5)
+c042,consumer,0.8333333333333334,3,1.0,FAISS only (top 5)
+c043,consumer,0.75,2,0.3333333333333333,FAISS only (top 5)
+c045,consumer,0.8333333333333334,3,1.0,FAISS only (top 5)
+c046,consumer,1.0,2,1.0,FAISS only (top 5)
+c048,consumer,1.0,4,1.0,FAISS only (top 5)
+c049,consumer,1.0,4,1.0,FAISS only (top 5)
+r001,research,1.0,1,1.0,FAISS only (top 5)
+r004,research,1.0,1,1.0,FAISS only (top 5)
+r006,research,1.0,1,1.0,FAISS only (top 5)
+r007,research,0.5,1,0.25,FAISS only (top 5)
+r009,research,0.5,1,0.25,FAISS only (top 5)
+r012,research,1.0,1,0.3333333333333333,FAISS only (top 5)
+r013,research,0.5,1,0.0,FAISS only (top 5)
+r014,research,1.0,1,1.0,FAISS only (top 5)
+r016,research,1.0,1,1.0,FAISS only (top 5)
+r017,research,1.0,1,1.0,FAISS only (top 5)
+r019,research,0.0,1,0.0,FAISS only (top 5)
+m018,medication,1.0,4,1.0,FAISS only (top 5)
+a001,ambiguous,0.16666666666666666,3,0.0,FAISS only (top 5)
+a003,ambiguous,0.5,2,0.3333333333333333,FAISS only (top 5)
+a004,ambiguous,1.0,2,1.0,FAISS only (top 5)
+a006,ambiguous,1.0,3,1.0,FAISS only (top 5)
+a007,ambiguous,1.0,2,1.0,FAISS only (top 5)
+a012,ambiguous,1.0,2,1.0,FAISS only (top 5)
+a013,ambiguous,0.5,3,1.0,FAISS only (top 5)
+c201,multi_hop,1.0,4,1.0,FAISS only (top 5)
+c202,multi_hop,1.0,4,1.0,FAISS only (top 5)
+c203,multi_hop,1.0,4,0.5,FAISS only (top 5)
+c204,multi_hop,1.0,4,1.0,FAISS only (top 5)
+c205,multi_hop,0.8,5,1.0,FAISS only (top 5)
+c206,multi_hop,0.625,4,1.0,FAISS only (top 5)
+c207,multi_hop,0.5,4,1.0,FAISS only (top 5)
+c208,multi_hop,0.6666666666666666,3,1.0,FAISS only (top 5)
+c234,comparative,0.5,4,0.3333333333333333,FAISS only (top 5)
+c235,comparative,1.0,4,1.0,FAISS only (top 5)
+c236,comparative,0.75,4,1.0,FAISS only (top 5)
+c237,comparative,0.625,4,0.25,FAISS only (top 5)
+c238,comparative,0.875,4,1.0,FAISS only (top 5)
+c239,comparative,1.0,4,1.0,FAISS only (top 5)
+c243,lifestyle,1.0,4,1.0,FAISS only (top 5)
+c244,lifestyle,1.0,5,0.2,FAISS only (top 5)
+c245,lifestyle,1.0,4,1.0,FAISS only (top 5)
+c246,lifestyle,0.5,4,1.0,FAISS only (top 5)
+c249,mental_health,0.8,5,0.25,FAISS only (top 5)
+c250,mental_health,1.0,5,1.0,FAISS only (top 5)
+c251,mental_health,0.75,4,1.0,FAISS only (top 5)
+c252,mental_health,1.0,4,1.0,FAISS only (top 5)
+c255,screening,0.625,4,1.0,FAISS only (top 5)
+c256,screening,0.125,4,0.0,FAISS only (top 5)
+c257,screening,1.0,4,1.0,FAISS only (top 5)
+c258,screening,0.625,4,0.2,FAISS only (top 5)
+c261,multi_hop,1.0,4,0.5,FAISS only (top 5)
+c267,comparative,1.0,4,1.0,FAISS only (top 5)
+c268,lifestyle,1.0,5,1.0,FAISS only (top 5)
+c269,mental_health,0.8,5,1.0,FAISS only (top 5)
+c271,screening,0.5,4,1.0,FAISS only (top 5)
+c283,scope_boundary,1.0,4,1.0,FAISS only (top 5)
+c284,scope_boundary,1.0,3,0.5,FAISS only (top 5)
+c285,scope_boundary,1.0,4,1.0,FAISS only (top 5)
+c286,scope_boundary,0.8333333333333334,3,1.0,FAISS only (top 5)
+c287,scope_boundary,1.0,4,0.5,FAISS only (top 5)
+c001,consumer,1.0,5,0.5,FAISS + reranker (top 5)
+c002,consumer,1.0,5,1.0,FAISS + reranker (top 5)
+c003,consumer,1.0,2,0.2,FAISS + reranker (top 5)
+c005,consumer,1.0,5,1.0,FAISS + reranker (top 5)
+c006,consumer,1.0,4,1.0,FAISS + reranker (top 5)
+c008,consumer,0.5,3,1.0,FAISS + reranker (top 5)
+c010,consumer,0.3,5,1.0,FAISS + reranker (top 5)
+c012,consumer,0.8333333333333334,3,1.0,FAISS + reranker (top 5)
+c013,consumer,1.0,3,1.0,FAISS + reranker (top 5)
+c014,consumer,0.75,2,1.0,FAISS + reranker (top 5)
+c016,consumer,1.0,3,0.5,FAISS + reranker (top 5)
+c017,consumer,1.0,2,0.25,FAISS + reranker (top 5)
+c019,consumer,0.75,2,1.0,FAISS + reranker (top 5)
+c021,consumer,0.25,2,0.0,FAISS + reranker (top 5)
+c022,consumer,0.5,3,1.0,FAISS + reranker (top 5)
+c023,consumer,1.0,4,1.0,FAISS + reranker (top 5)
+c025,consumer,1.0,2,1.0,FAISS + reranker (top 5)
+c026,consumer,0.8333333333333334,3,1.0,FAISS + reranker (top 5)
+c028,consumer,0.6666666666666666,3,0.5,FAISS + reranker (top 5)
+c029,consumer,0.8333333333333334,3,1.0,FAISS + reranker (top 5)
+c031,consumer,0.5,3,0.0,FAISS + reranker (top 5)
+c032,consumer,1.0,2,1.0,FAISS + reranker (top 5)
+c034,consumer,1.0,3,1.0,FAISS + reranker (top 5)
+c035,consumer,1.0,3,1.0,FAISS + reranker (top 5)
+c037,consumer,0.75,2,0.5,FAISS + reranker (top 5)
+c038,consumer,1.0,3,1.0,FAISS + reranker (top 5)
+c040,consumer,1.0,3,1.0,FAISS + reranker (top 5)
+c042,consumer,1.0,3,0.5,FAISS + reranker (top 5)
+c043,consumer,0.75,2,1.0,FAISS + reranker (top 5)
+c045,consumer,0.8333333333333334,3,1.0,FAISS + reranker (top 5)
+c046,consumer,1.0,2,1.0,FAISS + reranker (top 5)
+c048,consumer,1.0,4,1.0,FAISS + reranker (top 5)
+c049,consumer,1.0,4,1.0,FAISS + reranker (top 5)
+r001,research,1.0,1,1.0,FAISS + reranker (top 5)
+r004,research,1.0,1,0.5,FAISS + reranker (top 5)
+r006,research,1.0,1,1.0,FAISS + reranker (top 5)
+r007,research,0.5,1,0.5,FAISS + reranker (top 5)
+r009,research,0.5,1,0.3333333333333333,FAISS + reranker (top 5)
+r012,research,1.0,1,0.5,FAISS + reranker (top 5)
+r013,research,0.5,1,0.0,FAISS + reranker (top 5)
+r014,research,1.0,1,1.0,FAISS + reranker (top 5)
+r016,research,1.0,1,0.25,FAISS + reranker (top 5)
+r017,research,1.0,1,1.0,FAISS + reranker (top 5)
+r019,research,0.0,1,0.0,FAISS + reranker (top 5)
+m018,medication,1.0,4,1.0,FAISS + reranker (top 5)
+a001,ambiguous,0.3333333333333333,3,0.0,FAISS + reranker (top 5)
+a003,ambiguous,0.5,2,0.0,FAISS + reranker (top 5)
+a004,ambiguous,1.0,2,1.0,FAISS + reranker (top 5)
+a006,ambiguous,1.0,3,1.0,FAISS + reranker (top 5)
+a007,ambiguous,1.0,2,1.0,FAISS + reranker (top 5)
+a012,ambiguous,1.0,2,1.0,FAISS + reranker (top 5)
+a013,ambiguous,0.6666666666666666,3,1.0,FAISS + reranker (top 5)
+c201,multi_hop,0.75,4,1.0,FAISS + reranker (top 5)
+c202,multi_hop,1.0,4,0.5,FAISS + reranker (top 5)
+c203,multi_hop,0.875,4,0.2,FAISS + reranker (top 5)
+c204,multi_hop,1.0,4,1.0,FAISS + reranker (top 5)
+c205,multi_hop,0.9,5,1.0,FAISS + reranker (top 5)
+c206,multi_hop,0.625,4,0.25,FAISS + reranker (top 5)
+c207,multi_hop,0.625,4,1.0,FAISS + reranker (top 5)
+c208,multi_hop,0.5,3,1.0,FAISS + reranker (top 5)
+c234,comparative,0.5,4,0.3333333333333333,FAISS + reranker (top 5)
+c235,comparative,1.0,4,1.0,FAISS + reranker (top 5)
+c236,comparative,0.875,4,1.0,FAISS + reranker (top 5)
+c237,comparative,0.5,4,1.0,FAISS + reranker (top 5)
+c238,comparative,1.0,4,1.0,FAISS + reranker (top 5)
+c239,comparative,1.0,4,1.0,FAISS + reranker (top 5)
+c243,lifestyle,1.0,4,1.0,FAISS + reranker (top 5)
+c244,lifestyle,0.4,5,1.0,FAISS + reranker (top 5)
+c245,lifestyle,1.0,4,1.0,FAISS + reranker (top 5)
+c246,lifestyle,0.5,4,1.0,FAISS + reranker (top 5)
+c249,mental_health,0.8,5,0.5,FAISS + reranker (top 5)
+c250,mental_health,1.0,5,1.0,FAISS + reranker (top 5)
+c251,mental_health,0.75,4,1.0,FAISS + reranker (top 5)
+c252,mental_health,1.0,4,1.0,FAISS + reranker (top 5)
+c255,screening,0.625,4,1.0,FAISS + reranker (top 5)
+c256,screening,0.5,4,0.0,FAISS + reranker (top 5)
+c257,screening,1.0,4,1.0,FAISS + reranker (top 5)
+c258,screening,0.75,4,0.0,FAISS + reranker (top 5)
+c261,multi_hop,1.0,4,0.5,FAISS + reranker (top 5)
+c267,comparative,0.75,4,1.0,FAISS + reranker (top 5)
+c268,lifestyle,1.0,5,1.0,FAISS + reranker (top 5)
+c269,mental_health,0.8,5,0.5,FAISS + reranker (top 5)
+c271,screening,0.5,4,1.0,FAISS + reranker (top 5)
+c283,scope_boundary,1.0,4,1.0,FAISS + reranker (top 5)
+c284,scope_boundary,1.0,3,1.0,FAISS + reranker (top 5)
+c285,scope_boundary,1.0,4,1.0,FAISS + reranker (top 5)
+c286,scope_boundary,0.8333333333333334,3,1.0,FAISS + reranker (top 5)
+c287,scope_boundary,1.0,4,0.5,FAISS + reranker (top 5)
+c001,consumer,1.0,5,0.5,"FAISS + reranker, chunks without the question line"
+c002,consumer,1.0,5,1.0,"FAISS + reranker, chunks without the question line"
+c003,consumer,1.0,2,1.0,"FAISS + reranker, chunks without the question line"
+c005,consumer,1.0,5,1.0,"FAISS + reranker, chunks without the question line"
+c006,consumer,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c008,consumer,0.5,3,1.0,"FAISS + reranker, chunks without the question line"
+c010,consumer,0.5,5,1.0,"FAISS + reranker, chunks without the question line"
+c012,consumer,0.8333333333333334,3,1.0,"FAISS + reranker, chunks without the question line"
+c013,consumer,1.0,3,1.0,"FAISS + reranker, chunks without the question line"
+c014,consumer,0.75,2,1.0,"FAISS + reranker, chunks without the question line"
+c016,consumer,0.8333333333333334,3,0.5,"FAISS + reranker, chunks without the question line"
+c017,consumer,0.5,2,1.0,"FAISS + reranker, chunks without the question line"
+c019,consumer,0.75,2,1.0,"FAISS + reranker, chunks without the question line"
+c021,consumer,0.25,2,0.0,"FAISS + reranker, chunks without the question line"
+c022,consumer,0.5,3,1.0,"FAISS + reranker, chunks without the question line"
+c023,consumer,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c025,consumer,1.0,2,1.0,"FAISS + reranker, chunks without the question line"
+c026,consumer,0.8333333333333334,3,1.0,"FAISS + reranker, chunks without the question line"
+c028,consumer,0.6666666666666666,3,0.5,"FAISS + reranker, chunks without the question line"
+c029,consumer,0.6666666666666666,3,1.0,"FAISS + reranker, chunks without the question line"
+c031,consumer,0.5,3,0.0,"FAISS + reranker, chunks without the question line"
+c032,consumer,1.0,2,1.0,"FAISS + reranker, chunks without the question line"
+c034,consumer,0.6666666666666666,3,1.0,"FAISS + reranker, chunks without the question line"
+c035,consumer,1.0,3,1.0,"FAISS + reranker, chunks without the question line"
+c037,consumer,0.75,2,1.0,"FAISS + reranker, chunks without the question line"
+c038,consumer,1.0,3,1.0,"FAISS + reranker, chunks without the question line"
+c040,consumer,1.0,3,1.0,"FAISS + reranker, chunks without the question line"
+c042,consumer,0.8333333333333334,3,0.3333333333333333,"FAISS + reranker, chunks without the question line"
+c043,consumer,0.75,2,1.0,"FAISS + reranker, chunks without the question line"
+c045,consumer,0.8333333333333334,3,1.0,"FAISS + reranker, chunks without the question line"
+c046,consumer,1.0,2,1.0,"FAISS + reranker, chunks without the question line"
+c048,consumer,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c049,consumer,0.875,4,1.0,"FAISS + reranker, chunks without the question line"
+r001,research,1.0,1,1.0,"FAISS + reranker, chunks without the question line"
+r004,research,1.0,1,0.3333333333333333,"FAISS + reranker, chunks without the question line"
+r006,research,1.0,1,1.0,"FAISS + reranker, chunks without the question line"
+r007,research,0.5,1,1.0,"FAISS + reranker, chunks without the question line"
+r009,research,0.5,1,0.25,"FAISS + reranker, chunks without the question line"
+r012,research,1.0,1,1.0,"FAISS + reranker, chunks without the question line"
+r013,research,0.0,1,0.0,"FAISS + reranker, chunks without the question line"
+r014,research,1.0,1,0.5,"FAISS + reranker, chunks without the question line"
+r016,research,1.0,1,1.0,"FAISS + reranker, chunks without the question line"
+r017,research,1.0,1,1.0,"FAISS + reranker, chunks without the question line"
+r019,research,0.0,1,0.0,"FAISS + reranker, chunks without the question line"
+m018,medication,1.0,4,0.5,"FAISS + reranker, chunks without the question line"
+a001,ambiguous,0.16666666666666666,3,0.0,"FAISS + reranker, chunks without the question line"
+a003,ambiguous,0.5,2,1.0,"FAISS + reranker, chunks without the question line"
+a004,ambiguous,1.0,2,1.0,"FAISS + reranker, chunks without the question line"
+a006,ambiguous,1.0,3,1.0,"FAISS + reranker, chunks without the question line"
+a007,ambiguous,1.0,2,1.0,"FAISS + reranker, chunks without the question line"
+a012,ambiguous,1.0,2,1.0,"FAISS + reranker, chunks without the question line"
+a013,ambiguous,0.5,3,0.5,"FAISS + reranker, chunks without the question line"
+c201,multi_hop,0.75,4,1.0,"FAISS + reranker, chunks without the question line"
+c202,multi_hop,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c203,multi_hop,0.875,4,0.25,"FAISS + reranker, chunks without the question line"
+c204,multi_hop,0.75,4,0.5,"FAISS + reranker, chunks without the question line"
+c205,multi_hop,0.9,5,1.0,"FAISS + reranker, chunks without the question line"
+c206,multi_hop,0.75,4,0.5,"FAISS + reranker, chunks without the question line"
+c207,multi_hop,0.625,4,1.0,"FAISS + reranker, chunks without the question line"
+c208,multi_hop,0.6666666666666666,3,1.0,"FAISS + reranker, chunks without the question line"
+c234,comparative,0.5,4,0.3333333333333333,"FAISS + reranker, chunks without the question line"
+c235,comparative,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c236,comparative,0.875,4,1.0,"FAISS + reranker, chunks without the question line"
+c237,comparative,0.5,4,0.5,"FAISS + reranker, chunks without the question line"
+c238,comparative,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c239,comparative,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c243,lifestyle,0.75,4,1.0,"FAISS + reranker, chunks without the question line"
+c244,lifestyle,1.0,5,1.0,"FAISS + reranker, chunks without the question line"
+c245,lifestyle,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c246,lifestyle,0.5,4,1.0,"FAISS + reranker, chunks without the question line"
+c249,mental_health,1.0,5,0.3333333333333333,"FAISS + reranker, chunks without the question line"
+c250,mental_health,1.0,5,1.0,"FAISS + reranker, chunks without the question line"
+c251,mental_health,0.75,4,1.0,"FAISS + reranker, chunks without the question line"
+c252,mental_health,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c255,screening,0.625,4,1.0,"FAISS + reranker, chunks without the question line"
+c256,screening,0.375,4,0.0,"FAISS + reranker, chunks without the question line"
+c257,screening,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c258,screening,0.625,4,0.25,"FAISS + reranker, chunks without the question line"
+c261,multi_hop,0.5,4,1.0,"FAISS + reranker, chunks without the question line"
+c267,comparative,0.75,4,1.0,"FAISS + reranker, chunks without the question line"
+c268,lifestyle,1.0,5,1.0,"FAISS + reranker, chunks without the question line"
+c269,mental_health,0.5,5,0.3333333333333333,"FAISS + reranker, chunks without the question line"
+c271,screening,0.5,4,1.0,"FAISS + reranker, chunks without the question line"
+c283,scope_boundary,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c284,scope_boundary,1.0,3,1.0,"FAISS + reranker, chunks without the question line"
+c285,scope_boundary,1.0,4,1.0,"FAISS + reranker, chunks without the question line"
+c286,scope_boundary,0.8333333333333334,3,1.0,"FAISS + reranker, chunks without the question line"
+c287,scope_boundary,1.0,4,1.0,"FAISS + reranker, chunks without the question line"

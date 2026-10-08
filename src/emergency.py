@@ -20,7 +20,7 @@ PERSONAL_MARKERS = re.compile(
 
 DIRECT = {
     "suicide": [
-        "suicidal", "kill myself", "kill myself", "end my life", "want to die",
+        "suicidal", "kill myself", "end my life", "want to die",
         "self-harm", "self harm", "hurt myself", "take my own life",
     ],
     "breathing": [
@@ -31,6 +31,10 @@ DIRECT = {
     "anaphylaxis": [
         "anaphylaxis", "anaphylactic", "throat is closing", "throat closing",
         "severe allergic reaction",
+    ],
+    "overdose": [
+        "took too many", "took too much", "overdosed",
+        "poisoned", "swallowed",
     ],
 }
 
@@ -54,9 +58,14 @@ CONTEXTUAL = {
         "unconscious", "unresponsive", "passed out", "won't wake",
         "wont wake", "no pulse",
     ],
-    "overdose": [
-        "overdose", "overdosed", "took too many pills", "swallowed pills",
-        "poisoned", "swallowed bleach", "took too much medication",
+    "high_fever_baby": [
+        "month-old", "newborn", "infant", "baby",
+    ],
+    "thunderclap_headache": [
+        "worst headache", "sudden",
+    ],
+    "diabetic_emergency": [
+        "blood sugar", "drowsy",
     ],
 }
 

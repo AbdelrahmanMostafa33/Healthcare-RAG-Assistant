@@ -60,10 +60,15 @@ _MEDICATION_PATTERNS = [
     r"\bhow (many|much) (mg|ml|mcg|dose)\b",
     r"\b(side effects?|interactions?|dosage)\s+of\b",
     r"\b(metformin|ibuprofen|paracetamol|acetaminophen|amoxicillin|omeprazole|"
-    r"prednisone|statin|aspirin|warfarin|levothyroxine|insulin|antihistamine|"
-    r"corticosteroid|antibiotic|naproxen|codeine|morphine|opioid)s?\b",
-    r"\b(taking|take|takes|took|using|use|uses|used|giving|give|gives|gave)\s+"
-    r"(an?\s+|the\s+)?(medicine|medication|drug|pill|antibiotic|prescription)s?\b",
+    r"prednisone|statin|aspirin|warfarin|levothyroxine|antihistamine|"
+    r"corticosteroid|naproxen|codeine|morphine|opioid|isotretinoin|"
+    r"melatonin|sertraline|lisinopril|atorvastatin|amlodipine|gabapentin|"
+    r"prednisolone|hydrocortisone|metoprolol|furosemide|azithromycin|doxycycline|"
+    r"cephalexin|cetirizine|decongestant)s?\b",
+    r"\b(taking|take|takes|took|using|use|uses|used|giving|give|gives|gave|mix(ing)?)\s+"
+    r"(an?\s+|the\s+)?(medicine|medication|drug|pill|antibiotic|prescription|alcohol)s?\b",
+    r"\b(treat(ing)?|replace|substitute|stop|quit|skip)\s+(my\s+)?(medicine|medication|drug|treatment|insulin|prescription)s?\b",
+    r"\b(stop|quit|skip)\s+(taking|using|give|gave|give)\s+(an?\s+|the\s+)?(medicine|medication|drug|insulin|prescription|pill|antibiotic)s?\b",
 ]
 
 # Personal advice cannot come from a static KB either. Anything about the user's
@@ -72,12 +77,23 @@ _SAFETY_PATTERNS = [
     r"\bmy (child|son|daughter|wife|husband|mother|father|baby|kid|partner|"
     r"brother|sister|grandmother|grandfather|friend|family)\b",
     r"\bmy \d+[- ]?(year|month|yo|yr)s?[- ]?old\b",
+    r"\b(child|children|kid|kids|baby|babies|toddler|infant|teen| teenager)\b",
     r"\b(should|can|may) i (take|give|use|stop|start|drink|eat|try|apply|inject)\b",
     r"\bwhat (should|do) i do\b",
     r"\bis it safe (to|for)\b",
     r"\b(my|the) (blood|test|scan|x-?ray|mri|ct|ecg|ekg|lab|urine|biopsy) results?\b",
     r"\binterpret (my|these|the)\b",
     r"\bam i (having|dying|pregnant|sick|ok)\b",
+    r"\bdo i have\b",
+    r"\b(what|which|exactly)\s+(disease|ailment|condition|disorder|illness|infection)\s+(do|am|have|i)\b",
+    r"\bplan\b.*\b(kg|weight|lose|eat|fasting|starve|calories)\b",
+    r"\badapt(ing)?|substitute|replace|instead of\b.*\b(medication|medicine|drug|insulin|prescription|treatment)\b",
+    r"\btreat(ing)?\b.*\binstead\b",
+    r"\bmy (hba1c|cholesterol|blood pressure|eGFR|egfr|lab result|test result|reading|result)s?\b",
+    r"\bskip\b.*\bmedicine\b",
+    r"\b(should|can|may) i (have|get|need|require)\b",
+    r"\bwhich\s+(treatment|medicine|medication|drug|therapy)\b.*\bmy\b",
+    r"\bbest\s+(treatment|medicine|medication|drug|therapy)\b.*\bmy\b",
 ]
 
 

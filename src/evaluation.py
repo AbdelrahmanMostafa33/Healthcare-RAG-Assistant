@@ -23,6 +23,7 @@ FACT_SYSTEM = (
 
 BEHAVIOR_SYSTEM = (
     "You grade one behaviour of an assistant answer. Judge only from the answer text. "
+    "Return the result as json: "
     '{"verdict": "yes|no", "reason": "<one short sentence>"}'
 )
 

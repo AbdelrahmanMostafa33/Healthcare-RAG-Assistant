@@ -1,5 +1,11 @@
-"""Settings in one place. The only environment variable is GROQ_API_KEY (see .env.example)."""
+"""Settings in one place.
+
+Environment variables (see .env):
+  GROQ_API_KEY   - one or more Groq keys, comma-separated (generator + Groq-judge)
+  GEMINI_API_KEY - one Google AI Studio key (Gemini judge only)
+"""
 import json
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -20,7 +26,12 @@ CHUNK_OVERLAP_CHARS = 200
 EMBEDDING_MODEL = "BAAI/bge-m3"
 RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
 LLM_MODEL = "openai/gpt-oss-120b"
-JUDGE_MODEL = "qwen/qwen3.8-27b"   # grades answers in notebook 04, never the generator
+
+# Judge: a different model family from the generator.
+# - Groq judge: qwen/qwen3.8-27b (OpenAI-compatible, reached through the Groq client)
+# - Gemini judge: gemini-3.5-flash-lite (Google API, separate GEMINI_API_KEY)
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "gemini-3.5-flash-lite")
+JUDGE_IS_GEMINI = JUDGE_MODEL.startswith("gemini-")
 LLM_BASE_URL = "https://api.groq.com/openai/v1"
 
 RETRIEVE_K = 20   # candidates from FAISS

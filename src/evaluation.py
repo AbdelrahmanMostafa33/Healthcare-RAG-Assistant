@@ -4,9 +4,15 @@ The judge is a different model from the generator (config.JUDGE_MODEL vs config.
 This is the simplified core: key-fact scoring, behaviour scoring, threshold choice,
 abstention metrics. Retrieval-judgment and claim-by-claim groundness were removed --
 they are second-layer metrics that the recruiter-facing evaluation does not need.
+
+The judge can run on Groq (OpenAI-compatible client) or Gemini (Google SDK).
+Both paths support key rotation: set multiple keys comma-separated in the
+corresponding env var (GROQ_API_KEY or GEMINI_API_KEY) and the judge will
+cycle through them on auth or transient failures.
 """
 
 import json
+import os
 import time
 
 import numpy as np
@@ -72,11 +78,127 @@ def split_key_facts(key_facts):
 def make_judge(client, model):
     """Returns judge(system, user, max_tokens) -> parsed JSON dict.
 
-    Retries with backoff on 429/5xx and rotates the API key on transient errors,
-    reusing the same key rotation as the generator so all 31 keys in GROQ_API_KEY
-    are available to the judge as well.
+    The client is either a Groq OpenAI-compatible client or a Gemini wrapper.
+    Both paths retry with backoff on transient errors. The Gemini path also
+    rotates through a comma-separated list of GEMINI_API_KEY values on auth
+    failures, the same way the Groq path rotates through GROQ_API_KEY.
     """
     import openai
+
+    from src import config as _cfg
+
+    # ----- Gemini path (Google Generative AI SDK) -----
+    if _cfg.JUDGE_IS_GEMINI:
+        try:
+            # The google-genai package exposes its module as `google.genai`.
+            from google import genai
+        except ImportError as _gemini_import_error:
+            raise RuntimeError(
+                "The Gemini judge requires the google-genai package. "
+                "It is not installed in the Python running this notebook. "
+                "Install it with .venv\Scripts\python.exe -m pip install google-genai, then set GEMINI_API_KEY in .env (or switch JUDGE_MODEL to a Groq model)."
+            ) from _gemini_import_error
+
+        # Gemini accepts one key per client, but we support a comma-separated list:
+        # on auth/transient failures we rotate through the keys, the same way the
+        # Groq judge rotates through _keys(). Empty entries are ignored.
+        _raw_keys = os.getenv("GEMINI_API_KEY", "").split(",")
+        _keys: list[str] = [k.strip() for k in _raw_keys if k.strip()]
+        if not _keys:
+            raise RuntimeError(
+                "GEMINI_API_KEY is not set or is empty. Set one Gemini key (or a "
+                "comma-separated list of keys) in .env, or switch JUDGE_MODEL to a Groq model."
+            )
+        _key_index = 0
+
+        def _current_gemini_client():
+            # Build a fresh client each time so a closed/invalid client from a
+            # previous attempt does not poison the next rotation.
+            return genai.Client(api_key=_keys[_key_index])
+
+        def _advance_gemini_key():
+            nonlocal _key_index
+            _key_index = (_key_index + 1) % len(_keys)
+
+        _gemini_model = _cfg.JUDGE_MODEL
+
+        def _gemini_is_transient(error: Exception) -> bool:
+            """Google API errors worth retrying, including auth errors when more keys remain."""
+            name = type(error).__name__
+            if name in ("APIError", "ResourceExhausted", "ServiceUnavailable",
+                        "DeadlineExceeded", "InternalServerError"):
+                return True
+            if isinstance(error, OSError):
+                return True
+            # Rotate on a closed client (e.g. the SDK shut its HTTPX pool) when
+            # another key is available to try.
+            if name == "RuntimeError" and "Cannot send a request" in str(error):
+                return True
+            # Rotate on auth failures too when another key is available to try.
+            if name == "ClientError":
+                try:
+                    resp = getattr(error, "response", None)
+                    err_body = resp.json() if callable(getattr(resp, "json", None)) else {}
+                    details = (err_body.get("error") or {}).get("details") or []
+                    reason = details[0] if isinstance(details, list) else details
+                    metadata = (reason.get("metadata") or {}) if isinstance(reason, dict) else {}
+                    code = (err_body.get("error") or {}).get("code") or 0
+                    unsupported = str(metadata.get("unsupported", "")).lower()
+                    return code in (401, 403) or "access_token_type_unsupported" in unsupported
+                except Exception:
+                    pass
+            return False
+
+        def _gemini_call(system: str, user: str, max_tokens: int):
+            """Call Gemini with a system + user message, request JSON output.
+
+            Uses the current key; the judge loop rotates the key on auth/transient failures.
+            """
+            # Gemini doesn't have a separate system role in the same way;
+            # build a single prompt with the system instruction first.
+            prompt = f"{system}\n\nUSER QUESTION:\n{user}"
+            response = _current_gemini_client().models.generate_content(
+                model=_gemini_model,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    temperature=0.0,
+                    max_output_tokens=max_tokens,
+                    response_mime_type="application/json",
+                ),
+            )
+            text = getattr(response, "text", "").strip()
+            if not text:
+                raise RuntimeError("The Gemini judge returned no content.")
+            return json.loads(text)
+
+        def judge(system, user, max_tokens=700):
+            delay = 3.0
+            last_error = None
+            tried_all_keys = False
+            for _ in range(8):
+                try:
+                    return _gemini_call(system, user, max_tokens)
+                except Exception as e:
+                    last_error = e
+                    if not _gemini_is_transient(e):
+                        raise
+                    if _keys and _key_index == len(_keys) - 1:
+                        tried_all_keys = True
+                    _advance_gemini_key()
+                    time.sleep(delay)
+                    delay = min(delay * 2, 30.0)
+            if tried_all_keys:
+                raise RuntimeError(
+                    f"Gemini judge failed after trying all {len(_keys)} key(s). "
+                    f"Last error: {last_error}"
+                ) from last_error
+            raise last_error if last_error else RuntimeError("Gemini judge failed after retries.")
+
+        judge.model = model
+        return judge
+
+    # ----- Groq path (OpenAI-compatible client) -----
+    import openai as _openai
 
     def _rotate_if_possible():
         """Move to the next GROQ key on transient failures."""
@@ -89,10 +211,26 @@ def make_judge(client, model):
         except Exception:
             pass
 
+    def _is_transient(error: Exception) -> bool:
+        """True for errors worth retrying with backoff (Groq/OpenAI errors)."""
+        name = type(error).__name__
+        if name in ("APIStatusError", "RateLimitError", "APITimeoutError",
+                    "APIConnectionError"):
+            if name == "APIStatusError":
+                try:
+                    code = error.status_code  # type: ignore[attr-defined]
+                except Exception:
+                    code = None
+                return code in (429,) or (code is not None and code >= 500)
+            return True
+        if isinstance(error, OSError):
+            return True
+        return False
+
     def judge(system, user, max_tokens=700):
         delay = 3.0
         last_error = None
-        for _ in range(8):  # up to ~2 min of waiting
+        for _ in range(8):
             try:
                 response = client.chat.completions.create(
                     model=model,
@@ -123,21 +261,6 @@ def make_judge(client, model):
     judge.model = model
     return judge
 
-
-def _is_transient(error: Exception) -> bool:
-    """True for errors worth retrying with backoff."""
-    name = type(error).__name__
-    if name in ("APIStatusError", "RateLimitError", "APITimeoutError", "APIConnectionError"):
-        if name == "APIStatusError":
-            try:
-                code = error.status_code  # type: ignore[attr-defined]
-            except Exception:
-                code = None
-            return code in (429,) or (code is not None and code >= 500)
-        return True  # rate limit, timeout, connection -- all transient
-    if isinstance(error, OSError):
-        return True
-    return False
 
 
 def score_key_facts(judge, df, answers):

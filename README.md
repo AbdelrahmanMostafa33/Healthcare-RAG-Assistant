@@ -23,7 +23,7 @@ It is not an AI doctor.
 | **Out of scope** | Specific medicines (doses, side effects, interactions, whether to start, stop or combine), diagnosing the user, personal advice, interpreting someone's test results, and live or current information |
 
 **Why medicines are out of scope.** The sources used here describe 
-how conditions are treated in general — the kinds of medicine used, not 
+how conditions are treated in general -- the kinds of medicine used, not 
 specific drugs. Neither MedQuAD's open subset nor MedlinePlus covers 
 drug-specific information (both removed for copyright). So the assistant 
 is scoped to what the sources support, and questions about named drugs 
@@ -75,7 +75,7 @@ The index is not stored in the repository. Notebooks 01 and 02 build it.
 
 ## Tech stack
 
-Python, pandas, BeautifulSoup, sentence-transformers (embeddings and reranker), FAISS, the Groq API through the OpenAI SDK, FastAPI with Pydantic, pytest, Jupyter.
+Python, pandas, BeautifulSoup, sentence-transformers (embeddings and reranker), FAISS, the Groq API through the OpenAI SDK, the Gemini judge through `google-genai`, FastAPI with Pydantic, pytest, Jupyter.
 
 ## Quickstart
 
@@ -83,7 +83,7 @@ Python, pandas, BeautifulSoup, sentence-transformers (embeddings and reranker), 
 python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -r requirements.txt      # with a GPU, install the matching torch build first
-cp .env.example .env                 # then put your GROQ_API_KEY in .env
+cp .env.example .env                 # then add your GROQ_API_KEY and, if using the Gemini judge, GEMINI_API_KEY
 ```
 
 1. Build the knowledge base and index by running `notebooks/01_data_and_kb.ipynb`, then `notebooks/02_build_index.ipynb`. A GPU is recommended for the embedding step.
@@ -116,6 +116,7 @@ pytest
 | `disclaimer` | The medical disclaimer |
 
 `GET /health` returns the status, the abstention threshold in use, and whether that threshold has been calibrated.
+The judge is chosen at startup from `JUDGE_MODEL` in `.env`: a model name starting with `gemini-` runs the Gemini judge and needs `GEMINI_API_KEY`; otherwise it runs the Groq judge and needs only `GROQ_API_KEY`.
 
 ## Notebooks
 

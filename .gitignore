@@ -17,3 +17,5 @@ data/legacy/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/index/.gitkeep
+reports/*
+!reports/.gitkeep

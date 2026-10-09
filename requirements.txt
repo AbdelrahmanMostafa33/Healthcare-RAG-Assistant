@@ -2,23 +2,22 @@
 numpy>=1.24
 pandas>=2.0
 faiss-cpu>=1.7.4
-sentence-transformers>=5.0      # bge-m3 embeddings + cross-encoder reranker
+beautifulsoup4>=4.12
+sentence-transformers>=5.0      # bge-m3 embeddings + bge-reranker-v2-m3
 torch>=2.1                      # with a GPU, install the CUDA build from pytorch.org first
-openai>=1.40                    # client for the Groq OpenAI-compatible API (generator and Groq-judge)
-google-genai>=0.8              # Google AI Studio client for the Gemini judge only
+openai>=1.40                    # client for the Groq OpenAI-compatible API (generator and judge)
 python-dotenv>=1.0
 fastapi>=0.110
 pydantic>=2.0
 uvicorn>=0.27
 
-# Notebook 01 (data download and cleaning) and the notebooks themselves
-datasets>=2.18
-requests>=2.31
-beautifulsoup4>=4.12
+# Notebooks
+datasets>=2.18                  # notebook 01: MedQuAD download
+requests>=2.31                  # notebook 01: MedlinePlus download
 matplotlib>=3.7
 jupyterlab>=4.0
 ipykernel>=6.0
 
-# Tests (no models, GPU or API key needed)
+# Tests (no models, GPU, index or API key needed)
 pytest>=7.4
 httpx>=0.25                     # used by FastAPI's TestClient

@@ -14,6 +14,12 @@ from src.retriever import Retriever
 DIM = 64
 
 
+@pytest.fixture(autouse=True)
+def no_api_key(monkeypatch):
+    """The tests must pass without a key, even when a real one is in the developer's .env."""
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+
 def words(text):
     return re.findall(r"[a-z0-9]+", text.lower())
 

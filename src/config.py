@@ -1,8 +1,9 @@
 """Settings in one place.
 
-Environment variables (see .env):
-  GROQ_API_KEY   - one or more Groq keys, comma-separated (generator + Groq-judge)
-  GEMINI_API_KEY - one Google AI Studio key (Gemini judge only)
+Environment variables (see .env.example):
+  GROQ_API_KEY - Groq API key, used for the generator and the evaluation judge
+                 (one key; if comma-separated, only the first key is used)
+  JUDGE_MODEL  - optional, overrides the judge model below
 """
 import json
 import os
@@ -26,13 +27,11 @@ CHUNK_OVERLAP_CHARS = 200
 EMBEDDING_MODEL = "BAAI/bge-m3"
 RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
 LLM_MODEL = "openai/gpt-oss-120b"
-
-# Judge: a different model family from the generator.
-# - Groq judge: qwen/qwen3.8-27b (OpenAI-compatible, reached through the Groq client)
-# - Gemini judge: gemini-3.5-flash-lite (Google API, separate GEMINI_API_KEY)
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "gemini-3.5-flash-lite")
-JUDGE_IS_GEMINI = JUDGE_MODEL.startswith("gemini-")
 LLM_BASE_URL = "https://api.groq.com/openai/v1"
+
+# The judge must be a different model family from the generator, so it does not grade its own style.
+# It runs on Groq through the same OpenAI-compatible client.
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "qwen/qwen3.8-27b")
 
 RETRIEVE_K = 20   # candidates from FAISS
 CONTEXT_K = 5     # passages kept after reranking and put in the prompt
@@ -42,12 +41,15 @@ MAX_TOKENS = 2048
 # Placeholder until notebook 04 calibrates a real value on the dev questions.
 DEFAULT_THRESHOLD = 0.0
 
-# Emergency detection runs before retrieval. Turn off only for testing.
-EMERGENCY_ENABLED = True
-
 
 def load_threshold():
-    """Returns (threshold, calibrated)."""
+    """Returns (threshold, calibrated).
+
+    A saved threshold only means something for the reranker it was calibrated with, so one saved
+    for a different reranker is ignored and the placeholder is used instead.
+    """
     if THRESHOLD_PATH.exists():
-        return json.loads(THRESHOLD_PATH.read_text())["threshold"], True
+        saved = json.loads(THRESHOLD_PATH.read_text())
+        if saved.get("reranker_model", RERANKER_MODEL) == RERANKER_MODEL:
+            return saved["threshold"], True
     return DEFAULT_THRESHOLD, False

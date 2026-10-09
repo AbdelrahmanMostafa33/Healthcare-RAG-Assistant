@@ -1,7 +1,7 @@
 import pytest
 
 from src import config
-from src.generator import SYSTEM_PROMPT, build_messages, generate
+from src.generator import SYSTEM_PROMPT, build_messages, generate, make_client
 from tests.conftest import FakeClient
 
 PASSAGES = [
@@ -43,3 +43,31 @@ def test_citations_are_left_in_the_answer():
 def test_an_empty_model_answer_raises_instead_of_returning_blank(content):
     with pytest.raises(RuntimeError, match="empty answer"):
         generate(FakeClient(content), "q?", PASSAGES)
+
+
+def test_the_tests_do_not_need_an_api_key_to_call_generate():
+    # a fake client is enough; generate() must not look at the environment
+    assert generate(FakeClient("Fact [1]."), "q?", PASSAGES) == "Fact [1]."
+
+
+def test_make_client_fails_fast_without_a_key():
+    with pytest.raises(RuntimeError, match="GROQ_API_KEY"):
+        make_client()
+
+
+def test_make_client_points_at_groq(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "  test-key  ")
+    client = make_client()
+    assert client.api_key == "test-key" and str(client.base_url).startswith(config.LLM_BASE_URL)
+
+
+def test_make_client_uses_only_the_first_key_of_a_comma_separated_list(monkeypatch):
+    # the old format was a comma-separated key list; sending the whole value was a 401
+    monkeypatch.setenv("GROQ_API_KEY", "  gsk_first , gsk_second ,gsk_third  ")
+    assert make_client().api_key == "gsk_first"
+
+
+def test_make_client_rejects_a_key_of_only_commas(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", " , , ")
+    with pytest.raises(RuntimeError, match="GROQ_API_KEY"):
+        make_client()

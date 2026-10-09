@@ -1,26 +1,16 @@
 """The one pipeline that the notebooks, the evaluation and the API all use.
 
-    question -> emergency check -> out-of-scope check -> retrieve
+    question -> safety check (src/safety.py)
+                  emergency        -> fixed emergency message, no retrieval, no LLM
+                  personal advice  -> fixed redirect to a doctor, no retrieval, no LLM
+             -> retrieve: FAISS top 20 -> rerank -> top 5
              -> best rerank score below the threshold?  yes -> abstain, no LLM call
                                                          no  -> grounded prompt -> one LLM call
              -> answer + the sources that were in the prompt + disclaimer
-
-Three checks run before retrieval, in order:
-
-1. Emergency (chest pain, stroke signs, ...) -> fixed emergency response.
-2. Medication (named drugs, doses, interactions) -> fixed out-of-scope message.
-3. Personal advice (own symptoms, own results, "should I take", ...) ->
-   fixed redirect to a doctor.
-
-The first two are matched by keyword; the third too. The point is that a static
-consumer-health knowledge base cannot answer these, so saying "I couldn't find
-information" is the wrong message — a redirect is.
 """
-import re
 import time
 
-from src import config
-from src.emergency import detect_emergency, emergency_response
+from src import config, safety
 from src.generator import generate, make_client
 from src.retriever import load_retriever
 
@@ -35,84 +25,6 @@ ABSTAIN_MESSAGE = (
     "Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an "
     "emergency, call your local emergency number or go to the nearest emergency department now."
 )
-
-MEDICATION_REDIRECT_MESSAGE = (
-    "Medicines are outside what this assistant covers. The sources it uses describe "
-    "conditions and how they are generally treated, not specific drugs, doses or "
-    "interactions. For questions about a specific medicine, ask a doctor or pharmacist. "
-    "If you think this could be an emergency, call your local emergency number or go to "
-    "the nearest emergency department now."
-)
-
-SAFETY_REDIRECT_MESSAGE = (
-    "This looks like a question about your own situation or a specific person. This "
-    "assistant gives general health information only — it cannot look at your symptoms, "
-    "results or circumstances, and it does not give personal medical advice. Please "
-    "speak to a doctor or pharmacist about your own situation. If you think this could "
-    "be an emergency, call your local emergency number or go to the nearest emergency "
-    "department now."
-)
-
-# Medicines are out of scope. Anything that names a drug or asks about dosing,
-# side effects or interactions is redirected before retrieval.
-_MEDICATION_PATTERNS = [
-    r"\b\d+\s*(mg|ml|mcg|μg|g)\b",
-    r"\bhow (many|much) (mg|ml|mcg|dose)\b",
-    r"\b(side effects?|interactions?|dosage)\s+of\b",
-    r"\b(metformin|ibuprofen|paracetamol|acetaminophen|amoxicillin|omeprazole|"
-    r"prednisone|statin|aspirin|warfarin|levothyroxine|antihistamine|"
-    r"corticosteroid|naproxen|codeine|morphine|opioid|isotretinoin|"
-    r"melatonin|sertraline|lisinopril|atorvastatin|amlodipine|gabapentin|"
-    r"prednisolone|hydrocortisone|metoprolol|furosemide|azithromycin|doxycycline|"
-    r"cephalexin|cetirizine|decongestant)s?\b",
-    r"\b(taking|take|takes|took|using|use|uses|used|giving|give|gives|gave|mix(ing)?)\s+"
-    r"(an?\s+|the\s+)?(medicine|medication|drug|pill|antibiotic|prescription|alcohol)s?\b",
-    r"\b(treat(ing)?|replace|substitute|stop|quit|skip)\s+(my\s+)?(medicine|medication|drug|treatment|insulin|prescription)s?\b",
-    r"\b(stop|quit|skip)\s+(taking|using|give|gave|give)\s+(an?\s+|the\s+)?(medicine|medication|drug|insulin|prescription|pill|antibiotic)s?\b",
-]
-
-# Personal advice cannot come from a static KB either. Anything about the user's
-# own situation, their own results, or another specific person is redirected.
-_SAFETY_PATTERNS = [
-    r"\bmy (child|son|daughter|wife|husband|mother|father|baby|kid|partner|"
-    r"brother|sister|grandmother|grandfather|friend|family)\b",
-    r"\bmy \d+[- ]?(year|month|yo|yr)s?[- ]?old\b",
-    r"\b(child|children|kid|kids|baby|babies|toddler|infant|teen| teenager)\b",
-    r"\b(should|can|may) i (take|give|use|stop|start|drink|eat|try|apply|inject)\b",
-    r"\bwhat (should|do) i do\b",
-    r"\bis it safe (to|for)\b",
-    r"\b(my|the) (blood|test|scan|x-?ray|mri|ct|ecg|ekg|lab|urine|biopsy) results?\b",
-    r"\binterpret (my|these|the)\b",
-    r"\bam i (having|dying|pregnant|sick|ok)\b",
-    r"\bdo i have\b",
-    r"\b(what|which|exactly)\s+(disease|ailment|condition|disorder|illness|infection)\s+(do|am|have|i)\b",
-    r"\bplan\b.*\b(kg|weight|lose|eat|fasting|starve|calories)\b",
-    r"\badapt(ing)?|substitute|replace|instead of\b.*\b(medication|medicine|drug|insulin|prescription|treatment)\b",
-    r"\btreat(ing)?\b.*\binstead\b",
-    r"\bmy (hba1c|cholesterol|blood pressure|eGFR|egfr|lab result|test result|reading|result)s?\b",
-    r"\bskip\b.*\bmedicine\b",
-    r"\b(should|can|may) i (have|get|need|require)\b",
-    r"\bwhich\s+(treatment|medicine|medication|drug|therapy)\b.*\bmy\b",
-    r"\bbest\s+(treatment|medicine|medication|drug|therapy)\b.*\bmy\b",
-]
-
-
-def detect_out_of_scope(question):
-    """Return 'medication', 'safety_redirect' or None.
-
-    Medicines and personal-advice questions can't be answered from a static
-    consumer-health knowledge base, so the pipeline redirects them instead of
-    abstaining. Order matters: medication first, since questions that are both
-    ("is it safe to give my child ibuprofen?") should get the medication message.
-    """
-    q = question.lower()
-    for pattern in _MEDICATION_PATTERNS:
-        if re.search(pattern, q):
-            return "medication"
-    for pattern in _SAFETY_PATTERNS:
-        if re.search(pattern, q):
-            return "safety_redirect"
-    return None
 
 
 class RAGPipeline:
@@ -129,55 +41,32 @@ class RAGPipeline:
 
         start = time.perf_counter()
 
-        # 1. Emergency. Runs before retrieval so an acute emergency never gets a
-        #    general information answer and never reaches the LLM.
-        emergency_kind = detect_emergency(question) if config.EMERGENCY_ENABLED else None
-        if emergency_kind:
-            return self._early_response(emergency_response(emergency_kind), start, kind="emergency")
+        # Emergencies and personal-advice questions never reach retrieval or the LLM.
+        early = safety.check(question)
+        if early:
+            kind, message = early
+            return self._result(message, start, emergency=kind == "emergency", redirected=kind == "redirect")
 
-        # 2. Out of scope. Medicines and personal-advice questions can't come
-        #    from the sources, so they are redirected instead of abstained on.
-        out_of_scope = detect_out_of_scope(question)
-        if out_of_scope == "medication":
-            return self._early_response(MEDICATION_REDIRECT_MESSAGE, start, kind="medication")
-        if out_of_scope == "safety_redirect":
-            return self._early_response(SAFETY_REDIRECT_MESSAGE, start, kind="safety_redirect")
-
-        # 3. Normal retrieval path.
         passages = self.retriever.retrieve(question)
         top_score = passages[0]["rerank_score"] if passages else None
 
-        abstained = top_score is None or top_score < self.threshold
-        if abstained:
-            answer, passages = ABSTAIN_MESSAGE, []
-        else:
-            answer = generate(self.client, question, passages)
+        if top_score is None or top_score < self.threshold:
+            return self._result(ABSTAIN_MESSAGE, start, abstained=True, top_score=top_score)
+        return self._result(generate(self.client, question, passages), start, passages=passages, top_score=top_score)
 
+    @staticmethod
+    def _result(answer, start, abstained=False, emergency=False, redirected=False, passages=(), top_score=None):
+        passages = list(passages)
         return {
             "answer": answer,
-            "abstained": abstained,
-            "emergency": False,
-            "redirect": None,
+            "abstained": abstained,     # the sources did not contain enough relevant evidence
+            "emergency": emergency,     # handled by the emergency message
+            "redirected": redirected,   # personal-advice question, handled by the redirect message
             # the passages that were in the prompt; n matches the [n] citations in the answer
             "sources": [{"n": n, "source": p["source"], "title": p["title"], "url": p["url"]}
                         for n, p in enumerate(passages, start=1)],
             "passages": passages,
             "top_score": top_score,
-            "latency_ms": round((time.perf_counter() - start) * 1000, 1),
-            "disclaimer": DISCLAIMER,
-        }
-
-    @staticmethod
-    def _early_response(message, start, kind):
-        """Fixed response for a question that never reaches retrieval."""
-        return {
-            "answer": message,
-            "abstained": kind == "medication",   # a medicine question is an abstention, a redirect is not
-            "emergency": kind == "emergency",
-            "redirect": kind if kind != "emergency" else None,
-            "sources": [],
-            "passages": [],
-            "top_score": None,
             "latency_ms": round((time.perf_counter() - start) * 1000, 1),
             "disclaimer": DISCLAIMER,
         }

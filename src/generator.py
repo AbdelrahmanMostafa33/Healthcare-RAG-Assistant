@@ -1,11 +1,16 @@
-"""Generation: one grounded prompt, one LLM call. There is no fallback to the model's own knowledge."""
-import os
-import threading
+"""Generation: one grounded prompt, one LLM call. There is no fallback to the model's own knowledge.
 
-from openai import APIStatusError, OpenAI
+Transient generator 429s from notebook regeneration loops are retried a bounded number of times via
+the same helpers used in ``src/evaluation``. Tokens-per-day exhaustion is raised immediately and
+clearly instead of being retried forever.
+"""
+import os
+
+from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
 from src import config
+from src.evaluation import call_with_transient_rate_limit_retry
 
 SYSTEM_PROMPT = """You are an educational health information assistant. You are not a doctor and you do not give medical advice.
 
@@ -35,49 +40,17 @@ Rules:
 9. Cite using exactly the form [1] or [2][3] — never use other citation formats."""
 
 
-# ── API key rotation ─────────────────────────────────────────────────────────
-# GROQ_API_KEY can hold one key or many, separated by commas:
-#   GROQ_API_KEY=gsk_aaa,gsk_bbb,gsk_ccc
-# make_client() starts with the first key. generate() moves to the next key on
-# 401/403/429/5xx so a dead or rate-limited key does not stop a run.
+def make_client(max_retries=3):
+    """Groq through the OpenAI SDK. The SDK retries rate limits and server errors with backoff.
 
-_KEYS: list[str] | None = None
-_KEY_INDEX = 0
-_KEY_LOCK = threading.Lock()
+    Only one key is used. If GROQ_API_KEY holds a comma-separated list (the old rotation format),
+    the first non-empty key is used and the rest are ignored: there is no rotation.
+    """
+    keys = [key.strip() for key in os.getenv("GROQ_API_KEY", "").split(",") if key.strip()]
+    if not keys:
+        raise RuntimeError("GROQ_API_KEY is not set. Copy .env.example to .env and add your key.")
+    return OpenAI(api_key=keys[0], base_url=config.LLM_BASE_URL, max_retries=max_retries, timeout=60)
 
-
-def _keys() -> list[str]:
-    global _KEYS
-    if _KEYS is None:
-        raw = os.getenv("GROQ_API_KEY", "")
-        keys = [k.strip() for k in raw.split(",") if k.strip()]
-        if not keys:
-            raise RuntimeError("GROQ_API_KEY is not set. Copy .env.example to .env and add your key(s).")
-        _KEYS = keys
-    return _KEYS
-
-
-def _current_key() -> str:
-    with _KEY_LOCK:
-        return _keys()[_KEY_INDEX % len(_keys())]
-
-
-def _advance_key() -> None:
-    global _KEY_INDEX
-    with _KEY_LOCK:
-        _KEY_INDEX = (_KEY_INDEX + 1) % len(_keys())
-
-
-def _client_for(key: str) -> OpenAI:
-    return OpenAI(api_key=key, base_url=config.LLM_BASE_URL, max_retries=1)
-
-
-def make_client() -> OpenAI:
-    """Return a client for the current key in rotation."""
-    return _client_for(_current_key())
-
-
-# ── Prompt + generation ──────────────────────────────────────────────────────
 
 def build_messages(question: str, passages: list[dict]) -> list[ChatCompletionMessageParam]:
     evidence = "\n\n".join(f"[{n}] {p['title']} ({p['source']})\n{p['text']}" for n, p in enumerate(passages, start=1))
@@ -93,34 +66,29 @@ def build_messages(question: str, passages: list[dict]) -> list[ChatCompletionMe
 
 
 def generate(client: OpenAI, question: str, passages: list[dict]) -> str:
-    """One LLM call. Rotates to the next API key on auth / rate-limit / server errors."""
-    messages = build_messages(question, passages)
-    n_keys = len(_keys())
-    last_error: Exception | None = None
+    """One LLM call at temperature 0. Raises instead of returning a blank answer.
 
-    for _ in range(n_keys):
-        try:
-            response = client.chat.completions.create(
-                model=config.LLM_MODEL,
-                messages=messages,
-                max_completion_tokens=config.MAX_TOKENS,
-                temperature=0.0,
-            )
-            answer = (response.choices[0].message.content or "").strip()
-            if not answer:  # a reasoning model can spend the whole token budget thinking
-                raise RuntimeError(
-                    f"The model returned an empty answer (finish_reason={response.choices[0].finish_reason})."
-                )
-            return answer
+    Transient generator 429s are retried a bounded number of times. Tokens-per-day exhaustion is
+    raised immediately and clearly rather than retried forever (that is the failure notebook 4 now
+    hits during the regenerated LLM-only baseline cell).
+    """
+    return call_with_transient_rate_limit_retry(
+        client,
+        lambda: _generate_once(client, question, passages),
+        max_transient_retries=5,
+    )
 
-        except APIStatusError as e:
-            if e.status_code in (401, 403, 429) or e.status_code >= 500:
-                last_error = e
-                _advance_key()
-                client = _client_for(_current_key())
-                continue
-            raise
 
-    if last_error is not None:
-        raise last_error
-    raise RuntimeError("No API keys available to try.")
+def _generate_once(client: OpenAI, question: str, passages: list[dict]) -> str:
+    """The actual one-shot LLM call. Separated so the retry wrapper can call it without retrying
+    the surrounding control flow."""
+    response = client.chat.completions.create(
+        model=config.LLM_MODEL,
+        messages=build_messages(question, passages),
+        max_completion_tokens=config.MAX_TOKENS,
+        temperature=0.0,
+    )
+    answer = (response.choices[0].message.content or "").strip()
+    if not answer:  # a reasoning model can spend the whole token budget thinking
+        raise RuntimeError(f"The model returned an empty answer (finish_reason={response.choices[0].finish_reason}).")
+    return answer

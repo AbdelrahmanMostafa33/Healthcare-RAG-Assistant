@@ -1,6 +1,6 @@
 """FastAPI service. Run with: uvicorn app:app
 
-POST /query   {"question": "..."}  ->  answer, abstained, sources, disclaimer
+POST /query   {"question": "..."}  ->  answer, abstained, emergency, redirected, sources, disclaimer
 GET  /health
 """
 import logging
@@ -29,7 +29,8 @@ class Source(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     abstained: bool   # True when the sources did not contain enough relevant evidence
-    emergency: bool   # True when the query was handled by the emergency path (no retrieval, no LLM)
+    emergency: bool   # True when the question described an emergency (fixed message, no retrieval, no LLM)
+    redirected: bool  # True when the question asked for personal medical advice (fixed redirect to a doctor)
     sources: list[Source]
     disclaimer: str
 

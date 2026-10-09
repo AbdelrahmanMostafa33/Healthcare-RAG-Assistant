@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from app import app
 from src.pipeline import ABSTAIN_MESSAGE, DISCLAIMER
+from src.safety import REDIRECT_MESSAGE
 
 SOURCE = {"n": 1, "source": "MedlinePlus", "title": "Fever", "url": "https://medlineplus.gov/fever.html"}
 EMERGENCY_ANSWER = "**This may describe a medical emergency.**\n\nCall your local emergency number immediately."
@@ -11,21 +12,22 @@ EMERGENCY_ANSWER = "**This may describe a medical emergency.**\n\nCall your loca
 class FakePipeline:
     threshold, calibrated = 1.5, True
 
-    def __init__(self, abstain=False, error=None, emergency=False):
-        self.abstain, self.error, self.emergency, self.questions = abstain, error, emergency, []
+    def __init__(self, abstain=False, error=None, emergency=False, redirect=False):
+        self.abstain, self.error, self.emergency, self.redirect, self.questions = abstain, error, emergency, redirect, []
 
     def answer(self, question):
         self.questions.append(question)
         if self.error:
             raise self.error
+        flags = {"abstained": False, "emergency": False, "redirected": False}
         if self.emergency:
-            return {"answer": EMERGENCY_ANSWER, "abstained": False, "emergency": True,
-                    "sources": [], "passages": [], "disclaimer": DISCLAIMER}
+            return {**flags, "answer": EMERGENCY_ANSWER, "emergency": True, "sources": [], "passages": [], "disclaimer": DISCLAIMER}
+        if self.redirect:
+            return {**flags, "answer": REDIRECT_MESSAGE, "redirected": True, "sources": [], "passages": [], "disclaimer": DISCLAIMER}
         if self.abstain:
-            return {"answer": ABSTAIN_MESSAGE, "abstained": True, "emergency": False,
-                    "sources": [], "passages": [], "disclaimer": DISCLAIMER}
-        return {"answer": "Fever is a common symptom [1].", "abstained": False, "emergency": False,
-                "sources": [SOURCE], "passages": [{"text": "internal passage text"}], "disclaimer": DISCLAIMER}
+            return {**flags, "answer": ABSTAIN_MESSAGE, "abstained": True, "sources": [], "passages": [], "disclaimer": DISCLAIMER}
+        return {**flags, "answer": "Fever is a common symptom [1].", "sources": [SOURCE],
+                "passages": [{"text": "internal passage text"}], "disclaimer": DISCLAIMER}
 
 
 @pytest.fixture
@@ -44,7 +46,7 @@ def test_query_returns_answer_sources_and_disclaimer(client):
     response = client.post("/query", json={"question": "  What causes a fever?  "})
     assert response.status_code == 200
     assert response.json() == {"answer": "Fever is a common symptom [1].", "abstained": False, "emergency": False,
-                               "sources": [SOURCE], "disclaimer": DISCLAIMER}   # no internal passages in the response
+                               "redirected": False, "sources": [SOURCE], "disclaimer": DISCLAIMER}   # no internal passages
     assert pipeline.questions == ["What causes a fever?"]
 
 
@@ -61,6 +63,12 @@ def test_an_emergency_has_no_sources_and_is_flagged(client):
     assert body["abstained"] is False
     assert body["sources"] == []
     assert "emergency" in body["answer"].lower()
+
+
+def test_a_personal_advice_question_is_flagged_as_redirected(client):
+    use(FakePipeline(redirect=True))
+    body = client.post("/query", json={"question": "How much ibuprofen can I give my son?"}).json()
+    assert body["redirected"] is True and body["abstained"] is False and body["emergency"] is False and body["sources"] == []
 
 
 @pytest.mark.parametrize("payload", [{}, {"question": ""}, {"question": "  "}, {"question": "ab"}, {"question": "x" * 1001}])

@@ -38,12 +38,21 @@ def test_sources_are_exactly_the_passages_that_were_in_the_prompt(make_pipeline)
     result = pipeline.answer("diabetes insulin")
     prompt = client.calls[0]["messages"][1]["content"]
 
-    assert len(result["sources"]) == config.CONTEXT_K   # 5 sources, not the 20 FAISS candidates
+    assert len(result["sources"]) == 1  # only [1] was cited, though all five passages were in the prompt
     assert f"[{config.CONTEXT_K}]" in prompt and f"[{config.CONTEXT_K + 1}]" not in prompt
     for source, passage in zip(result["sources"], result["passages"]):
         assert source["title"] == passage["title"] and source["url"] == passage["url"]
         assert passage["text"] in prompt
-    assert [s["n"] for s in result["sources"]] == list(range(1, config.CONTEXT_K + 1))
+    assert [s["n"] for s in result["sources"]] == [1]
+
+
+def test_sources_keep_original_prompt_numbers_and_citation_order(make_pipeline):
+    pipeline, _ = make_pipeline(answer="First [3], then [1].")
+    result = pipeline.answer("diabetes insulin")
+    assert [source["n"] for source in result["sources"]] == [3, 1]
+    assert [source["title"] for source in result["sources"]] == [
+        result["passages"][2]["title"], result["passages"][0]["title"]
+    ]
 
 
 def test_a_blank_question_is_rejected(make_pipeline):
@@ -106,16 +115,39 @@ def test_an_educational_question_about_children_still_gets_an_answer(make_pipeli
     assert result["redirected"] is False and len(client.calls) == 1
 
 
-def test_threshold_is_a_placeholder_until_notebook_04_writes_the_calibrated_one(tmp_path, monkeypatch):
+def test_threshold_is_not_trusted_until_calibration_metadata_matches(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
+    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
+    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
+
     assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
-    (tmp_path / "abstention_threshold.json").write_text('{"threshold": 3.25}')
+    config.THRESHOLD_PATH.write_text('{"threshold": 3.25}', encoding="utf-8")
+    assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
+
+    malformed = {"threshold": True, **config.calibration_metadata()}
+    config.THRESHOLD_PATH.write_text(__import__("json").dumps(malformed), encoding="utf-8")
+    assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
+
+    valid = {"threshold": 3.25, **config.calibration_metadata()}
+    config.THRESHOLD_PATH.write_text(__import__("json").dumps(valid), encoding="utf-8")
     assert config.load_threshold() == (3.25, True)
 
 
-def test_a_threshold_calibrated_for_another_reranker_is_not_used(tmp_path, monkeypatch):
+def test_a_threshold_for_another_reranker_or_changed_eval_data_is_not_used(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
-    (tmp_path / "abstention_threshold.json").write_text('{"threshold": 3.25, "reranker_model": "some/other-reranker"}')
+    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
+    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
+
+    stale = {"threshold": 3.25, **config.calibration_metadata(), "reranker_model": "some/other-reranker"}
+    config.THRESHOLD_PATH.write_text(__import__("json").dumps(stale), encoding="utf-8")
     assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
-    (tmp_path / "abstention_threshold.json").write_text(f'{{"threshold": 3.25, "reranker_model": "{config.RERANKER_MODEL}"}}')
+
+    valid = {"threshold": 3.25, **config.calibration_metadata()}
+    config.THRESHOLD_PATH.write_text(__import__("json").dumps(valid), encoding="utf-8")
     assert config.load_threshold() == (3.25, True)
+    config.EVAL_PATH.write_text("id,question\nq1,changed?\n", encoding="utf-8")
+    assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)

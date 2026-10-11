@@ -1,11 +1,7 @@
-"""Settings in one place.
-
-Environment variables (see .env.example):
-  GROQ_API_KEY - Groq API key, used for the generator and the evaluation judge
-                 (one key; if comma-separated, only the first key is used)
-  JUDGE_MODEL  - optional, overrides the judge model below
-"""
+"""Project settings and validation of the calibrated abstention threshold."""
+import hashlib
 import json
+import math
 import os
 from pathlib import Path
 
@@ -17,6 +13,7 @@ load_dotenv(ROOT / ".env")
 KB_PATH = ROOT / "data" / "processed" / "kb_documents.csv"
 INDEX_PATH = ROOT / "data" / "index" / "kb.faiss"
 CHUNKS_PATH = ROOT / "data" / "index" / "chunks.jsonl"
+INDEX_MANIFEST_PATH = ROOT / "data" / "index" / "manifest.json"
 EVAL_PATH = ROOT / "data" / "eval" / "questions.csv"
 REPORTS_DIR = ROOT / "reports"
 THRESHOLD_PATH = REPORTS_DIR / "abstention_threshold.json"
@@ -26,30 +23,59 @@ CHUNK_OVERLAP_CHARS = 200
 
 EMBEDDING_MODEL = "BAAI/bge-m3"
 RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
-LLM_MODEL = "openai/gpt-oss-120b"
-LLM_BASE_URL = "https://api.groq.com/openai/v1"
-
-# The judge must be a different model family from the generator, so it does not grade its own style.
-# It runs on Groq through the same OpenAI-compatible client.
+LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-120b")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+# This Groq model is currently a preview model; choose another supported JSON-capable judge via .env if needed.
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "qwen/qwen3.8-27b")
 
-RETRIEVE_K = 20   # candidates from FAISS
-CONTEXT_K = 5     # passages kept after reranking and put in the prompt
+RETRIEVE_K = 20
+CONTEXT_K = 5
 MAX_TOKENS = 2048
 
-# The reranker returns raw logits; 0 means "more likely relevant than not".
-# Placeholder until notebook 04 calibrates a real value on the dev questions.
+# A numeric fallback is retained for backwards-compatible result reporting, but is NEVER trusted
+# to answer questions. RAGPipeline abstains until the threshold has been calibrated for this build.
 DEFAULT_THRESHOLD = 0.0
 
 
-def load_threshold():
-    """Returns (threshold, calibrated).
+def sha256_file(path: Path) -> str | None:
+    """Return a file's SHA-256, or None when it is not available."""
+    try:
+        digest = hashlib.sha256()
+        with Path(path).open("rb") as file:
+            for block in iter(lambda: file.read(1024 * 1024), b""):
+                digest.update(block)
+        return digest.hexdigest()
+    except OSError:
+        return None
 
-    A saved threshold only means something for the reranker it was calibrated with, so one saved
-    for a different reranker is ignored and the placeholder is used instead.
-    """
-    if THRESHOLD_PATH.exists():
-        saved = json.loads(THRESHOLD_PATH.read_text())
-        if saved.get("reranker_model", RERANKER_MODEL) == RERANKER_MODEL:
-            return saved["threshold"], True
-    return DEFAULT_THRESHOLD, False
+
+def calibration_metadata() -> dict:
+    """Fingerprints of everything that makes a saved reranker threshold meaningful."""
+    return {
+        "embedding_model": EMBEDDING_MODEL,
+        "reranker_model": RERANKER_MODEL,
+        "eval_sha256": sha256_file(EVAL_PATH),
+        "index_manifest_sha256": sha256_file(INDEX_MANIFEST_PATH),
+    }
+
+
+def load_threshold():
+    """Return (threshold, calibrated); stale, malformed or incomplete files fail closed."""
+    if not THRESHOLD_PATH.exists():
+        return DEFAULT_THRESHOLD, False
+    try:
+        saved = json.loads(THRESHOLD_PATH.read_text(encoding="utf-8"))
+        raw_threshold = saved["threshold"]
+        if isinstance(raw_threshold, bool):
+            return DEFAULT_THRESHOLD, False
+        threshold = float(raw_threshold)
+        if not math.isfinite(threshold):
+            return DEFAULT_THRESHOLD, False
+        expected = calibration_metadata()
+        if any(value is None for value in expected.values()):
+            return DEFAULT_THRESHOLD, False
+        if any(saved.get(key) != value for key, value in expected.items()):
+            return DEFAULT_THRESHOLD, False
+        return threshold, True
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+        return DEFAULT_THRESHOLD, False

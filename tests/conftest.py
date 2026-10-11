@@ -47,15 +47,16 @@ class FakeReranker:
 class FakeClient:
     """Stands in for the OpenAI client and records every call."""
 
-    def __init__(self, answer="Diabetes affects blood sugar [1]."):
+    def __init__(self, answer="Diabetes affects blood sugar [1].", finish_reason="stop"):
         self.answer = answer
+        self.finish_reason = finish_reason
         self.calls = []
         self.chat = types.SimpleNamespace(completions=self)
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
         message = types.SimpleNamespace(content=self.answer)
-        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message, finish_reason="stop")])
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message, finish_reason=self.finish_reason)])
 
 
 def make_chunks(n=25):

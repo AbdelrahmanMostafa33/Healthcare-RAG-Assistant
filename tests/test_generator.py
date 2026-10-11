@@ -1,7 +1,7 @@
 import pytest
 
 from src import config
-from src.generator import SYSTEM_PROMPT, build_messages, generate, make_client
+from src.generator import SYSTEM_PROMPT, build_messages, citation_numbers, citations_are_valid, generate, make_client
 from tests.conftest import FakeClient
 
 PASSAGES = [
@@ -35,6 +35,15 @@ def test_generate_makes_one_deterministic_call_with_the_configured_model():
     assert call["model"] == config.LLM_MODEL and call["temperature"] == 0.0 and call["max_completion_tokens"] == config.MAX_TOKENS
 
 
+def test_gpt_oss_generation_uses_supported_reasoning_parameters(monkeypatch):
+    monkeypatch.setattr(config, "LLM_MODEL", "openai/gpt-oss-120b")
+    client = FakeClient("Grounded answer [1].")
+    generate(client, "What is diabetes?", PASSAGES)
+    request = client.calls[0]
+    assert request["reasoning_effort"] == "low"
+    assert "reasoning_format" not in request
+
+
 def test_citations_are_left_in_the_answer():
     assert "[1]" in generate(FakeClient("Fact [1]."), "q?", PASSAGES)
 
@@ -43,6 +52,11 @@ def test_citations_are_left_in_the_answer():
 def test_an_empty_model_answer_raises_instead_of_returning_blank(content):
     with pytest.raises(RuntimeError, match="empty answer"):
         generate(FakeClient(content), "q?", PASSAGES)
+
+
+def test_a_truncated_answer_is_rejected_even_if_it_contains_a_citation():
+    with pytest.raises(RuntimeError, match="truncated"):
+        generate(FakeClient("Partial statement [1].", finish_reason="length"), "q?", PASSAGES)
 
 
 def test_the_tests_do_not_need_an_api_key_to_call_generate():
@@ -71,3 +85,14 @@ def test_make_client_rejects_a_key_of_only_commas(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", " , , ")
     with pytest.raises(RuntimeError, match="GROQ_API_KEY"):
         make_client()
+
+
+def test_citation_validation_requires_citations_that_reference_supplied_passages():
+    assert citations_are_valid("Fact from sources [1][2].", PASSAGES)
+    assert not citations_are_valid("A claim without a citation.", PASSAGES)
+    assert not citations_are_valid("A claim [3].", PASSAGES)
+    assert not citations_are_valid("A claim [0].", PASSAGES)
+
+
+def test_citation_numbers_are_unique_and_keep_first_use_order():
+    assert citation_numbers("First [2], then [1], then [2].") == [2, 1]

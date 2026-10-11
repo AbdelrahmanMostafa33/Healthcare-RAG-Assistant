@@ -10,102 +10,9 @@ import time
 import numpy as np
 import pandas as pd
 
-from openai import RateLimitError
-
 from src import config
+from src.retry import call_with_transient_rate_limit_retry, is_tpd_exhaustion, retry_after_seconds
 
-# --- transient 429 handling for regenerated LLM cells --------------------------
-
-# Patterns that mean "the limit is exhausted for today / this tier" and are not worth
-# retrying. The stored notebook-4 failure was exactly this on openai/gpt-oss-120b:
-#   "Rate limit reached for model `openai/gpt-oss-120b` ... tokens per day (TPD):
-#    Limit 200000, Used 199276, Requested 948 ..."
-TPD_EXHAUSTION_SIGNALS = ("tokens per day", "tpd", "tokens per minute", "tpm",
-                           "tokens per hour", "tph", "quota exceeded")
-
-
-def is_tpd_exhaustion(err: RateLimitError) -> bool:
-    """Return True when the 429 is a hard daily/tier quota limit, not a transient spike."""
-    body = err.body
-    if not isinstance(body, dict):
-        return True  # do not retry if we cannot parse it
-    error = body.get("error") or {}
-    if not isinstance(error, dict):
-        return True
-    message = str(error.get("message") or "").lower()
-    err_type = str(error.get("type") or "").lower()
-    transient_only = any(
-        needle in message for needle in ("try again in", "rate limit reached", "too many requests", "overloaded")
-    ) and not any(needle in message for needle in TPD_EXHAUSTION_SIGNALS)
-    return any(needle in message for needle in TPD_EXHAUSTION_SIGNALS) or ("tokens" in err_type and not transient_only)
-
-
-def retry_after_seconds(err: RateLimitError) -> float | None:
-    """How long the provider asked us to wait, parsed from the error message.
-
-    The OpenAI client already reads the Retry-After response header, so this only fills the gap
-    for providers that only say e.g. "Please try again in 10s" in the JSON body.
-    """
-    body = err.body
-    if not isinstance(body, dict):
-        return None
-    message = str((body.get("error") or {}).get("message") or "")
-    match = re.search(r"[Tt]ry\s+again\s+in\s+([\d.]+)\s*s", message)
-    if match:
-        return float(match.group(1))
-    return None
-
-
-def call_with_transient_rate_limit_retry(client, call, max_transient_retries=5):
-    """Run ``call()`` once; on a transient generator 429, wait and retry.
-
-    Tokens-per-day exhaustion is raised immediately and clearly instead of being retried forever.
-    The OpenAI client already retries rate limits with backoff (set ``max_retries`` on the client),
-    so this only covers the cases where the library's own retry loop stops but the provider still
-    wants a short wait before the next attempt.
-
-    ``call`` must be a no-argument callable that makes exactly one ``client.chat.completions.create``
-    and raises ``RateLimitError`` on a 429.
-    """
-    transient_retries = 0
-    while True:
-        try:
-            return call()
-        except RateLimitError as error:
-            if is_tpd_exhaustion(error):
-                raise _tpd_exhausted_error(error) from error
-            wait = retry_after_seconds(error)
-            if wait is None:
-                wait = 2 ** max(transient_retries, 1)
-            if transient_retries >= max_transient_retries:
-                raise _transient_limit_exhausted_error(error)
-            time.sleep(wait)
-            transient_retries += 1
-
-
-def _tpd_exhausted_error(original: RateLimitError) -> RuntimeError:
-    """Re-raise tokens-per-day exhaustion as a clear RuntimeError so the notebook shows the cause immediately."""
-    body = original.body
-    if isinstance(body, dict):
-        error = body.get("error") or {}
-        if isinstance(error, dict):
-            message = str(error.get("message") or "")
-            if message:
-                return RuntimeError(
-                    f"Generator tokens-per-day limit exhausted. {message}"
-                )
-    return RuntimeError(
-        f"Generator 429 looks like token-limit exhaustion (body={getattr(original, 'body', None)!r}): "
-        f"{original}"
-    )
-
-
-def _transient_limit_exhausted_error(original: RateLimitError) -> RateLimitError:
-    """Re-raise after the transient retry budget is used up.
-
-    We re-raise the original ``RateLimitError`` so a caller/log can still tell this was a 429.
-    """
-    return original
 
 VERDICT_SCORE = {"yes": 1.0, "partial": 0.5, "no": 0.0}
 
@@ -267,29 +174,31 @@ def llm_only_answers(client, df):
     rows = []
     for row in df.itertuples():
         start = time.perf_counter()
-        answer = call_with_transient_rate_limit_retry(
-            client,
+        answer, finish_reason = call_with_transient_rate_limit_retry(
             lambda: _llm_only_once(client, row.question),
             max_transient_retries=5,
         )
         rows.append({
             "id": row.id,
             "answer": answer,
-            "finish_reason": None,  # wrapped call already consumed the response
+            "finish_reason": finish_reason,
             "latency_ms": (time.perf_counter() - start) * 1000,
         })
     return pd.DataFrame(rows, columns=["id", "answer", "finish_reason", "latency_ms"])
 
 
-def _llm_only_once(client, question: str) -> str:
+def _llm_only_once(client, question: str) -> tuple[str, str | None]:
     """One-shot LLM-only baseline call, separated so the retry wrapper can retry just the LLM call."""
-    response = client.chat.completions.create(
-        model=config.LLM_MODEL,
-        messages=[{"role": "system", "content": BASELINE_SYSTEM}, {"role": "user", "content": question}],
-        max_completion_tokens=config.MAX_TOKENS,
-        temperature=0.0,
-    )
-    return (response.choices[0].message.content or "").strip()
+    request = {
+        "model": config.LLM_MODEL,
+        "messages": [{"role": "system", "content": BASELINE_SYSTEM}, {"role": "user", "content": question}],
+        "max_completion_tokens": config.MAX_TOKENS,
+        "temperature": 0.0,
+    }
+    if config.LLM_MODEL.startswith("openai/gpt-oss-"):
+        request["reasoning_effort"] = "low"
+    response = client.chat.completions.create(**request)
+    return (response.choices[0].message.content or "").strip(), response.choices[0].finish_reason
 
 
 # --- threshold and abstention metrics -------------------------------------
@@ -306,12 +215,14 @@ def choose_threshold(answerable_scores, unanswerable_scores, min_abstention_reca
 
     Scores must exist for every question, so drop questions that never reached retrieval first.
     """
+    if not 0.0 <= float(min_abstention_recall) <= 1.0:
+        raise ValueError("min_abstention_recall must be between 0 and 1")
     answerable = np.asarray(answerable_scores, dtype=float)
     unanswerable = np.asarray(unanswerable_scores, dtype=float)
     if len(answerable) == 0 or len(unanswerable) == 0:
         raise ValueError("need at least one answerable and one unanswerable score")
-    if np.isnan(answerable).any() or np.isnan(unanswerable).any():
-        raise ValueError("scores contain NaN: drop the questions that never reached retrieval first")
+    if not np.isfinite(answerable).all() or not np.isfinite(unanswerable).all():
+        raise ValueError("scores contain NaN or infinity: drop questions that never reached retrieval first")
 
     values = np.unique(np.concatenate([answerable, unanswerable]))
     candidates = [values[0] - 1] + list((values[:-1] + values[1:]) / 2) + [values[-1] + 1]
@@ -335,15 +246,21 @@ def choose_threshold(answerable_scores, unanswerable_scores, min_abstention_reca
     return best
 
 
-def abstention_metrics(expected, declined):
-    """declined = the system did not answer from the sources (abstained or redirected).
+def abstention_metrics(expected, abstained):
+    """Measure threshold-based abstention, separate from emergency and advice rules.
 
-    recall: of the questions that should be declined, how many were.
-    precision: of the declined questions, how many should have been.
-    over_refusal: of the questions that should be answered, how many were declined.
+    ``abstained`` should be true only when the evidence threshold blocked generation.
+    Hard-coded emergency responses and personal-advice redirects are evaluated separately
+    through their expected-behaviour pass rates.
+
+    recall: share of insufficient-evidence questions that were abstained on.
+    precision: share of threshold abstentions that were truly insufficient-evidence questions.
+    over_refusal: share of answerable questions that were threshold-abstained.
     """
     expected = np.asarray(expected)
-    declined = np.asarray(declined, dtype=bool)
+    abstained = np.asarray(abstained, dtype=bool)
+    if len(expected) != len(abstained):
+        raise ValueError("expected and abstained must have the same number of entries")
     should_decline = expected == "insufficient_evidence"
     should_answer = expected == "answer"
 
@@ -351,13 +268,77 @@ def abstention_metrics(expected, declined):
         return float(count / total) if total else None
 
     return {
-        "abstention_recall": ratio((declined & should_decline).sum(), should_decline.sum()),
-        "abstention_precision": ratio((declined & should_decline).sum(), declined.sum()),
-        "over_refusal": ratio((declined & should_answer).sum(), should_answer.sum()),
+        "abstention_recall": ratio((abstained & should_decline).sum(), should_decline.sum()),
+        "abstention_precision": ratio((abstained & should_decline).sum(), abstained.sum()),
+        "over_refusal": ratio((abstained & should_answer).sum(), should_answer.sum()),
     }
 
 
 # --- report tables ---------------------------------------------------------
+
+def citation_metrics(results):
+    """Deterministic citation-reference metrics for RAG results (not semantic entailment)."""
+    import re
+
+    generated = [r for r in results.values() if r.get("sources") and not r.get("abstained")
+                 and not r.get("emergency") and not r.get("redirected")]
+    valid = 0
+    for result in generated:
+        cited = [int(n) for n in re.findall(r"\[(\d+)\]", result.get("answer", ""))]
+        source_ids = {int(source["n"]) for source in result.get("sources", []) if "n" in source}
+        if cited and set(cited).issubset(source_ids):
+            valid += 1
+    return {
+        "generated_answers": len(generated),
+        "answers_with_valid_source_references": valid,
+        "valid_reference_rate": float(valid / len(generated)) if generated else None,
+        "citation_validation_rejections": int(sum(bool(r.get("citation_validation_failed")) for r in results.values())),
+    }
+
+
+def evaluate_pipeline_results(df, results, judge):
+    """Grade successful pipeline responses and keep runtime failures out of quality denominators.
+
+    Failed requests receive an explicit failed behaviour row, but no fact/citation score. This
+    prevents API outages from being reported as zero-quality generated answers or abstentions.
+    """
+    expected_ids = set(df["id"])
+    missing = expected_ids - set(results)
+    if missing:
+        raise ValueError(f"Pipeline results are missing question IDs: {sorted(missing)[:5]}")
+    error_ids = {qid for qid in expected_ids if results[qid].get("error")}
+    valid_df = df.loc[~df["id"].isin(error_ids)].copy()
+    valid_answers = {qid: results[qid]["answer"] for qid in valid_df["id"]}
+
+    behavior = score_behavior(judge, valid_df, valid_answers)
+    if error_ids:
+        failures = df.loc[df["id"].isin(error_ids), ["id", "type", "expected_behavior"]].rename(
+            columns={"expected_behavior": "expected"}
+        )
+        failures["verdict"] = "no"
+        failures["reason"] = "pipeline error; no assistant response"
+        failures["judge_model"] = "not run"
+        failures["ok"] = False
+        behavior = pd.concat([behavior, failures[behavior.columns]], ignore_index=True)
+        question_order = {qid: position for position, qid in enumerate(df["id"])}
+        behavior["_question_order"] = behavior["id"].map(question_order)
+        behavior = behavior.sort_values("_question_order").drop(columns="_question_order").reset_index(drop=True)
+
+    latency_values = [results[qid].get("latency_ms") for qid in valid_df["id"]
+                      if results[qid].get("latency_ms") is not None]
+    return {
+        "facts": score_key_facts(judge, valid_df, valid_answers),
+        "behavior": behavior,
+        "abstention": abstention_metrics(
+            valid_df["expected_behavior"].tolist(),
+            [bool(results[qid].get("abstained")) for qid in valid_df["id"]],
+        ),
+        "citations": citation_metrics({qid: results[qid] for qid in valid_df["id"]}),
+        "pipeline_errors": len(error_ids),
+        "latency_ms": float(np.mean(latency_values)) if latency_values else float("nan"),
+        "graded_questions": len(valid_df),
+    }
+
 
 def summarize(facts, behavior, latency_ms):
     """Key-fact coverage, coverage by type, behaviour pass counts and mean latency for one system."""

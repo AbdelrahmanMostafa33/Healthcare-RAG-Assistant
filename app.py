@@ -51,7 +51,11 @@ app = FastAPI(
 @app.get("/health")
 def health(request: Request):
     pipeline = request.app.state.pipeline
-    return {"status": "ok", "abstain_threshold": pipeline.threshold, "threshold_calibrated": pipeline.calibrated}
+    return {
+        "status": "ok" if pipeline.calibrated else "degraded",
+        "abstain_threshold": pipeline.threshold,
+        "threshold_calibrated": pipeline.calibrated,
+    }
 
 
 # A plain `def` endpoint runs in a thread pool, so a slow LLM call does not block other requests.

@@ -1,5 +1,8 @@
 """Build and load the knowledge base: clean the sources, split them into chunks, embed, index."""
+import hashlib
 import html
+import json
+import os
 import re
 from xml.etree import ElementTree
 
@@ -26,7 +29,7 @@ MEDQUAD_COLUMNS = {"document_source", "document_url", "question_focus", "questio
 # --- cleaning -------------------------------------------------------------
 
 def clean_text(text):
-    if text is None or (isinstance(text, float) and pd.isna(text)):
+    if text is None or pd.isna(text):
         return ""
     text = TAG_RE.sub(" ", str(text))
     text = re.sub(r"\s+", " ", text)
@@ -43,7 +46,7 @@ def strip_boilerplate(text):
 
 def html_to_text(text):
     """MedlinePlus summaries contain real HTML (lists, links), so use a parser."""
-    if text is None or (isinstance(text, float) and pd.isna(text)):
+    if text is None or pd.isna(text):
         return ""
     plain = BeautifulSoup(str(text), "html.parser").get_text(" ")
     return re.sub(r"\s+", " ", html.unescape(plain)).strip()
@@ -55,7 +58,8 @@ def prepare_medquad(raw):
     if missing:
         raise ValueError(f"MedQuAD data is missing columns {sorted(missing)}. Use the lavita/MedQuAD dataset.")
 
-    # The GARD, A.D.A.M. and drug subsets ship without answers (copyright), so they drop out here.
+    # Rows without answers are unusable. This filters the drug, A.D.A.M. and herbal subsets in
+    # the checked snapshot; answer-bearing GARD rare-disease rows are retained.
     raw = raw[raw["answer"].fillna("").str.strip() != ""]
 
     question = raw["question"].apply(clean_text)
@@ -113,11 +117,17 @@ def build_kb(medquad, medlineplus):
 
 # --- chunking -------------------------------------------------------------
 
-def _split_long_sentence(sentence):
-    """Run-on lists without full stops can be longer than a chunk, so split them on words."""
+def _split_long_sentence(sentence, max_chars):
+    """Split a run-on sentence/list on word boundaries when needed."""
     parts, current = [], ""
     for word in sentence.split():
-        if current and len(current) + 1 + len(word) > config.CHUNK_MAX_CHARS:
+        if len(word) > max_chars:
+            if current:
+                parts.append(current)
+                current = ""
+            parts.extend(word[i:i + max_chars] for i in range(0, len(word), max_chars))
+            continue
+        if current and len(current) + 1 + len(word) > max_chars:
             parts.append(current)
             current = word
         else:
@@ -125,22 +135,24 @@ def _split_long_sentence(sentence):
     return parts + [current]
 
 
-def split_text(text):
-    """Pack whole sentences into chunks of at most CHUNK_MAX_CHARS characters.
-    The last sentence of a chunk is repeated at the start of the next one if it is short enough."""
+def split_text(text, max_chars=None):
+    """Pack sentences into bounded chunks, repeating a short boundary sentence where possible."""
+    max_chars = config.CHUNK_MAX_CHARS if max_chars is None else int(max_chars)
+    if max_chars < 1:
+        raise ValueError("max_chars must be positive")
     sentences = []
     for sentence in SENTENCE_END.split(text.strip()):
-        if len(sentence) > config.CHUNK_MAX_CHARS:
-            sentences.extend(_split_long_sentence(sentence))
+        if len(sentence) > max_chars:
+            sentences.extend(_split_long_sentence(sentence, max_chars))
         elif sentence:
             sentences.append(sentence)
 
     chunks, current = [], []
     for sentence in sentences:
-        if current and len(" ".join(current + [sentence])) > config.CHUNK_MAX_CHARS:
+        if current and len(" ".join(current + [sentence])) > max_chars:
             chunks.append(" ".join(current))
             last = current[-1]
-            fits = len(last) <= config.CHUNK_OVERLAP_CHARS and len(last) + 1 + len(sentence) <= config.CHUNK_MAX_CHARS
+            fits = len(last) <= config.CHUNK_OVERLAP_CHARS and len(last) + 1 + len(sentence) <= max_chars
             current = [last] if fits else []
         current.append(sentence)
     if current:
@@ -154,10 +166,24 @@ def build_chunks(kb, with_question=True):
     after splitting, so a chunk can never consist of the question alone."""
     rows = []
     for doc in kb.itertuples(index=False):
-        for body in split_text(doc.text):
+        raw_question = getattr(doc, "question", "")
+        question = "" if pd.isna(raw_question) else str(raw_question).strip()
+        if not with_question:
+            question = ""
+        raw_text = getattr(doc, "text", "")
+        body_text = "" if pd.isna(raw_text) else str(raw_text).strip()
+        # The topic header is part of the embedding text, so reserve room for it before splitting.
+        # Keep the complete question; pathological questions that leave no room for evidence are skipped.
+        prefix_chars = len(question) + 1 if question else 0
+        body_budget = config.CHUNK_MAX_CHARS - prefix_chars
+        if body_budget < MIN_CHUNK_CHARS:
+            continue
+        for body in split_text(body_text, max_chars=body_budget):
             if len(body) < MIN_CHUNK_CHARS:
                 continue
-            text = f"{doc.question}\n{body}" if with_question and doc.question else body
+            text = f"{question}\n{body}" if question else body
+            if len(text) > config.CHUNK_MAX_CHARS:
+                raise AssertionError("chunk exceeds CHUNK_MAX_CHARS")
             rows.append((doc.doc_id, doc.source, doc.title, doc.url, text))
     chunks = pd.DataFrame(rows, columns=["doc_id", "source", "title", "url", "text"])
     chunks.insert(0, "chunk_id", range(len(chunks)))
@@ -182,29 +208,111 @@ def encode_texts(encoder, texts, batch_size=32):
 
 
 def build_index(embeddings):
-    index = faiss.IndexFlatIP(embeddings.shape[1])   # exact search; fast enough at this size
-    index.add(embeddings)
+    """Build an exact cosine-similarity index from normalized float32 embeddings."""
+    vectors = np.asarray(embeddings, dtype=np.float32)
+    if vectors.ndim != 2 or vectors.shape[0] == 0 or vectors.shape[1] == 0:
+        raise ValueError("embeddings must be a non-empty 2D array")
+    if not np.isfinite(vectors).all():
+        raise ValueError("embeddings contain NaN or infinite values")
+    norms = np.linalg.norm(vectors, axis=1)
+    if np.any(norms == 0):
+        raise ValueError("embeddings contain a zero vector")
+    # Avoid silently changing retrieval semantics: inner product is cosine only for unit vectors.
+    vectors = vectors / norms[:, None]
+    index = faiss.IndexFlatIP(vectors.shape[1])
+    index.add(vectors)
     return index
 
 
 def _check_aligned(index, chunks):
+    required = {"chunk_id", "doc_id", "source", "title", "url", "text"}
+    missing = required - set(chunks.columns)
+    if missing:
+        raise ValueError(f"Chunk table is missing columns: {sorted(missing)}")
     if index.ntotal != len(chunks):
         raise ValueError(f"Index has {index.ntotal} vectors but the chunk table has {len(chunks)} rows. Rebuild with notebook 02.")
-    if not (chunks["chunk_id"].to_numpy() == np.arange(len(chunks))).all():
+    if len(chunks) == 0:
+        raise ValueError("The index and chunk table are empty. Rebuild the knowledge base and index.")
+    if not np.array_equal(chunks["chunk_id"].to_numpy(), np.arange(len(chunks))):
         raise ValueError("chunk_id must equal the row position in the chunk table.")
+    if chunks["doc_id"].isna().any():
+        raise ValueError("Chunk table contains missing document IDs. Rebuild with notebook 02.")
+    for column in ("source", "title"):
+        if chunks[column].isna().any() or chunks[column].astype(str).str.strip().eq("").any():
+            raise ValueError(f"Chunk table contains empty {column} values. Rebuild with notebook 02.")
+    if chunks["text"].isna().any() or chunks["text"].astype(str).str.strip().eq("").any():
+        raise ValueError("Chunk table contains empty text. Rebuild with notebook 02.")
+
+
+def _file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def save_index(index, chunks):
+    """Atomically write an index, its ordered chunk table, and a compatibility manifest."""
     _check_aligned(index, chunks)
     config.INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
-    faiss.write_index(index, str(config.INDEX_PATH))
-    chunks.to_json(config.CHUNKS_PATH, orient="records", lines=True, force_ascii=False)
+    index_tmp = config.INDEX_PATH.with_name(config.INDEX_PATH.name + ".tmp")
+    chunks_tmp = config.CHUNKS_PATH.with_name(config.CHUNKS_PATH.name + ".tmp")
+    manifest_tmp = config.INDEX_MANIFEST_PATH.with_name(config.INDEX_MANIFEST_PATH.name + ".tmp")
+    try:
+        faiss.write_index(index, str(index_tmp))
+        chunks.to_json(chunks_tmp, orient="records", lines=True, force_ascii=False)
+        os.replace(index_tmp, config.INDEX_PATH)
+        os.replace(chunks_tmp, config.CHUNKS_PATH)
+        manifest = {
+            "embedding_model": config.EMBEDDING_MODEL,
+            "reranker_model": config.RERANKER_MODEL,
+            "chunk_max_chars": config.CHUNK_MAX_CHARS,
+            "chunk_overlap_chars": config.CHUNK_OVERLAP_CHARS,
+            "num_chunks": int(len(chunks)),
+            "vector_dimension": int(index.d),
+            "processed_kb_sha256": config.sha256_file(config.KB_PATH),
+            "index_sha256": _file_sha256(config.INDEX_PATH),
+            "chunks_sha256": _file_sha256(config.CHUNKS_PATH),
+        }
+        manifest_tmp.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        os.replace(manifest_tmp, config.INDEX_MANIFEST_PATH)
+    finally:
+        for path in (index_tmp, chunks_tmp, manifest_tmp):
+            if path.exists():
+                path.unlink()
 
 
 def load_index():
-    if not (config.INDEX_PATH.exists() and config.CHUNKS_PATH.exists()):
-        raise FileNotFoundError("Index files not found. Run notebooks 01 and 02 to build them.")
+    """Load only a complete index build whose manifest, vectors and chunks agree."""
+    required = (config.INDEX_PATH, config.CHUNKS_PATH, config.INDEX_MANIFEST_PATH)
+    if not all(path.exists() for path in required):
+        raise FileNotFoundError("Index files or manifest not found. Run notebooks 01 and 02 to build them.")
+    try:
+        manifest = json.loads(config.INDEX_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("Index manifest is invalid. Rebuild with notebook 02.") from error
+
+    if not isinstance(manifest, dict):
+        raise ValueError("Index manifest must contain a JSON object. Rebuild with notebook 02.")
+    expected_settings = {
+        "embedding_model": config.EMBEDDING_MODEL,
+        "reranker_model": config.RERANKER_MODEL,
+        "chunk_max_chars": config.CHUNK_MAX_CHARS,
+        "chunk_overlap_chars": config.CHUNK_OVERLAP_CHARS,
+    }
+    if any(manifest.get(key) != value for key, value in expected_settings.items()):
+        raise ValueError("Index was built with different model/retrieval settings. Rebuild with notebook 02.")
+    if manifest.get("index_sha256") != _file_sha256(config.INDEX_PATH):
+        raise ValueError("FAISS index checksum mismatch. Rebuild with notebook 02.")
+    if manifest.get("chunks_sha256") != _file_sha256(config.CHUNKS_PATH):
+        raise ValueError("Chunk table checksum mismatch. Rebuild with notebook 02.")
+    if manifest.get("processed_kb_sha256") != config.sha256_file(config.KB_PATH):
+        raise ValueError("Processed knowledge base changed since this index was built. Rebuild with notebooks 01 and 02.")
+
     index = faiss.read_index(str(config.INDEX_PATH))
     chunks = pd.read_json(config.CHUNKS_PATH, lines=True, dtype={"source": str, "title": str, "url": str, "text": str})
     _check_aligned(index, chunks)
+    if manifest.get("num_chunks") != len(chunks) or manifest.get("vector_dimension") != index.d:
+        raise ValueError("Index manifest does not match the loaded files. Rebuild with notebook 02.")
     return index, chunks

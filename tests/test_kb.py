@@ -49,6 +49,16 @@ def test_prepare_medquad_keeps_the_longest_answer_for_a_repeated_question():
     assert len(docs) == 1 and docs.iloc[0]["text"] == "a much longer answer text"
 
 
+def test_prepare_medquad_retains_answer_bearing_gard_rows():
+    raw = pd.DataFrame({
+        "document_source": ["GARD"], "document_url": ["https://rarediseases.info.nih.gov/gard/1/example"],
+        "question_focus": ["Example condition"], "question": ["What is Example condition?"],
+        "answer": ["Example condition is a rare disease."],
+    })
+    docs = kb.prepare_medquad(raw)
+    assert len(docs) == 1 and docs.iloc[0]["source"] == "MedQuAD (GARD)"
+
+
 def test_prepare_medquad_rejects_the_wrong_dataset_version():
     with pytest.raises(ValueError, match="lavita/MedQuAD"):
         kb.prepare_medquad(pd.DataFrame({"qtype": ["symptoms"], "Question": ["q?"], "Answer": ["a"]}))
@@ -122,6 +132,7 @@ def test_every_chunk_has_the_question_on_top_and_real_content_below(small_chunks
     for text in chunks["text"]:
         header, _, body = text.partition("\n")
         assert header == "What is Diabetes?" and len(body) >= kb.MIN_CHUNK_CHARS
+        assert len(text) <= config.CHUNK_MAX_CHARS
 
 
 def test_chunks_without_question_contain_only_the_body(small_chunks):
@@ -143,6 +154,8 @@ def index_and_chunks(n=6, dim=8):
 def index_files(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "INDEX_PATH", tmp_path / "kb.faiss")
     monkeypatch.setattr(config, "CHUNKS_PATH", tmp_path / "chunks.jsonl")
+    monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
+    monkeypatch.setattr(config, "KB_PATH", tmp_path / "kb_documents.csv")
 
 
 def test_index_and_chunk_table_survive_a_save_and_load(index_files):
@@ -155,6 +168,25 @@ def test_index_and_chunk_table_survive_a_save_and_load(index_files):
     assert loaded_index.search(vectors[2:3], 1)[1][0][0] == 2
 
 
+def test_loading_rejects_a_changed_processed_knowledge_base(index_files, tmp_path, monkeypatch):
+    config.KB_PATH.write_text("doc_id,text\n0,original\n", encoding="utf-8")
+    index, chunks, _ = index_and_chunks()
+    kb.save_index(index, chunks)
+    config.KB_PATH.write_text("doc_id,text\n0,changed\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Processed knowledge base changed"):
+        kb.load_index()
+
+
+def test_loading_rejects_an_index_built_with_a_different_reranker(index_files):
+    index, chunks, _ = index_and_chunks()
+    kb.save_index(index, chunks)
+    manifest = __import__("json").loads(config.INDEX_MANIFEST_PATH.read_text(encoding="utf-8"))
+    manifest["reranker_model"] = "different/reranker"
+    config.INDEX_MANIFEST_PATH.write_text(__import__("json").dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="different model/retrieval settings"):
+        kb.load_index()
+
+
 def test_index_and_chunk_table_must_have_the_same_length(index_files):
     index, chunks, _ = index_and_chunks()
     with pytest.raises(ValueError, match="vectors"):
@@ -164,3 +196,12 @@ def test_index_and_chunk_table_must_have_the_same_length(index_files):
 def test_loading_a_missing_index_says_how_to_build_it(index_files):
     with pytest.raises(FileNotFoundError, match="notebooks 01 and 02"):
         kb.load_index()
+
+
+def test_build_index_rejects_empty_or_non_finite_embeddings():
+    with pytest.raises(ValueError, match="non-empty 2D"):
+        kb.build_index(np.empty((0, 8), dtype=np.float32))
+    bad = np.ones((2, 3), dtype=np.float32)
+    bad[0, 0] = np.nan
+    with pytest.raises(ValueError, match="NaN or infinite"):
+        kb.build_index(bad)

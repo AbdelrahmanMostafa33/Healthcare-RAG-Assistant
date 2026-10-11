@@ -19,7 +19,7 @@ RAG (retrieval-augmented generation) addresses this: the system first searches a
 | **In scope** | Diseases and conditions: what they are, their symptoms, causes and risk factors, prevention, tests and diagnosis, and how they are treated in general |
 | **Out of scope** | Specific medicines (doses, side effects, interactions, whether to start, stop or combine), diagnosing the user, personal advice, interpreting someone's test results, and live or current information |
 
-**Why medicines are out of scope.** The sources describe how conditions are treated in general, the kinds of medicine used, not specific drugs. Neither MedQuAD's open subset nor MedlinePlus covers drug-specific information (both removed for copyright). So the assistant is scoped to what the sources support, and questions about named drugs are expected to abstain. The evaluation includes such questions to check this.
+**Why medicines are out of scope.** The sources describe how conditions are treated in general, not the uses, doses, side effects, or interactions of specific drugs. MedQuAD's drug rows and MedlinePlus drug pages are not part of the indexed corpus. Questions about named drugs therefore lack dedicated evidence and should abstain; the evaluation includes these questions to check that boundary.
 
 An assistant that abstains on medicines is safer than one that answers from its own memory: every abstention is an explicit "I don't know", not a confident guess.
 
@@ -57,11 +57,11 @@ There is no query classifier, no second retrieval pass, no retry with a looser p
 | [MedQuAD](https://huggingface.co/datasets/lavita/MedQuAD) | Question/answer pairs written by NIH websites (NIDDK, CDC, NHLBI, ...). Kept with each document's URL and publisher so answers can be cited. |
 | [MedlinePlus](https://medlineplus.gov/xml.html) | One plain-language summary per health topic (NLM). |
 
-Documents are cleaned (HTML and NIH site text removed, duplicates dropped) and split into chunks of at most 1000 characters made of whole sentences, with at most one sentence (200 characters) repeated between chunks. The document's question is placed on top of every chunk so it keeps its topic. In the last build this gave 15,994 documents and 31,676 chunks. Chunk size and overlap are reasonable defaults, not tuned values.
+Documents are cleaned (HTML and NIH site text removed, duplicates dropped) and split into sentence-aware chunks of at most 1000 characters, with long run-on sentences split at word boundaries. A short boundary sentence may overlap between chunks (at most 200 characters). The document's question is placed on top of every chunk so it keeps its topic; space is reserved for that header before splitting, so the total embedded text still respects the cap. Chunk size and overlap are sensible defaults, not benchmark-tuned values.
 
 **Why a small knowledge base.** The sources were chosen to match the questions, not to be large. PubMedQA (research abstracts with generated questions) and MedRedQA (informal Reddit replies) were left out because they fit consumer questions poorly. This is a judgement about fit; their effect on retrieval was not measured.
 
-**The medication gap.** `lavita/MedQuAD` ships without the answers of its drug, A.D.A.M., herbal and GARD subsets (31,034 rows, removed for copyright), and MedlinePlus drug pages are AHFS content copyrighted by ASHP, so they are not used. The open alternative is FDA labels (DailyMed / openFDA), which are written for clinicians and need their own ingestion step that was not built. Notebook 01 shows the gap in the data; notebook 04 reports medication questions separately.
+**The medication gap.** In the checked `lavita/MedQuAD` snapshot, drug, A.D.A.M., and herbal-supplement rows have no answer text and are filtered during ingestion. GARD is not wholly omitted: answer-bearing rare-disease rows are retained. MedlinePlus drug pages contain AHFS Consumer Medication Information, so they are not ingested. FDA labels (DailyMed / openFDA) are a possible future source that would need a separate ingestion step. Notebook 01 shows the answer availability by source; notebook 04 reports medication questions separately.
 
 The index is not stored in the repository. Notebooks 01 and 02 build it.
 
@@ -71,15 +71,33 @@ Python, pandas, BeautifulSoup, sentence-transformers (embeddings and reranker), 
 
 ## Quickstart
 
+Linux / macOS:
+
 ```bash
 python -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -r requirements.txt      # with a GPU, install the matching torch build first
-cp .env.example .env                 # then add your GROQ_API_KEY
+source .venv/bin/activate
+python -m pip install -r requirements.txt  # with a GPU, install the matching torch build first
+cp .env.example .env                      # then add your GROQ_API_KEY
+```
+
+Windows PowerShell:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
 ```
 
 1. Build the knowledge base and index by running `notebooks/01_data_and_kb.ipynb`, then `notebooks/02_build_index.ipynb`. A GPU is recommended for the embedding step.
-2. Start the API and ask a question:
+2. Calibrate the evidence threshold on the **dev** questions. This downloads/loads the retrieval models but does not call Groq and does not need an API key:
+
+```bash
+python -m scripts.calibrate_threshold
+```
+
+   Calibration is tied to the configured embedding/reranker model IDs, the evaluation CSV, and the exact index manifest. If any of these change, the saved threshold is rejected and the assistant abstains until recalibrated. The upstream model IDs are not pinned to immutable Hub commits, so check for model updates before treating a saved calibration as reproducible.
+3. Add your Groq key to `.env`, then start the API and ask a question:
 
 ```bash
 uvicorn app:app
@@ -90,11 +108,13 @@ curl -X POST http://localhost:8000/query \
 
 Interactive docs are at `http://localhost:8000/docs`. Startup loads the models, so it takes a little while. It fails immediately, with a clear message, if `GROQ_API_KEY` is missing or the index has not been built.
 
-3. Run the tests. They use small fakes, so no models, GPU, index or API key are needed:
+4. Run the tests. They use small fakes, so no model weights, GPU, index files or API key are needed (install `requirements.txt`, including `faiss-cpu`, first):
 
 ```bash
 pytest
 ```
+
+To run the LLM-graded evaluation, open `notebooks/04_evaluation.ipynb` with `jupyter lab notebooks/04_evaluation.ipynb` after configuring `GROQ_API_KEY`. The notebook runs the dev evaluation by default; its LLM-only baseline is off to avoid extra provider calls. After freezing code and the dev-calibrated threshold, set `RUN_TEST = True` in the setup cell and rerun the notebook from the top for the held-out test split.
 
 ## API
 
@@ -106,21 +126,21 @@ pytest
 | `abstained` | `true` when the sources did not contain enough relevant evidence |
 | `emergency` | `true` when the question described an emergency (fixed message, no retrieval, no LLM) |
 | `redirected` | `true` when the question asked for personal medical advice (fixed redirect to a doctor, no retrieval, no LLM) |
-| `sources` | The passages used: `n` (matches the citation), `source`, `title`, `url`. Empty unless an answer was generated. |
+| `sources` | Only passages cited in the answer: `n` (matches the citation), `source`, `title`, `url`. Empty unless an answer was generated. |
 | `disclaimer` | The medical disclaimer |
 
-`GET /health` returns the status, the abstention threshold in use, and whether that threshold has been calibrated. A threshold saved for a different reranker than the one in `src/config.py` is ignored.
+`GET /health` returns the status, threshold and calibration state. An uncalibrated service reports `degraded`; normal questions are safely abstained until a valid calibration exists. A threshold is rejected if its embedding model, reranker, evaluation dataset, or index manifest does not match the current build.
 
 ## Notebooks
 
-Read them in order. Each states the question it answers. Notebooks 01 and 02 keep the outputs of their last run. Notebooks 03 and 04 are shipped without outputs because their code changed since the last run; run them to see current results.
+Read them in order and run each notebook from top to bottom. All notebooks are shipped without saved cell outputs so that stale model results are not mistaken for results from the current code. Notebook 01 downloads source snapshots; notebook 02 builds the index; notebook 04 performs calibration and LLM-based evaluation.
 
 | Notebook | What it shows |
 |---|---|
 | `01_data_and_kb` | Scope, sources and why, cleaning, the final knowledge base, and a check of how well it covers the scope |
 | `02_build_index` | Chunking, embeddings, the FAISS index, and checks that the index is correct |
 | `03_rag_pipeline` | One question walked through retrieval, rerank, evidence check, prompt and LLM call by hand. Then the same thing through `RAGPipeline`, with an emergency, a personal-advice question and an abstention |
-| `04_evaluation` | Choosing the abstention threshold, the LLM-only baseline, RAG vs the baseline, failures, and `reports/results.md` |
+| `04_evaluation` | Choosing the abstention threshold, optional LLM-only baseline, RAG vs the baseline, failures, citation-reference checks, and `reports/results.md` |
 
 ## Evaluation
 
@@ -133,17 +153,15 @@ Read them in order. Each states the question it answers. Notebooks 01 and 02 kee
 | Generation | Key-fact coverage on questions that should be answered |
 | Behaviour | Pass rate for answer, emergency, refuse, safety-redirect and insufficient-evidence questions; abstention recall and precision; over-refusal; latency |
 
-**Abstention threshold.** Chosen on the dev split as the lowest threshold that still abstains on at least 90% of the questions marked `insufficient_evidence`; that answers as many answerable questions as that floor allows. Notebook 04 finds the best rerank score of every dev question first, then chooses and saves the threshold, and only then runs the pipeline, so every table uses the calibrated value. The test split is run once, with the threshold frozen. The saved threshold (3.69) can be reproduced from `reports/rag_dev_answers.csv`; this is checked by a test.
+**Abstention threshold.** Chosen on the dev split as the lowest threshold that still abstains on at least 90% of the `insufficient_evidence` questions that reach retrieval. This maximizes answerable coverage subject to that safety floor. Run `python -m scripts.calibrate_threshold` after building the index; it uses no generator calls. Notebook 04 uses the same helper for its analysis. The test split should be run once with the resulting threshold frozen. The uploaded project archive intentionally does not include a calibrated threshold or generated reports: those artifacts are specific to an exact data/index/model build and must be recreated locally.
 
 ### Results
 
-`reports/results.md` holds the numbers. **They are interim:** the notebook could not be re-run after the latest code changes, so the file was computed offline from the saved judge verdicts, using only questions where the LLM-only baseline and RAG were judged against the same labels and key facts. Headline, on that comparable subset of the dev split:
+Evaluation outputs are generated by `notebooks/04_evaluation.ipynb` and saved under `reports/`. The uploaded archive has no generated evaluation report, so there is no current run result to claim here. Earlier exploratory runs were not reproduced after the latest safety, calibration, and citation-validation changes; do not treat older numbers as current performance.
 
-| | LLM-only | RAG |
-|---|---|---|
-| Key-fact coverage (47 questions) | 0.983 | 0.726 |
+For interpretation, compare systems on the same questions and labels, report dev and frozen test separately, and review failures—not just a single average:
 
-The LLM alone is near the ceiling because most questions concern common health topics, so RAG is **not** better on coverage. What it adds is answers that stay inside the sources, visible citations, and an explicit "not enough information" instead of a confident guess. The saved RAG run also predates the personal-advice redirect (it scored 0/22 on safety-redirect questions by abstaining instead of redirecting), so the current pipeline's safety behaviour is covered by unit tests but has not been evaluated end to end.
+The LLM-only baseline may score highly on common health questions even when it does not provide verifiable sources. RAG's intended advantages are source-grounded answers, visible citations, and explicit abstention when evidence is weak; these are hypotheses to test, not guaranteed performance improvements. The current code includes citation-reference validation and a fail-closed pre-calibration state, but the final safety and answer-quality rates must be measured on a fresh run.
 
 ## Examples
 
@@ -181,11 +199,11 @@ The LLM alone is near the ceiling because most questions concern common health t
 ## Limitations
 
 - **Educational use only.** No diagnosis, no personal advice, no doses. It knows nothing about the user.
-- **Safety rules are keywords.** They catch the common phrasings and miss others ("I can't feel my left arm and my chest hurts" is caught; many rewordings will not be). A missed emergency falls through to retrieval, where the prompt still tells the model to point to emergency services. The emergency numbers and crisis lines in `src/safety.py` are for Egypt, the US, the EU and the UK.
+- **Safety rules are keywords.** They catch the common phrasings and miss others ("I can't feel my left arm and my chest hurts" is caught; many rewordings will not be). A missed emergency falls through to retrieval, where the prompt still tells the model to point to emergency services. The emergency numbers and crisis lines in `src/safety.py` include Egypt, the US, the EU and the UK. For Egypt, the Ministry of Health lists mental-health support at **16328**, **08008880700**, and **0220816831** in its [hotline notice](https://www.mohp.gov.eg/NewsDetails.aspx?subject_id=5901).
 - **Knowledge base.** NIH consumer-health content in English. It is a static snapshot: MedQuAD is 2019 data, so some content is dated, and there is no live information. There is no drug source.
-- **Retrieval limits the answer.** If the right passage is not retrieved the answer is incomplete, and if the threshold is too strict, answerable questions are refused (about a quarter of them in the saved run).
-- **Evaluation.** Key facts were written by the project owner and have not been reviewed by a clinician. Answers are graded by an LLM (a preview model). The threshold is tuned on the dev split (136 questions that reach retrieval), which is a noisy estimate. The safety rules were written while looking at some of the evaluation questions, so numbers on this set are optimistic.
-- **Not reproduced end to end here.** The index is generated, not shipped. The encoder and the chunk size were not compared against alternatives, and the saved evaluation predates the current safety rules.
+- **Retrieval limits the answer.** If the right passage is not retrieved the answer is incomplete, and if the threshold is too strict, answerable questions are refused. No gold relevant-passage labels are currently provided, so recall@k and nDCG are not claimed; a small clinician/reviewer-labeled retrieval set would be the next meaningful evaluation upgrade.
+- **Evaluation.** Key facts were written by the project owner and have not been reviewed by a clinician. Some answer behavior is graded by an LLM judge (the default judge model is a provider preview model). The threshold is tuned on the dev split, which is a noisy estimate. The safety rules were written while looking at some evaluation questions, so measured safety rates can be optimistic. Citation-reference checks verify that citation IDs exist; they do not prove every claim is entailed by its cited source.
+- **Not reproduced end to end in this archive.** The index is generated, not shipped. Encoder/chunk-size alternatives were not compared, and performance claims should wait for a fresh dev calibration and frozen test evaluation after the current changes.
 
 ## What I tried and removed
 
@@ -205,20 +223,27 @@ An earlier version was reviewed and simplified. The evidence behind each decisio
 
 ## Project structure
 
+See [`AUDIT.md`](AUDIT.md) for the engineering decisions, repair summary, verification limits, and recommended rebuild/evaluation sequence.
+
 ```
+AUDIT.md                 architecture, changes, data/evaluation caveats and verification boundary
 app.py                  FastAPI service (POST /query, GET /health)
 src/
-  config.py             settings: paths, models, chunk size, k, threshold
-  kb.py                 clean the sources, chunk, embed, build and load the FAISS index
+  config.py             settings and calibration/index compatibility checks
+  kb.py                 clean sources, chunk, embed, build and validate the FAISS index manifest
+  calibration.py        dev-only threshold scoring and safe artifact saving
   retriever.py          embed -> FAISS top 20 -> rerank -> top 5
   safety.py             emergency and personal-advice rules that run before retrieval
   generator.py          grounded prompt and the single LLM call
+  retry.py              bounded provider rate-limit retries shared by generation and evaluation
   pipeline.py           RAGPipeline.answer(): safety -> retrieve -> evidence check -> generate -> sources
   evaluation.py         judge, scoring, threshold choice, abstention metrics, report tables
 notebooks/              01 data, 02 index, 03 pipeline, 04 evaluation
-data/eval/questions.csv the 255 evaluation questions
-reports/                results.md, the abstention threshold, and the saved per-question answers and judge verdicts
-tests/                  behaviour tests (no models or API key needed)
+data/eval/README.md     evaluation labels, scope and limitations
+scripts/calibrate_threshold.py  calibrate the threshold without a Groq API key
+data/eval/questions.csv the 255 development/test questions
+reports/                local calibration and evaluation artifacts (not included in this archive)
+tests/                  behaviour tests (no model downloads, index, or API key needed)
 ```
 
 ## License

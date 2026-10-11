@@ -1,6 +1,6 @@
 """FastAPI service. Run with: uvicorn app:app
 
-POST /query   {"question": "..."}  ->  answer, abstained, emergency, redirected, sources, disclaimer
+POST /query   {"question": "..."}  ->  answer, safety flags, sources, disclaimer
 GET  /health
 """
 import logging
@@ -8,8 +8,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
-
-from src.pipeline import load_pipeline
 
 logger = logging.getLogger("healthcare_rag")
 
@@ -31,12 +29,19 @@ class QueryResponse(BaseModel):
     abstained: bool   # True when the sources did not contain enough relevant evidence
     emergency: bool   # True when the question described an emergency (fixed message, no retrieval, no LLM)
     redirected: bool  # True when the question asked for personal medical advice (fixed redirect to a doctor)
+    refused: bool     # True when the question requested harmful or deceptive instructions
     sources: list[Source]
     disclaimer: str
 
 
 @asynccontextmanager
 async def lifespan(app):
+    # Import torch before src.kb loads pandas; this avoids a native DLL conflict on Windows.
+    import torch
+
+    logger.info("Loading retrieval models on %s", "CUDA" if torch.cuda.is_available() else "CPU")
+    from src.pipeline import load_pipeline
+
     app.state.pipeline = load_pipeline()
     yield
 

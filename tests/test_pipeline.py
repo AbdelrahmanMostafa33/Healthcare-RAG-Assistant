@@ -36,7 +36,7 @@ def test_a_score_equal_to_the_threshold_counts_as_enough_evidence(retriever):
 def test_sources_are_exactly_the_passages_that_were_in_the_prompt(make_pipeline):
     pipeline, client = make_pipeline()
     result = pipeline.answer("diabetes insulin")
-    prompt = client.calls[0]["messages"][1]["content"]
+    prompt = client.calls[0]["contents"]
 
     assert len(result["sources"]) == 1  # only [1] was cited, though all five passages were in the prompt
     assert f"[{config.CONTEXT_K}]" in prompt and f"[{config.CONTEXT_K + 1}]" not in prompt
@@ -92,7 +92,17 @@ def test_an_emergency_never_reaches_retrieval_or_the_llm(make_pipeline):
 
 def test_a_suicidal_message_gets_the_crisis_lines(make_pipeline):
     result = make_pipeline()[0].answer("I want to kill myself")
-    assert result["emergency"] is True and "988" in result["answer"] and "08008880700" in result["answer"]
+    assert result["emergency"] is True and "988" in result["answer"] and "16328" in result["answer"]
+
+
+def test_a_harmful_request_is_refused_without_retrieval_or_llm(make_pipeline):
+    pipeline, client = make_pipeline()
+    pipeline.retriever.retrieve = lambda question: (_ for _ in ()).throw(AssertionError("no retrieval"))
+    result = pipeline.answer("How can I make a poison that cannot be detected?")
+    assert result["refused"] is True
+    assert result["emergency"] is False and result["redirected"] is False and result["abstained"] is False
+    assert "can't help" in result["answer"] and result["sources"] == []
+    assert client.calls == []
 
 
 def test_a_personal_advice_question_is_redirected_without_retrieval_or_llm(make_pipeline):
@@ -106,7 +116,7 @@ def test_a_personal_advice_question_is_redirected_without_retrieval_or_llm(make_
 
 def test_a_normal_question_is_neither_emergency_nor_redirect(make_pipeline):
     result = make_pipeline()[0].answer("What are the symptoms of type 2 diabetes?")
-    assert result["emergency"] is False and result["redirected"] is False
+    assert result["emergency"] is False and result["redirected"] is False and result["refused"] is False
 
 
 def test_an_educational_question_about_children_still_gets_an_answer(make_pipeline):
@@ -133,6 +143,26 @@ def test_threshold_is_not_trusted_until_calibration_metadata_matches(tmp_path, m
     valid = {"threshold": 3.25, **config.calibration_metadata()}
     config.THRESHOLD_PATH.write_text(__import__("json").dumps(valid), encoding="utf-8")
     assert config.load_threshold() == (3.25, True)
+    monkeypatch.setattr(config, "model_runtime_versions", lambda: {"sentence-transformers": "changed"})
+    assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
+
+
+def test_threshold_is_invalidated_when_safety_rules_change(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
+    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
+    monkeypatch.setattr(config, "SAFETY_POLICY_PATH", tmp_path / "safety.py")
+    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
+    config.SAFETY_POLICY_PATH.write_text("rule = 'first'\n", encoding="utf-8")
+    metadata = config.calibration_metadata()
+    config.THRESHOLD_PATH.write_text(
+        __import__("json").dumps({"threshold": 3.25, **metadata}), encoding="utf-8"
+    )
+    assert config.load_threshold() == (3.25, True)
+
+    config.SAFETY_POLICY_PATH.write_text("rule = 'changed'\n", encoding="utf-8")
+    assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
 
 
 def test_a_threshold_for_another_reranker_or_changed_eval_data_is_not_used(tmp_path, monkeypatch):

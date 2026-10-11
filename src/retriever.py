@@ -37,7 +37,12 @@ def load_reranker():
     from sentence_transformers import CrossEncoder
 
     # Identity keeps the raw logits, so the abstention threshold means the same thing in every library version
-    return CrossEncoder(config.RERANKER_MODEL, max_length=512, activation_fn=torch.nn.Identity())
+    return CrossEncoder(
+        config.RERANKER_MODEL,
+        revision=config.RERANKER_MODEL_REVISION,
+        max_length=512,
+        activation_fn=torch.nn.Identity(),
+    )
 
 
 def load_retriever():

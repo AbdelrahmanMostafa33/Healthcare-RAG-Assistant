@@ -10,6 +10,7 @@ import pytest
 
 from src.pipeline import RAGPipeline
 from src.retriever import Retriever
+from src import config
 
 DIM = 64
 
@@ -18,6 +19,9 @@ DIM = 64
 def no_api_key(monkeypatch):
     """The tests must pass without a key, even when a real one is in the developer's .env."""
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.setattr(config, "GENERATOR_PROVIDER", "gemini")
+    monkeypatch.setattr(config, "JUDGE_PROVIDER", "groq")
 
 
 def words(text):
@@ -45,18 +49,18 @@ class FakeReranker:
 
 
 class FakeClient:
-    """Stands in for the OpenAI client and records every call."""
+    """Stands in for the Gemini generation client and records every call."""
 
     def __init__(self, answer="Diabetes affects blood sugar [1].", finish_reason="stop"):
         self.answer = answer
         self.finish_reason = finish_reason
         self.calls = []
-        self.chat = types.SimpleNamespace(completions=self)
+        self.models = types.SimpleNamespace(generate_content=self.generate_content)
 
-    def create(self, **kwargs):
+    def generate_content(self, **kwargs):
         self.calls.append(kwargs)
-        message = types.SimpleNamespace(content=self.answer)
-        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message, finish_reason=self.finish_reason)])
+        candidate = types.SimpleNamespace(finish_reason=self.finish_reason)
+        return types.SimpleNamespace(text=self.answer, candidates=[candidate])
 
 
 def make_chunks(n=25):

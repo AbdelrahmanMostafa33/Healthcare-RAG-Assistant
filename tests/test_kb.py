@@ -161,6 +161,10 @@ def index_files(tmp_path, monkeypatch):
 def test_index_and_chunk_table_survive_a_save_and_load(index_files):
     index, chunks, vectors = index_and_chunks()
     kb.save_index(index, chunks)
+    manifest = __import__("json").loads(config.INDEX_MANIFEST_PATH.read_text(encoding="utf-8"))
+    assert manifest["embedding_model_revision"] == config.EMBEDDING_MODEL_REVISION
+    assert manifest["reranker_model_revision"] == config.RERANKER_MODEL_REVISION
+    assert manifest["model_runtime_versions"] == config.model_runtime_versions()
     loaded_index, loaded_chunks = kb.load_index()
     assert loaded_index.ntotal == len(loaded_chunks) == 6
     assert loaded_chunks["title"].tolist() == chunks["title"].tolist()
@@ -182,6 +186,16 @@ def test_loading_rejects_an_index_built_with_a_different_reranker(index_files):
     kb.save_index(index, chunks)
     manifest = __import__("json").loads(config.INDEX_MANIFEST_PATH.read_text(encoding="utf-8"))
     manifest["reranker_model"] = "different/reranker"
+    config.INDEX_MANIFEST_PATH.write_text(__import__("json").dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="different model/retrieval settings"):
+        kb.load_index()
+
+
+def test_loading_rejects_an_index_built_with_a_different_model_revision(index_files):
+    index, chunks, _ = index_and_chunks()
+    kb.save_index(index, chunks)
+    manifest = __import__("json").loads(config.INDEX_MANIFEST_PATH.read_text(encoding="utf-8"))
+    manifest["embedding_model_revision"] = "a-different-snapshot"
     config.INDEX_MANIFEST_PATH.write_text(__import__("json").dumps(manifest), encoding="utf-8")
     with pytest.raises(ValueError, match="different model/retrieval settings"):
         kb.load_index()

@@ -196,7 +196,10 @@ def load_encoder():
     import torch
     from sentence_transformers import SentenceTransformer
 
-    encoder = SentenceTransformer(config.EMBEDDING_MODEL)
+    encoder = SentenceTransformer(
+        config.EMBEDDING_MODEL,
+        revision=config.EMBEDDING_MODEL_REVISION,
+    )
     encoder.max_seq_length = 512
     return encoder.half() if torch.cuda.is_available() else encoder
 
@@ -266,7 +269,10 @@ def save_index(index, chunks):
         os.replace(chunks_tmp, config.CHUNKS_PATH)
         manifest = {
             "embedding_model": config.EMBEDDING_MODEL,
+            "embedding_model_revision": config.EMBEDDING_MODEL_REVISION,
             "reranker_model": config.RERANKER_MODEL,
+            "reranker_model_revision": config.RERANKER_MODEL_REVISION,
+            "model_runtime_versions": config.model_runtime_versions(),
             "chunk_max_chars": config.CHUNK_MAX_CHARS,
             "chunk_overlap_chars": config.CHUNK_OVERLAP_CHARS,
             "num_chunks": int(len(chunks)),
@@ -297,7 +303,10 @@ def load_index():
         raise ValueError("Index manifest must contain a JSON object. Rebuild with notebook 02.")
     expected_settings = {
         "embedding_model": config.EMBEDDING_MODEL,
+        "embedding_model_revision": config.EMBEDDING_MODEL_REVISION,
         "reranker_model": config.RERANKER_MODEL,
+        "reranker_model_revision": config.RERANKER_MODEL_REVISION,
+        "model_runtime_versions": config.model_runtime_versions(),
         "chunk_max_chars": config.CHUNK_MAX_CHARS,
         "chunk_overlap_chars": config.CHUNK_OVERLAP_CHARS,
     }

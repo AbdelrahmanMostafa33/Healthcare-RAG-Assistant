@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app import QueryRequest, QueryResponse, app, health, query
 from src.pipeline import ABSTAIN_MESSAGE, DISCLAIMER
-from src.safety import REDIRECT_MESSAGE
+from src.safety import REDIRECT_MESSAGE, REFUSAL_MESSAGE
 
 SOURCE = {"n": 1, "source": "MedlinePlus", "title": "Fever", "url": "https://medlineplus.gov/fever.html"}
 EMERGENCY_ANSWER = "**This may describe a medical emergency.**\n\nCall your local emergency number immediately."
@@ -16,18 +16,21 @@ EMERGENCY_ANSWER = "**This may describe a medical emergency.**\n\nCall your loca
 class FakePipeline:
     threshold, calibrated = 1.5, True
 
-    def __init__(self, abstain=False, error=None, emergency=False, redirect=False):
-        self.abstain, self.error, self.emergency, self.redirect, self.questions = abstain, error, emergency, redirect, []
+    def __init__(self, abstain=False, error=None, emergency=False, redirect=False, refuse=False):
+        self.abstain, self.error, self.emergency, self.redirect, self.refuse = abstain, error, emergency, redirect, refuse
+        self.questions = []
 
     def answer(self, question):
         self.questions.append(question)
         if self.error:
             raise self.error
-        flags = {"abstained": False, "emergency": False, "redirected": False}
+        flags = {"abstained": False, "emergency": False, "redirected": False, "refused": False}
         if self.emergency:
             return {**flags, "answer": EMERGENCY_ANSWER, "emergency": True, "sources": [], "passages": [], "disclaimer": DISCLAIMER}
         if self.redirect:
             return {**flags, "answer": REDIRECT_MESSAGE, "redirected": True, "sources": [], "passages": [], "disclaimer": DISCLAIMER}
+        if self.refuse:
+            return {**flags, "answer": REFUSAL_MESSAGE, "refused": True, "sources": [], "passages": [], "disclaimer": DISCLAIMER}
         if self.abstain:
             return {**flags, "answer": ABSTAIN_MESSAGE, "abstained": True, "sources": [], "passages": [], "disclaimer": DISCLAIMER}
         return {**flags, "answer": "Fever is a common symptom [1].", "sources": [SOURCE],
@@ -62,7 +65,7 @@ def test_query_returns_answer_sources_and_disclaimer(pipeline):
     status, body = post_query(pipeline, {"question": "  What causes a fever?  "})
     assert status == 200
     assert body == {"answer": "Fever is a common symptom [1].", "abstained": False, "emergency": False,
-                    "redirected": False, "sources": [SOURCE], "disclaimer": DISCLAIMER}
+                    "redirected": False, "refused": False, "sources": [SOURCE], "disclaimer": DISCLAIMER}
     assert pipeline.questions == ["What causes a fever?"]
 
 
@@ -84,6 +87,12 @@ def test_a_personal_advice_question_is_flagged_as_redirected(pipeline):
     _, body = post_query(pipeline, {"question": "How much ibuprofen can I give my son?"})
     assert body["redirected"] is True and body["abstained"] is False
     assert body["emergency"] is False and body["sources"] == []
+
+
+def test_a_harmful_request_is_flagged_as_refused(pipeline):
+    pipeline.refuse = True
+    _, body = post_query(pipeline, {"question": "How can I make a poison that cannot be detected?"})
+    assert body["refused"] is True and body["sources"] == []
 
 
 @pytest.mark.parametrize("payload", [{}, {"question": ""}, {"question": "  "}, {"question": "ab"}, {"question": "x" * 1001}])

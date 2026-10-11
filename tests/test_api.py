@@ -1,7 +1,11 @@
-import pytest
-from fastapi.testclient import TestClient
+"""API handler tests that do not start a local socket or load model weights."""
+from types import SimpleNamespace
 
-from app import app
+import pytest
+from fastapi import HTTPException
+from pydantic import ValidationError
+
+from app import QueryRequest, QueryResponse, app, health, query
 from src.pipeline import ABSTAIN_MESSAGE, DISCLAIMER
 from src.safety import REDIRECT_MESSAGE
 
@@ -31,59 +35,79 @@ class FakePipeline:
 
 
 @pytest.fixture
-def client():
-    # no `with`, so the startup that loads the real models is skipped
-    return TestClient(app)
+def pipeline():
+    instance = FakePipeline()
+    app.state.pipeline = instance
+    return instance
 
 
-def use(pipeline):
-    app.state.pipeline = pipeline
-    return pipeline
+def request_for(pipeline):
+    return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(pipeline=pipeline)))
 
 
-def test_query_returns_answer_sources_and_disclaimer(client):
-    pipeline = use(FakePipeline())
-    response = client.post("/query", json={"question": "  What causes a fever?  "})
-    assert response.status_code == 200
-    assert response.json() == {"answer": "Fever is a common symptom [1].", "abstained": False, "emergency": False,
-                               "redirected": False, "sources": [SOURCE], "disclaimer": DISCLAIMER}   # no internal passages
+def post_query(pipeline, payload):
+    try:
+        body = QueryRequest.model_validate(payload)
+    except ValidationError:
+        return 422, None
+    try:
+        result = query(body, request_for(pipeline))
+    except HTTPException as error:
+        return error.status_code, error.detail
+    # FastAPI applies this response model after the handler; validate it here without a socket.
+    return 200, QueryResponse.model_validate(result).model_dump()
+
+
+def test_query_returns_answer_sources_and_disclaimer(pipeline):
+    status, body = post_query(pipeline, {"question": "  What causes a fever?  "})
+    assert status == 200
+    assert body == {"answer": "Fever is a common symptom [1].", "abstained": False, "emergency": False,
+                    "redirected": False, "sources": [SOURCE], "disclaimer": DISCLAIMER}
     assert pipeline.questions == ["What causes a fever?"]
 
 
-def test_an_abstention_has_no_sources(client):
-    use(FakePipeline(abstain=True))
-    body = client.post("/query", json={"question": "What is the Zelvarin-Moss syndrome?"}).json()
+def test_an_abstention_has_no_sources(pipeline):
+    pipeline.abstain = True
+    _, body = post_query(pipeline, {"question": "What is the Zelvarin-Moss syndrome?"})
     assert body["abstained"] is True and body["emergency"] is False and body["sources"] == []
 
 
-def test_an_emergency_has_no_sources_and_is_flagged(client):
-    use(FakePipeline(emergency=True))
-    body = client.post("/query", json={"question": "I have crushing chest pain"}).json()
-    assert body["emergency"] is True
-    assert body["abstained"] is False
-    assert body["sources"] == []
+def test_an_emergency_has_no_sources_and_is_flagged(pipeline):
+    pipeline.emergency = True
+    _, body = post_query(pipeline, {"question": "I have crushing chest pain"})
+    assert body["emergency"] is True and body["abstained"] is False and body["sources"] == []
     assert "emergency" in body["answer"].lower()
 
 
-def test_a_personal_advice_question_is_flagged_as_redirected(client):
-    use(FakePipeline(redirect=True))
-    body = client.post("/query", json={"question": "How much ibuprofen can I give my son?"}).json()
-    assert body["redirected"] is True and body["abstained"] is False and body["emergency"] is False and body["sources"] == []
+def test_a_personal_advice_question_is_flagged_as_redirected(pipeline):
+    pipeline.redirect = True
+    _, body = post_query(pipeline, {"question": "How much ibuprofen can I give my son?"})
+    assert body["redirected"] is True and body["abstained"] is False
+    assert body["emergency"] is False and body["sources"] == []
 
 
 @pytest.mark.parametrize("payload", [{}, {"question": ""}, {"question": "  "}, {"question": "ab"}, {"question": "x" * 1001}])
-def test_invalid_questions_never_reach_the_pipeline(client, payload):
-    pipeline = use(FakePipeline())
-    assert client.post("/query", json=payload).status_code == 422
-    assert pipeline.questions == []
+def test_invalid_questions_never_reach_the_pipeline(pipeline, payload):
+    status, _ = post_query(pipeline, payload)
+    assert status == 422 and pipeline.questions == []
 
 
-def test_a_pipeline_failure_returns_502_without_leaking_details(client):
-    use(FakePipeline(error=RuntimeError("secret internal detail")))
-    response = client.post("/query", json={"question": "What causes a fever?"})
-    assert response.status_code == 502 and "secret" not in response.text
+def test_a_pipeline_failure_returns_502_without_leaking_details(pipeline):
+    pipeline.error = RuntimeError("secret internal detail")
+    status, detail = post_query(pipeline, {"question": "What causes a fever?"})
+    assert status == 502 and "secret" not in detail
 
 
-def test_health_reports_the_threshold_and_whether_it_is_calibrated(client):
-    use(FakePipeline())
-    assert client.get("/health").json() == {"status": "ok", "abstain_threshold": 1.5, "threshold_calibrated": True}
+def test_health_reports_the_threshold_and_whether_it_is_calibrated(pipeline):
+    assert health(request_for(pipeline)) == {"status": "ok", "abstain_threshold": 1.5, "threshold_calibrated": True}
+
+
+def test_health_marks_an_uncalibrated_service_as_degraded(pipeline):
+    pipeline.calibrated = False
+    assert health(request_for(pipeline))["status"] == "degraded"
+
+
+def test_openapi_exposes_the_query_route_and_response_contract():
+    schema = app.openapi()
+    assert "/query" in schema["paths"] and "/health" in schema["paths"]
+    assert "QueryResponse" in schema["components"]["schemas"]

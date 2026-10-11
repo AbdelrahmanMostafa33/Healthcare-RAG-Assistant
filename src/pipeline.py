@@ -6,12 +6,12 @@
              -> retrieve: FAISS top 20 -> rerank -> top 5
              -> best rerank score below the threshold?  yes -> abstain, no LLM call
                                                          no  -> grounded prompt -> one LLM call
-             -> answer + the sources that were in the prompt + disclaimer
+             -> answer + cited sources + disclaimer
 """
 import time
 
 from src import config, safety
-from src.generator import generate, make_client
+from src.generator import citation_numbers, citations_are_valid, generate, make_client
 from src.retriever import load_retriever
 
 DISCLAIMER = (
@@ -47,24 +47,39 @@ class RAGPipeline:
             kind, message = early
             return self._result(message, start, emergency=kind == "emergency", redirected=kind == "redirect")
 
+        # A placeholder threshold is not a usable evidence policy. Fail closed until a dev-set
+        # threshold is calibrated for this exact model/index/evaluation-data combination.
+        if not self.calibrated:
+            return self._result(ABSTAIN_MESSAGE, start, abstained=True)
+
         passages = self.retriever.retrieve(question)
         top_score = passages[0]["rerank_score"] if passages else None
 
         if top_score is None or top_score < self.threshold:
             return self._result(ABSTAIN_MESSAGE, start, abstained=True, top_score=top_score)
-        return self._result(generate(self.client, question, passages), start, passages=passages, top_score=top_score)
+
+        answer = generate(self.client, question, passages)
+        if not citations_are_valid(answer, passages):
+            # Do not expose an answer with missing or impossible source references.
+            return self._result(ABSTAIN_MESSAGE, start, abstained=True, top_score=top_score,
+                                citation_validation_failed=True)
+        return self._result(answer, start, passages=passages, cited_numbers=citation_numbers(answer),
+                            top_score=top_score)
 
     @staticmethod
-    def _result(answer, start, abstained=False, emergency=False, redirected=False, passages=(), top_score=None):
+    def _result(answer, start, abstained=False, emergency=False, redirected=False, passages=(), top_score=None,
+                citation_validation_failed=False, cited_numbers=None):
         passages = list(passages)
+        cited_numbers = list(range(1, len(passages) + 1)) if cited_numbers is None else cited_numbers
         return {
             "answer": answer,
             "abstained": abstained,     # the sources did not contain enough relevant evidence
             "emergency": emergency,     # handled by the emergency message
             "redirected": redirected,   # personal-advice question, handled by the redirect message
-            # the passages that were in the prompt; n matches the [n] citations in the answer
-            "sources": [{"n": n, "source": p["source"], "title": p["title"], "url": p["url"]}
-                        for n, p in enumerate(passages, start=1)],
+            "citation_validation_failed": citation_validation_failed,
+            # Only list sources the answer actually cites; n keeps its prompt citation number.
+            "sources": [{"n": n, "source": passages[n - 1]["source"], "title": passages[n - 1]["title"],
+                         "url": passages[n - 1]["url"]} for n in cited_numbers],
             "passages": passages,
             "top_score": top_score,
             "latency_ms": round((time.perf_counter() - start) * 1000, 1),

@@ -23,12 +23,14 @@ PERSONAL = re.compile(
     r"|my|myself|he|she|he's|she's|his|her)\b"
 )
 
-# Phrases that already say "me", so no separate personal marker is needed.
+# Explicit self-directed phrases need no extra personal marker.
 CRISIS_ALWAYS = [
-    "kill myself", "end my life", "take my own life", "want to die", "wanna die",
-    "hurt myself", "harm myself", "cut myself", "better off dead",
+    "kill myself", "end my life", "take my own life", "hurt myself", "harm myself",
+    "cut myself", "better off dead",
 ]
 CRISIS_WITH_MARKER = ["suicidal", "suicide", "self-harm", "self harm"]
+CRISIS_DESIRE_TO_DIE = re.compile(r"\b(want|wants|wanna|wish|wishes)\s+to\s+die\b")
+FIRST_PERSON_DESIRE_TO_DIE = re.compile(r"\bi\b.{0,30}\b(want|wanna|wish)\b.{0,20}\bdie\b")
 
 # Acute-emergency descriptions. They only count together with a personal marker, so
 # "What are the symptoms of a heart attack?" or "What is anaphylaxis?" are answered normally.
@@ -62,7 +64,7 @@ EMERGENCY_RESPONSES = {
     "crisis": (
         "**You are not alone, and help is available right now.**\n\n"
         "Please reach out to a crisis line immediately:\n"
-        "- Egypt: **08008880700** (Ministry of Health)\n"
+        "- Egypt: **16328**, **08008880700**, or **0220816831** (Ministry of Health mental-health support)\n"
         "- US: **988** (Suicide & Crisis Lifeline)\n"
         "- UK: **116 123** (Samaritans)\n"
         "- International: https://findahelpline.com\n\n"
@@ -91,8 +93,8 @@ REDIRECT_MESSAGE = (
     "department now."
 )
 
-# Personal-advice patterns. Each one needs a first-person or "my child" wording; a bare topic
-# ("children", "insulin", "is it safe to exercise") never matches on its own.
+# Personal-advice patterns. Each one needs personal/specific wording; broad topics such as
+# "children", "insulin" or educational explanations of units must not be redirected.
 _CHILD = r"(\d+[- ]?(year|yr|month|week)s?[- ]?old|child|son|daughter|baby|toddler|kid)"
 _DECISION_VERBS = r"(take|give|stop|skip|double|mix|combine|keep taking|continue taking)"
 PERSONAL_ADVICE_PATTERNS = [re.compile(p) for p in [
@@ -102,7 +104,6 @@ PERSONAL_ADVICE_PATTERNS = [re.compile(p) for p in [
     # amounts for a person: "how much can I give my son", "what dose should I take", "5 mg"
     r"\bhow (much|many)\b[^?.!]*\b(should|can|do) i (give|take)\b",
     r"\bwhat (dose|dosage|amount)\b[^?.!]*\b(should|can) i\b",
-    r"\b\d+(\.\d+)?\s*(mg|mcg|µg|μg|ml)\b",
     # swapping or skipping a prescribed treatment
     r"\b(instead of|in place of|rather than|replace|replacing|substitute)\b[^?.!]*\b(medication|medicine|prescription|insulin|treatment|drug)s?\b",
     r"\bshould i (have|get|undergo) (the |an? )?(surgery|operation|biopsy)\b",
@@ -125,11 +126,51 @@ def _normalise(question):
 
 
 def detect_emergency(question):
-    """Return "crisis", "medical" or None."""
+    """Return "crisis", "medical" or None.
+
+    Explicit educational context should not be mistaken for a current emergency solely because
+    the question mentions a condition. Explicit self-harm intent and clear acute-symptom wording
+    still take priority over educational wording.
+    """
     q = _normalise(question)
-    if any(phrase in q for phrase in CRISIS_ALWAYS):
+
+    # These are direct statements of current danger, not mentions of a condition in a lesson.
+    if any(phrase in q for phrase in CRISIS_ALWAYS) or FIRST_PERSON_DESIRE_TO_DIE.search(q):
         return "crisis"
-    if not PERSONAL.search(q):
+    personal_context = bool(PERSONAL.search(q))
+    if CRISIS_DESIRE_TO_DIE.search(q) and personal_context:
+        return "crisis"
+    live_crisis_phrases = (
+        "i am suicidal", "i'm suicidal", "ive been self-harming", "i've been self-harming",
+        "i am self-harming", "i'm self-harming", "i can't stop self-harming", "i cant stop self-harming",
+    )
+    if any(phrase in q for phrase in live_crisis_phrases):
+        return "crisis"
+
+    educational_context = (
+        "for a class", "for my class", "for school", "school project", "health class",
+        "researching", "studying", "writing about", "reading about", "for an assignment",
+        "for my assignment", "for my essay", "for my homework", "for a project",
+    )
+    live_medical_phrases = (
+        "can't breathe", "cant breathe", "cannot breathe", "unable to breathe",
+        "struggling to breathe", "gasping", "stopped breathing", "not breathing",
+        "my throat is closing", "throat is closing", "throat is swelling",
+        "took too many", "took too much", "overdosed", "poisoned", "handful of pills",
+        "handful of tablets", "my chest hurts", "my chest is tight", "chest hurts",
+        "chest is tight", "crushing chest pain", "pain in my chest", "pressure in my chest",
+        "having a heart attack", "having a stroke", "face is drooping", "slurred speech",
+        "can't speak", "sudden weakness on one side", "severe bleeding", "heavy bleeding",
+        "won't stop bleeding", "wont stop bleeding", "bleeding heavily", "bleeding a lot",
+        "having a seizure", "having a fit", "convulsion", "unconscious", "unresponsive",
+        "passed out", "won't wake", "wont wake", "no pulse", "worst headache", "thunderclap",
+    )
+    has_live_medical_cue = any(phrase in q for phrase in live_medical_phrases) or any(
+        pattern.search(q) for pattern in MEDICAL_PATTERNS
+    )
+    if any(context in q for context in educational_context) and not has_live_medical_cue:
+        return None
+    if not personal_context:
         return None
     if any(phrase in q for phrase in CRISIS_WITH_MARKER):
         return "crisis"
@@ -140,7 +181,11 @@ def detect_emergency(question):
 
 def is_personal_advice(question):
     q = _normalise(question)
-    return any(p.search(q) for p in PERSONAL_ADVICE_PATTERNS)
+    if any(p.search(q) for p in PERSONAL_ADVICE_PATTERNS):
+        return True
+    # A number/unit alone is not enough to assume someone is asking about a personal dose.
+    has_dose_amount = re.search(r"\b\d+(\.\d+)?\s*(mg|mcg|µg|μg|ml)\b", q)
+    return bool(has_dose_amount and PERSONAL.search(q))
 
 
 def check(question):

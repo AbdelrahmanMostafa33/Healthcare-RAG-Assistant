@@ -20,4 +20,4 @@ ipykernel>=6.0
 
 # Tests (no models, GPU, index or API key needed)
 pytest>=7.4
-httpx>=0.25                     # used by FastAPI's TestClient
+httpx>=0.25                     # builds realistic OpenAI SDK rate-limit errors in tests

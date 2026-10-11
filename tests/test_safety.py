@@ -9,6 +9,8 @@ from src import config, safety
     ("I am suicidal and I don't know what to do", "crisis"),
     ("I want to kill myself", "crisis"),
     ("I feel like I want to end my life.", "crisis"),
+    ("I want to die", "crisis"),
+    ("My friend says he wants to die", "crisis"),
     ("I've been self-harming and can't stop", "crisis"),
     ("I can't breathe and my chest feels tight", "medical"),
     ("My father stopped breathing a minute ago", "medical"),
@@ -23,6 +25,8 @@ from src import config, safety
     ("He is unconscious and won't wake up", "medical"),
     ("I think I overdosed on my medication", "medical"),
     ("My child swallowed a handful of my sleeping pills", "medical"),
+    ("I am researching heart attacks for class, but I have crushing chest pain right now", "medical"),
+    ("I am studying self-harm, but I want to kill myself", "crisis"),
     ("my friend took a whole bottle of pills", "medical"),
     ("I have the worst headache of my life and it came on suddenly", "medical"),
     ("My 2-month-old baby has a fever of 39C", "medical"),
@@ -57,8 +61,11 @@ EDUCATIONAL = [
     "Why do I feel dizzy when I stand up?",
     "I am tired all the time. What can cause that?",
     "I have a sudden urge to urinate often. What causes that?",
+    "I have a question about chest pain for a health class.",
+    "I am researching anaphylaxis for a school project.",
     "My blood sugar is a topic I want to understand. How does insulin work?",
     # emergency words in a purely educational sentence
+    "What does a 5 mg tablet mean?",
     "What are the symptoms of a heart attack?",
     "What is a stroke and how is it treated?",
     "What is anaphylaxis and how is it treated?",
@@ -109,9 +116,13 @@ def test_personal_advice_is_redirected(question):
     assert safety.check(question) == ("redirect", safety.REDIRECT_MESSAGE)
 
 
+def test_educational_mention_of_wanting_to_die_is_not_assumed_to_be_a_crisis():
+    assert safety.check("What does 'want to die' mean in a poem?") is None
+
+
 def test_check_returns_the_matching_fixed_message():
     kind, message = safety.check("I want to kill myself")
-    assert kind == "emergency" and "08008880700" in message and "988" in message and "not alone" in message.lower()
+    assert kind == "emergency" and "16328" in message and "08008880700" in message and "988" in message and "not alone" in message.lower()
     kind, message = safety.check("I have crushing chest pain")
     assert kind == "emergency" and "emergency number" in message
 

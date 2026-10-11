@@ -1,14 +1,16 @@
 """Rule-based checks that run before retrieval.
 
-Two checks, in this order:
+Three checks, in this order:
 
 1. Emergency: the person describes an acute emergency happening now (chest pain, stroke signs,
    an overdose, thoughts of suicide). The answer is a fixed message with emergency numbers.
-2. Personal advice: the question asks for a dose, a diagnosis or a treatment decision about one
+2. Explicit harmful requests: requests for serious self-harm, poisoning, drug diversion, or
+   prescription fraud receive a fixed refusal.
+3. Personal advice: the question asks for a dose, a diagnosis or a treatment decision about one
    specific person. A static knowledge base cannot answer that, so the answer is a fixed
    redirect to a doctor or pharmacist.
 
-Both are deliberately narrow keyword rules, not a classifier. A question that matches nothing goes
+These are deliberately narrow keyword rules, not a classifier. A question that matches nothing goes
 through retrieval, where the evidence threshold and the prompt rules still apply. A wrong match is
 the costly mistake (an educational question gets a fixed reply), so the emergency phrases only count
 when the question is written about a real person ("I", "my", "he"), and every rule is tested
@@ -31,6 +33,19 @@ CRISIS_ALWAYS = [
 CRISIS_WITH_MARKER = ["suicidal", "suicide", "self-harm", "self harm"]
 CRISIS_DESIRE_TO_DIE = re.compile(r"\b(want|wants|wanna|wish|wishes)\s+to\s+die\b")
 FIRST_PERSON_DESIRE_TO_DIE = re.compile(r"\bi\b.{0,30}\b(want|wanna|wish)\b.{0,20}\bdie\b")
+
+# Block explicit requests for actionable harm, drug diversion, or prescription fraud before
+# retrieval or generation. These narrow rules target intent, not broad educational topic words.
+HARMFUL_REQUEST_PATTERNS = [re.compile(p) for p in [
+    r"\bhow\s+(many|much)\b.{0,80}\b(pills?|tablets?|capsules?|medicine|medication|dose|dosage)\b"
+    r".{0,60}\b(kill|die|fatal|lethal|overdose)\b",
+    r"\b(make|create|prepare|produce|synthesize|formulate)\b.{0,80}\b(poison|toxin)\b"
+    r".{0,80}\b(undetectable|cannot be detected|can't be detected|without detection)\b",
+    r"\b(get|obtain|buy|acquire)\b.{0,60}\b(strong\s+)?(opioids?|controlled drugs?|prescription painkillers?)\b"
+    r".{0,60}\bwithout\b.{0,30}\b(prescription|doctor|prescriber)\b",
+    r"\b(fake|falsify|invent)\b.{0,60}\b(symptoms?|illness|condition)\b.{0,100}\b"
+    r"(get|obtain|receive)\b.{0,60}\b(prescription|opioids?|painkillers?|controlled drugs?)\b",
+]]
 
 # Acute-emergency descriptions. They only count together with a personal marker, so
 # "What are the symptoms of a heart attack?" or "What is anaphylaxis?" are answered normally.
@@ -64,7 +79,7 @@ EMERGENCY_RESPONSES = {
     "crisis": (
         "**You are not alone, and help is available right now.**\n\n"
         "Please reach out to a crisis line immediately:\n"
-        "- Egypt: **16328**, **08008880700**, or **0220816831** (Ministry of Health mental-health support)\n"
+        "- Egypt: **16328** (Ministry of Health mental-health support)\n"
         "- US: **988** (Suicide & Crisis Lifeline)\n"
         "- UK: **116 123** (Samaritans)\n"
         "- International: https://findahelpline.com\n\n"
@@ -83,6 +98,13 @@ EMERGENCY_RESPONSES = {
         "help in an emergency."
     ),
 }
+
+REFUSAL_MESSAGE = (
+    "I can't help with instructions for self-harm, poisoning, misusing controlled medicines, or "
+    "deceiving a clinician to obtain drugs. If anyone may be in immediate danger, call your local "
+    "emergency number now. If this is about you, move away from medicines or poisons and contact "
+    "someone you trust or a crisis service. Find local support at https://findahelpline.com."
+)
 
 REDIRECT_MESSAGE = (
     "This looks like a question about your own situation or a specific person. This "
@@ -118,6 +140,9 @@ PERSONAL_ADVICE_PATTERNS = [re.compile(p) for p in [
     r"\b(does|could|might) (he|she) have\b",
     r"\bwhat (disease|condition|illness|infection|disorder|ailment) (do )?i have\b",
     r"\bam i (having|dying|pregnant|sick)\b",
+    # An explicitly extreme weight-loss plan is a personal health decision, not general education.
+    r"\b(give|make|create|write) me (a )?plan\b.{0,80}\b(lose|weight loss)\b.{0,60}"
+    r"\b(week|days?)\b.{0,80}\b(eating almost nothing|eat almost nothing|starv(e|ing))\b",
 ]]
 
 
@@ -188,11 +213,19 @@ def is_personal_advice(question):
     return bool(has_dose_amount and PERSONAL.search(q))
 
 
+def is_harmful_request(question):
+    """Return True only for explicit requests that enable serious harm or drug fraud."""
+    q = _normalise(question)
+    return any(pattern.search(q) for pattern in HARMFUL_REQUEST_PATTERNS)
+
+
 def check(question):
-    """Return ("emergency", message), ("redirect", message), or None if the question may go to retrieval."""
+    """Return a fixed safety action before retrieval, or None for an educational query."""
     kind = detect_emergency(question)
     if kind:
         return "emergency", EMERGENCY_RESPONSES[kind]
+    if is_harmful_request(question):
+        return "refuse", REFUSAL_MESSAGE
     if is_personal_advice(question):
         return "redirect", REDIRECT_MESSAGE
     return None

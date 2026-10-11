@@ -54,12 +54,14 @@ def test_choose_threshold_rejects_questions_that_never_reached_retrieval():
 
 
 def test_rate_limit_classifier_retries_minute_caps_but_not_daily_quota_exhaustion():
+    from src import retry
+
     minute_limit = types.SimpleNamespace(body={"error": {"message": "Rate limit reached for tokens per minute (TPM)", "type": "tokens"}})
     daily_limit = types.SimpleNamespace(body={"error": {"message": "Tokens per day (TPD) limit reached", "type": "tokens"}})
     quota_limit = types.SimpleNamespace(body={"error": {"message": "You exceeded your quota", "type": "insufficient_quota"}})
-    assert not ev.is_tpd_exhaustion(minute_limit)
-    assert ev.is_tpd_exhaustion(daily_limit)
-    assert ev.is_tpd_exhaustion(quota_limit)
+    assert not retry.is_hard_quota_exhaustion(minute_limit)
+    assert retry.is_hard_quota_exhaustion(daily_limit)
+    assert retry.is_hard_quota_exhaustion(quota_limit)
 
 
 def test_evaluation_dataset_passes_the_shared_data_validator():
@@ -127,38 +129,84 @@ QUESTIONS = pd.DataFrame([
 ])
 
 
-def test_score_key_facts_maps_verdicts_to_scores():
-    judge = FakeJudge({ev.FACT_SYSTEM: {"results": [{"verdict": "yes"}, {"verdict": "partial"}]}})
-    rows = ev.score_key_facts(judge, QUESTIONS, {"q1": "Flu is caused by a virus.", "q2": "x", "q3": "y"})
-    assert rows["id"].tolist() == ["q1", "q1"]
-    assert rows["score"].tolist() == [1.0, 0.5]
-    assert rows["judge_model"].unique().tolist() == ["fake-judge"]
+def test_score_answers_grades_facts_and_behavior_with_one_request_per_question():
+    class SequentialJudge:
+        model = "fake-judge"
+
+        def __init__(self):
+            self.calls = []
+            self.responses = [
+                {"key_facts": [{"fact": "Spreads easily", "verdict": "partial"},
+                                {"fact": "Caused by a virus", "verdict": "yes"}],
+                 "behavior": {"verdict": "yes", "reason": "answered"}},
+                {"key_facts": [],
+                 "behavior": {"verdict": "yes", "reason": "declined unsupported question"}},
+                {"key_facts": [],
+                 "behavior": {"verdict": "yes", "reason": "redirected safely"}},
+            ]
+
+        def __call__(self, system, user, max_tokens=700):
+            self.calls.append((system, json.loads(user)))
+            return self.responses.pop(0)
+
+    judge = SequentialJudge()
+    answers = {"q1": "Flu is caused by a virus.", "q2": "I could not verify that.", "q3": "Ask your doctor."}
+    facts, behavior, grading = ev.score_answers(judge, QUESTIONS, answers)
+    assert len(judge.calls) == len(QUESTIONS)
+    assert all(system == ev.ANSWER_SCORE_SYSTEM for system, _ in judge.calls)
+    assert facts["id"].tolist() == ["q1", "q1"]
+    assert facts["score"].tolist() == [1.0, 0.5]
+    assert facts["judge_model"].unique().tolist() == ["fake-judge"]
+    assert behavior["expected"].tolist() == ["answer", "insufficient_evidence", "safety_redirect"]
+    assert behavior["ok"].tolist() == [True, True, True]
+    assert grading["status"].tolist() == ["ok", "ok", "ok"]
+    assert judge.calls[2][1]["behavior_check"] == ev.CHECKS["safety_redirect"]
 
 
-def test_key_facts_are_only_scored_for_questions_that_should_be_answered():
-    judge = FakeJudge({ev.FACT_SYSTEM: {"results": [{"verdict": "yes"}, {"verdict": "yes"}]}})
-    ev.score_key_facts(judge, QUESTIONS, {"q1": "a", "q2": "b", "q3": "c"})
-    assert len(judge.calls) == 1   # not q2 (no facts) and not q3 (has facts, but should be redirected)
+def test_malformed_judge_output_is_not_counted_as_an_answer_failure():
+    class Judge:
+        model = "fake-judge"
+
+        def __init__(self):
+            self.calls = 0
+
+        def __call__(self, system, user, max_tokens=700):
+            self.calls += 1
+            return {"key_facts": "invalid", "behavior": {"verdict": "maybe"}}
+
+    facts, behavior, grading = ev.score_answers(Judge(), QUESTIONS.head(1), {"q1": "Flu."})
+    assert facts.empty and behavior.empty
+    assert grading["status"].tolist() == ["error"]
+    assert grading.loc[0, "error"] == "ValueError"
 
 
-def test_missing_judge_verdicts_count_as_not_found():
-    judge = FakeJudge({ev.FACT_SYSTEM: {"results": [{"verdict": "yes"}]}})     # judge forgot the second fact
-    rows = ev.score_key_facts(judge, QUESTIONS, {"q1": "a", "q2": "b", "q3": "c"})
-    assert rows["score"].tolist() == [1.0, 0.0]
+def test_score_answers_preserves_partial_grades_when_judge_quota_is_exhausted():
+    from src.retry import ProviderQuotaExceeded
 
+    class Judge:
+        model = "fake-judge"
 
-def test_score_behavior_uses_the_rubric_for_the_expected_behavior():
-    seen = []
+        def __init__(self):
+            self.calls = 0
 
-    def judge(system, user, max_tokens=700):
-        seen.append(user)
-        return {"verdict": "Yes", "reason": "ok"}
-    judge.model = "fake-judge"
+        def __call__(self, system, user, max_tokens=700):
+            self.calls += 1
+            if self.calls == 2:
+                raise ProviderQuotaExceeded("private quota detail")
+            payload = json.loads(user)
+            return {
+                "key_facts": [{"fact": fact, "verdict": "yes"} for fact in payload["key_facts"]],
+                "behavior": {"verdict": "yes", "reason": "ok"},
+            }
 
-    rows = ev.score_behavior(judge, QUESTIONS, {"q1": "a", "q2": "I couldn't find enough information.", "q3": "see a doctor"})
-    assert rows["ok"].tolist() == [True, True, True]
-    assert rows["expected"].tolist() == ["answer", "insufficient_evidence", "safety_redirect"]
-    assert ev.CHECKS["safety_redirect"] in seen[2] and ev.CHECKS["answer"] in seen[0]
+    judge = Judge()
+    facts, behavior, grading = ev.score_answers(judge, QUESTIONS, {"q1": "a", "q2": "b", "q3": "c"})
+    assert judge.calls == 2
+    assert grading["status"].tolist() == ["ok", "error", "skipped"]
+    assert grading.loc[1, "error"] == "provider quota exhausted"
+    assert facts["id"].unique().tolist() == ["q1"]
+    assert behavior["id"].tolist() == ["q1"]
+    assert "private quota detail" not in str(grading.to_dict())
 
 
 def reply(content):
@@ -182,34 +230,82 @@ def test_the_judge_parses_json_and_uses_the_configured_model():
     assert judge("system", "user") == {"verdict": "yes"}
     assert judge.model == config.JUDGE_MODEL and client.calls[0]["model"] == config.JUDGE_MODEL
     assert client.calls[0]["temperature"] == 0.0 and client.calls[0]["response_format"] == {"type": "json_object"}
+    assert client.calls[0]["max_completion_tokens"] == 700
+    assert client.calls[0]["reasoning_effort"] == "low"
 
 
-def test_the_judge_retries_when_the_reply_is_not_valid_json(monkeypatch):
-    monkeypatch.setattr(ev.time, "sleep", lambda s: None)
-    client = ScriptedClient("not json", "", '{"verdict": "no"}')
-    assert ev.make_judge(client)("s", "u") == {"verdict": "no"}
-    assert len(client.calls) == 3
+def test_the_judge_does_not_spend_extra_calls_retrying_invalid_json():
+    client = ScriptedClient("not json")
+    with pytest.raises(RuntimeError, match="invalid JSON"):
+        ev.make_judge(client)("s", "u")
+    assert len(client.calls) == 1
 
 
-def test_the_judge_gives_up_with_a_clear_error(monkeypatch):
-    monkeypatch.setattr(ev.time, "sleep", lambda s: None)
-    with pytest.raises(RuntimeError, match="valid JSON"):
-        ev.make_judge(ScriptedClient("x", "y", "z"))("s", "u")
+def test_the_judge_invalid_json_error_does_not_echo_model_output():
+    with pytest.raises(RuntimeError, match="invalid JSON") as error:
+        ev.make_judge(ScriptedClient("private generated text"))("s", "u")
+    assert "private generated text" not in str(error.value)
 
 
 # --- baseline and report tables ---------------------------------------------
 
-def test_llm_only_answers_calls_the_generator_without_sources(monkeypatch):
-    monkeypatch.setattr(config, "LLM_MODEL", "openai/gpt-oss-120b")
+def test_llm_only_answers_calls_the_gemini_generator_without_sources(monkeypatch):
+    monkeypatch.setattr(config, "GENERATOR_PROVIDER", "gemini")
     client = FakeClient("Flu is a virus.")
     out = ev.llm_only_answers(client, QUESTIONS.head(2))
     assert out["id"].tolist() == ["q1", "q2"] and out["answer"].tolist() == ["Flu is a virus."] * 2
-    assert list(out.columns) == ["id", "answer", "finish_reason", "latency_ms"]
+    assert list(out.columns) == ["id", "answer", "finish_reason", "latency_ms", "status", "error"]
+    assert out["status"].tolist() == ["ok", "ok"]
     assert out["finish_reason"].tolist() == ["stop", "stop"]
     first = client.calls[0]
-    assert first["model"] == config.LLM_MODEL and first["temperature"] == 0.0
-    assert first["reasoning_effort"] == "low" and "reasoning_format" not in first
-    assert first["messages"][0]["content"] == ev.BASELINE_SYSTEM and first["messages"][1]["content"] == "What is flu?"
+    assert first["model"] == config.GENERATOR_MODEL
+    assert first["config"].system_instruction == ev.BASELINE_SYSTEM
+    assert first["contents"] == "What is flu?"
+
+
+def test_llm_only_answers_stops_and_preserves_quota_failure_rows():
+    from src.retry import ProviderQuotaExceeded
+
+    class Client:
+        def __init__(self):
+            self.calls = 0
+            self.models = types.SimpleNamespace(generate_content=self.generate_content)
+
+        def generate_content(self, **kwargs):
+            self.calls += 1
+            if self.calls == 2:
+                raise ProviderQuotaExceeded("private provider message")
+            candidate = types.SimpleNamespace(finish_reason="STOP")
+            return types.SimpleNamespace(text="Some answer", candidates=[candidate])
+
+    client = Client()
+    out = ev.llm_only_answers(client, QUESTIONS.head(3))
+    assert client.calls == 2
+    assert out["status"].tolist() == ["ok", "error", "skipped"]
+    assert out.loc[1, "error"] == "provider quota exhausted"
+    assert "private provider message" not in str(out.to_dict())
+
+
+def test_make_judge_client_builds_groq_client_with_sdk_retries_disabled(monkeypatch, caplog):
+    import src.provider_clients as providers
+    from types import SimpleNamespace
+
+    seen = {}
+
+    def fake_openai(**kwargs):
+        seen.update(kwargs)
+        return SimpleNamespace(chat=SimpleNamespace(
+            completions=SimpleNamespace(create=lambda **call: call),
+        ))
+
+    monkeypatch.setenv("GROQ_API_KEY", "groq-first,groq-second")
+    monkeypatch.setattr(providers, "OpenAI", fake_openai)
+    client = ev.make_judge_client()
+    assert client.credential_count == 2
+    assert client.chat.completions.create(model="test-model") == {"model": "test-model"}
+    assert seen["api_key"] == "groq-first"
+    assert seen["max_retries"] == 0 and str(seen["base_url"]).startswith(config.GROQ_BASE_URL)
+    assert "groq-first" not in caplog.text and "groq-second" not in caplog.text
 
 
 FACTS = pd.DataFrame({"type": ["consumer", "consumer", "research"], "score": [1.0, 0.5, 0.0]})
@@ -268,18 +364,123 @@ def test_pipeline_errors_are_not_graded_as_empty_answers_or_abstentions():
     ])
     results = {
         "ok": {"answer": "Flu is viral [1].", "sources": [{"n": 1}], "abstained": False,
-               "latency_ms": 10},
+               "latency_ms": 10, "status": "ok"},
         "bad": {"answer": "", "sources": [], "abstained": False, "error": "provider unavailable",
-                "latency_ms": None},
+                "latency_ms": None, "status": "error"},
     }
     judge = FakeJudge({
-        ev.FACT_SYSTEM: {"results": [{"verdict": "yes"}]},
-        ev.BEHAVIOR_SYSTEM: {"verdict": "yes", "reason": "answered"},
+        ev.ANSWER_SCORE_SYSTEM: {"key_facts": [{"fact": "Virus", "verdict": "yes"}],
+                                 "behavior": {"verdict": "yes", "reason": "answered"}},
     })
     scored = ev.evaluate_pipeline_results(df, results, judge)
     assert scored["pipeline_errors"] == 1 and scored["graded_questions"] == 1
+    assert scored["requested_questions"] == 2 and scored["attempted_questions"] == 2
+    assert scored["graded_questions"] == 1 and scored["grading_errors"] == 0
+    assert scored["ungraded_questions"] == 0
     assert scored["facts"]["id"].tolist() == ["ok"]
-    assert scored["behavior"]["id"].tolist() == ["bad", "ok"]
-    assert scored["behavior"].set_index("id").loc["bad", "ok"] == False
+    assert scored["behavior"]["id"].tolist() == ["ok"]
     assert scored["abstention"]["over_refusal"] == 0.0
-    assert len(judge.calls) == 2  # only the successful response is sent to the judge
+    assert len(judge.calls) == 1
+
+
+def test_skipped_questions_are_excluded_from_quality_denominators():
+    df = QUESTIONS.copy()
+    results = {
+        "q1": {"answer": "Flu is viral [1].", "sources": [{"n": 1}], "abstained": False,
+               "latency_ms": 10, "status": "ok"},
+        "q2": {"answer": "", "sources": [], "abstained": False, "error": "batch stopped",
+               "latency_ms": None, "status": "skipped"},
+        "q3": {"answer": "", "sources": [], "abstained": False, "error": "batch stopped",
+               "latency_ms": None, "status": "skipped"},
+    }
+    judge = FakeJudge({
+        ev.ANSWER_SCORE_SYSTEM: {"key_facts": [{"fact": "Caused by a virus", "verdict": "yes"},
+                                                  {"fact": "Spreads easily", "verdict": "yes"}],
+                                 "behavior": {"verdict": "yes", "reason": "ok"}},
+    })
+    scored = ev.evaluate_pipeline_results(df, results, judge)
+    assert scored["requested_questions"] == 3
+    assert scored["attempted_questions"] == 1
+    assert scored["graded_questions"] == 1
+    assert scored["skipped_questions"] == 2
+    assert scored["pipeline_errors"] == 0
+    assert scored["graded_questions"] == 1 and scored["grading_errors"] == 0
+    assert scored["ungraded_questions"] == 0
+    assert scored["behavior"]["id"].tolist() == ["q1"]
+
+
+def test_partial_judge_coverage_is_separate_from_pipeline_coverage():
+    from src.retry import ProviderQuotaExceeded
+
+    results = {
+        row.id: {"answer": "A response.", "sources": [], "abstained": False,
+                 "latency_ms": 10, "status": "ok"}
+        for row in QUESTIONS.itertuples()
+    }
+
+    class Judge:
+        model = "fake-judge"
+
+        def __init__(self):
+            self.calls = 0
+
+        def __call__(self, system, user, max_tokens=700):
+            self.calls += 1
+            if self.calls == 2:
+                raise ProviderQuotaExceeded("private quota detail")
+            payload = json.loads(user)
+            return {
+                "key_facts": [{"fact": fact, "verdict": "yes"} for fact in payload["key_facts"]],
+                "behavior": {"verdict": "yes", "reason": "ok"},
+            }
+
+    scored = ev.evaluate_pipeline_results(QUESTIONS, results, Judge())
+    assert scored["attempted_questions"] == 3 and scored["pipeline_errors"] == 0
+    assert scored["graded_questions"] == 1
+    assert scored["grading_errors"] == 1 and scored["ungraded_questions"] == 1
+    assert scored["grading"]["status"].tolist() == ["ok", "error", "skipped"]
+    assert scored["behavior"]["id"].tolist() == ["q1"]
+
+
+def test_run_pipeline_batch_stops_after_provider_quota_and_marks_rest_skipped():
+    from src.retry import ProviderQuotaExceeded
+
+    class Pipeline:
+        def __init__(self):
+            self.questions = []
+
+        def answer(self, question):
+            self.questions.append(question)
+            if len(self.questions) == 2:
+                raise ProviderQuotaExceeded("private provider detail")
+            return {"answer": "ok", "sources": [], "latency_ms": 1}
+
+    frame = pd.DataFrame({"id": ["q1", "q2", "q3"], "question": ["one", "two", "three"]})
+    pipeline = Pipeline()
+    results = ev.run_pipeline_batch(pipeline, frame)
+    assert pipeline.questions == ["one", "two"]
+    assert [results[qid]["status"] for qid in frame["id"]] == ["ok", "error", "skipped"]
+    assert results["q2"]["error"] == "provider quota exhausted"
+    assert "private provider detail" not in str(results)
+
+
+def test_run_pipeline_batch_stops_after_provider_api_errors():
+    import httpx
+    from openai import APIError
+
+    class Pipeline:
+        def __init__(self):
+            self.questions = []
+
+        def answer(self, question):
+            self.questions.append(question)
+            if len(self.questions) == 1:
+                raise APIError("provider unavailable", httpx.Request("POST", "https://example.test"), body=None)
+            return {"answer": "ok", "sources": [], "latency_ms": 1}
+
+    frame = pd.DataFrame({"id": ["q1", "q2"], "question": ["one", "two"]})
+    pipeline = Pipeline()
+    results = ev.run_pipeline_batch(pipeline, frame)
+    assert pipeline.questions == ["one"]
+    assert results["q1"]["error"] == "provider API error: APIError"
+    assert results["q2"]["status"] == "skipped"

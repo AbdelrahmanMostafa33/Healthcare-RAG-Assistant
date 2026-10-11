@@ -3,15 +3,16 @@
     question -> safety check (src/safety.py)
                   emergency        -> fixed emergency message, no retrieval, no LLM
                   personal advice  -> fixed redirect to a doctor, no retrieval, no LLM
+                  harmful request  -> fixed refusal message, no retrieval, no LLM
              -> retrieve: FAISS top 20 -> rerank -> top 5
              -> best rerank score below the threshold?  yes -> abstain, no LLM call
-                                                         no  -> grounded prompt -> one LLM call
+                                                         no  -> grounded prompt -> generation (bounded retries for transient 429s)
              -> answer + cited sources + disclaimer
 """
 import time
 
 from src import config, safety
-from src.generator import citation_numbers, citations_are_valid, generate, make_client
+from src.generator import citation_numbers, citations_are_valid, generate, make_generator_client
 from src.retriever import load_retriever
 
 DISCLAIMER = (
@@ -45,7 +46,10 @@ class RAGPipeline:
         early = safety.check(question)
         if early:
             kind, message = early
-            return self._result(message, start, emergency=kind == "emergency", redirected=kind == "redirect")
+            return self._result(
+                message, start, emergency=kind == "emergency", redirected=kind == "redirect",
+                refused=kind == "refuse",
+            )
 
         # A placeholder threshold is not a usable evidence policy. Fail closed until a dev-set
         # threshold is calibrated for this exact model/index/evaluation-data combination.
@@ -67,8 +71,8 @@ class RAGPipeline:
                             top_score=top_score)
 
     @staticmethod
-    def _result(answer, start, abstained=False, emergency=False, redirected=False, passages=(), top_score=None,
-                citation_validation_failed=False, cited_numbers=None):
+    def _result(answer, start, abstained=False, emergency=False, redirected=False, refused=False,
+                passages=(), top_score=None, citation_validation_failed=False, cited_numbers=None):
         passages = list(passages)
         cited_numbers = list(range(1, len(passages) + 1)) if cited_numbers is None else cited_numbers
         return {
@@ -76,6 +80,7 @@ class RAGPipeline:
             "abstained": abstained,     # the sources did not contain enough relevant evidence
             "emergency": emergency,     # handled by the emergency message
             "redirected": redirected,   # personal-advice question, handled by the redirect message
+            "refused": refused,         # harmful requests are refused before retrieval or generation
             "citation_validation_failed": citation_validation_failed,
             # Only list sources the answer actually cites; n keeps its prompt citation number.
             "sources": [{"n": n, "source": passages[n - 1]["source"], "title": passages[n - 1]["title"],
@@ -100,6 +105,6 @@ def format_result(result):
 
 
 def load_pipeline():
-    client = make_client()   # before the slow model loading, so a missing API key fails fast
+    client = make_generator_client()   # before the slow model loading, so a missing API key fails fast
     threshold, calibrated = config.load_threshold()
     return RAGPipeline(load_retriever(), client, threshold, calibrated)

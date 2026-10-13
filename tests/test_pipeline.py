@@ -1,7 +1,15 @@
 import pytest
 
 from src import config
-from src.pipeline import ABSTAIN_MESSAGE, DISCLAIMER, RAGPipeline, format_result
+from src.pipeline import (
+    ABSTAIN_CITATION_VALIDATION_FAILED,
+    ABSTAIN_INSUFFICIENT_EVIDENCE,
+    ABSTAIN_MESSAGE,
+    ABSTAIN_UNCALIBRATED,
+    DISCLAIMER,
+    RAGPipeline,
+    format_result,
+)
 from tests.conftest import FakeClient
 
 
@@ -58,6 +66,40 @@ def test_sources_keep_original_prompt_numbers_and_citation_order(make_pipeline):
 def test_a_blank_question_is_rejected(make_pipeline):
     with pytest.raises(ValueError):
         make_pipeline()[0].answer("   ")
+
+
+def test_comma_and_range_citations_are_accepted_and_listed_as_sources(make_pipeline):
+    pipeline, _ = make_pipeline(answer="Fever [1, 2]. Cough [1-3].")
+    result = pipeline.answer("diabetes insulin")
+    assert result["abstained"] is False
+    assert [source["n"] for source in result["sources"]] == [1, 2, 3]
+
+
+def test_a_bracketed_year_never_becomes_a_source(make_pipeline):
+    pipeline, _ = make_pipeline(answer="In 2024 this changed [2024]. Fever is common [1].")
+    result = pipeline.answer("diabetes insulin")
+    assert result["abstained"] is False
+    assert [source["n"] for source in result["sources"]] == [1]
+
+
+def test_abstain_reason_separates_the_threshold_from_the_citation_check(make_pipeline):
+    weak, _ = make_pipeline(threshold=99.0)
+    assert weak.answer("diabetes insulin")["abstain_reason"] == ABSTAIN_INSUFFICIENT_EVIDENCE
+    uncited, _ = make_pipeline(answer="An answer with no citation at all.")
+    result = uncited.answer("diabetes insulin")
+    assert result["abstained"] is True and result["citation_validation_failed"] is True
+    assert result["abstain_reason"] == ABSTAIN_CITATION_VALIDATION_FAILED
+
+
+def test_an_uncalibrated_pipeline_reports_that_reason(retriever):
+    pipeline = RAGPipeline(retriever, FakeClient(), threshold=0.0, calibrated=False)
+    result = pipeline.answer("diabetes insulin")
+    assert result["abstained"] is True and result["abstain_reason"] == ABSTAIN_UNCALIBRATED
+
+
+def test_an_emergency_has_no_abstain_reason(make_pipeline):
+    result = make_pipeline()[0].answer("I have crushing chest pain right now")
+    assert result["emergency"] is True and result["abstain_reason"] is None
 
 
 def test_no_retrieved_passages_means_abstain():
@@ -143,25 +185,60 @@ def test_threshold_is_not_trusted_until_calibration_metadata_matches(tmp_path, m
     valid = {"threshold": 3.25, **config.calibration_metadata()}
     config.THRESHOLD_PATH.write_text(__import__("json").dumps(valid), encoding="utf-8")
     assert config.load_threshold() == (3.25, True)
-    monkeypatch.setattr(config, "model_runtime_versions", lambda: {"sentence-transformers": "changed"})
-    assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
 
 
-def test_threshold_is_invalidated_when_safety_rules_change(tmp_path, monkeypatch):
+def test_a_runtime_library_version_change_warns_instead_of_rejecting_the_threshold(tmp_path, monkeypatch, caplog):
+    """torch/transformers patch releases must not take the service down; they are reported.
+
+    The pinned model and revision are still hard matches, so a version bump alone cannot silently
+    change which model is served - it is only a hint that scores may have drifted.
+    """
     monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
     monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
     monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
-    monkeypatch.setattr(config, "SAFETY_POLICY_PATH", tmp_path / "safety.py")
     config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
     config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
-    config.SAFETY_POLICY_PATH.write_text("rule = 'first'\n", encoding="utf-8")
-    metadata = config.calibration_metadata()
     config.THRESHOLD_PATH.write_text(
-        __import__("json").dumps({"threshold": 3.25, **metadata}), encoding="utf-8"
+        __import__("json").dumps({"threshold": 3.25, **config.calibration_metadata()}), encoding="utf-8"
+    )
+    monkeypatch.setattr(config, "model_runtime_versions", lambda: {"sentence-transformers": "changed"})
+    assert config.load_threshold() == (3.25, True)
+    assert "different runtime versions" in caplog.text
+
+
+def test_threshold_is_invalidated_when_the_safety_rules_version_changes(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
+    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
+    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
+    config.THRESHOLD_PATH.write_text(
+        __import__("json").dumps({"threshold": 3.25, **config.calibration_metadata()}), encoding="utf-8"
     )
     assert config.load_threshold() == (3.25, True)
 
-    config.SAFETY_POLICY_PATH.write_text("rule = 'changed'\n", encoding="utf-8")
+    monkeypatch.setattr(config, "SAFETY_RULES_VERSION", "a-newer-ruleset")
+    assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
+
+
+def test_the_safety_fingerprint_is_a_version_not_a_file_hash(tmp_path, monkeypatch):
+    """A comment or a line-ending change must not invalidate a calibration."""
+    monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
+    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
+    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
+    metadata = config.calibration_metadata()
+    assert metadata["safety_rules_version"] == config.SAFETY_RULES_VERSION
+    assert "safety_rules_sha256" not in metadata
+    config.THRESHOLD_PATH.write_text(
+        __import__("json").dumps({"threshold": 3.25, **metadata}), encoding="utf-8"
+    )
+    # A CRLF copy of the same evaluation file hashes to the same value, so a Windows checkout keeps
+    # the calibration while an actual label change still invalidates it.
+    config.EVAL_PATH.write_bytes(b"id,question\r\nq1,example?\r\n")
+    assert config.load_threshold() == (3.25, True)
+    config.EVAL_PATH.write_text("id,question\nq1,changed?\n", encoding="utf-8")
     assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
 
 

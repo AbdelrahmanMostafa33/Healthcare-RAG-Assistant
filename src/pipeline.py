@@ -15,6 +15,12 @@ from src import config, safety
 from src.generator import citation_numbers, citations_are_valid, generate, make_generator_client
 from src.retriever import load_retriever
 
+# Why an answer was withheld. Only INSUFFICIENT_EVIDENCE is a retrieval decision; the other two are
+# not statements about the sources, and counting them as abstentions distorts abstention metrics.
+ABSTAIN_INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+ABSTAIN_CITATION_VALIDATION_FAILED = "citation_validation_failed"
+ABSTAIN_UNCALIBRATED = "uncalibrated"
+
 DISCLAIMER = (
     "This is general health information for education only. It is not medical advice, "
     "diagnosis or treatment. Talk to a doctor or pharmacist about your own situation, "
@@ -54,30 +60,35 @@ class RAGPipeline:
         # A placeholder threshold is not a usable evidence policy. Fail closed until a dev-set
         # threshold is calibrated for this exact model/index/evaluation-data combination.
         if not self.calibrated:
-            return self._result(ABSTAIN_MESSAGE, start, abstained=True)
+            return self._result(ABSTAIN_MESSAGE, start, abstained=True,
+                                abstain_reason=ABSTAIN_UNCALIBRATED)
 
         passages = self.retriever.retrieve(question)
         top_score = passages[0]["rerank_score"] if passages else None
 
         if top_score is None or top_score < self.threshold:
-            return self._result(ABSTAIN_MESSAGE, start, abstained=True, top_score=top_score)
+            return self._result(ABSTAIN_MESSAGE, start, abstained=True, top_score=top_score,
+                                abstain_reason=ABSTAIN_INSUFFICIENT_EVIDENCE)
 
         answer = generate(self.client, question, passages)
         if not citations_are_valid(answer, passages):
             # Do not expose an answer with missing or impossible source references.
             return self._result(ABSTAIN_MESSAGE, start, abstained=True, top_score=top_score,
-                                citation_validation_failed=True)
-        return self._result(answer, start, passages=passages, cited_numbers=citation_numbers(answer),
-                            top_score=top_score)
+                                citation_validation_failed=True,
+                                abstain_reason=ABSTAIN_CITATION_VALIDATION_FAILED)
+        return self._result(answer, start, passages=passages,
+                            cited_numbers=citation_numbers(answer, len(passages)), top_score=top_score)
 
     @staticmethod
     def _result(answer, start, abstained=False, emergency=False, redirected=False, refused=False,
-                passages=(), top_score=None, citation_validation_failed=False, cited_numbers=None):
+                passages=(), top_score=None, citation_validation_failed=False, cited_numbers=None,
+                abstain_reason=None):
         passages = list(passages)
         cited_numbers = list(range(1, len(passages) + 1)) if cited_numbers is None else cited_numbers
         return {
             "answer": answer,
-            "abstained": abstained,     # the sources did not contain enough relevant evidence
+            "abstained": abstained,     # no generated answer was returned to the user
+            "abstain_reason": abstain_reason,   # why, when it was withheld by this pipeline
             "emergency": emergency,     # handled by the emergency message
             "redirected": redirected,   # personal-advice question, handled by the redirect message
             "refused": refused,         # harmful requests are refused before retrieval or generation

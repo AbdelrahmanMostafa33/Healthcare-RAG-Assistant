@@ -29,18 +29,47 @@ def build_messages(question: str, passages: list[dict]) -> list[dict[str, str]]:
     ]
 
 
+# A bracketed group may hold a list or a range: [1], [1, 2] and [1-3] all name supplied passages.
+CITATION_GROUP = re.compile(r"\[([\d\s,;–—-]+)\]")
+# A span wider than this is not a citation, and expanding it would allocate a long list of integers.
+MAX_CITATION_SPAN = 100
+
+
+def _citation_group_numbers(group: str) -> list[int]:
+    """Expand one bracketed group: "1", "1, 2" and "1-3" name the same kind of thing."""
+    numbers = []
+    for part in re.split(r"[,;]", group):
+        bounds = [value.strip() for value in re.split(r"[–—-]", part.strip()) if value.strip()]
+        if len(bounds) == 1 and bounds[0].isdigit():
+            numbers.append(int(bounds[0]))
+        elif len(bounds) == 2 and all(value.isdigit() for value in bounds):
+            low, high = int(bounds[0]), int(bounds[1])
+            if low <= high and high - low <= MAX_CITATION_SPAN:
+                numbers.extend(range(low, high + 1))
+    return numbers
+
+
+def citation_numbers(answer: str, passage_count: int | None = None) -> list[int]:
+    """Return unique citation IDs in first-use order.
+
+    With ``passage_count``, a bracketed number outside 1..passage_count is not a reference to the
+    supplied evidence - a year such as "[2024]", a footnote marker - so it is dropped instead of
+    being reported as a citation of a passage that was never in the prompt.
+    """
+    parsed = [number for group in CITATION_GROUP.findall(answer or "")
+              for number in _citation_group_numbers(group)]
+    unique = list(dict.fromkeys(parsed))
+    if passage_count is None:
+        return unique
+    return [number for number in unique if 1 <= number <= passage_count]
+
+
 def citations_are_valid(answer: str, passages: list[dict]) -> bool:
-    """Require at least one citation and ensure every [n] points to supplied evidence.
+    """Require at least one citation that names a passage actually supplied in the prompt.
 
     This is a low-cost structural check, not proof that a cited passage truly entails a claim.
     """
-    cited = citation_numbers(answer)
-    return bool(cited) and all(1 <= number <= len(passages) for number in cited)
-
-
-def citation_numbers(answer: str) -> list[int]:
-    """Return unique citation IDs in first-use order."""
-    return list(dict.fromkeys(int(value) for value in re.findall(r"\[(\d+)\]", answer or "")))
+    return bool(citation_numbers(answer, len(passages)))
 
 
 def generate(client, question: str, passages: list[dict]) -> str:
@@ -66,6 +95,7 @@ def generate_text(client, system_instruction: str, user_content: str) -> tuple[s
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,
             max_output_tokens=config.MAX_TOKENS,
+            temperature=config.GENERATOR_TEMPERATURE,
             thinking_config=types.ThinkingConfig(thinking_level=config.GEMINI_THINKING_LEVEL),
         ),
     )

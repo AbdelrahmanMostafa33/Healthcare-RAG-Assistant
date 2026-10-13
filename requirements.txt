@@ -21,6 +21,9 @@ matplotlib>=3.7,<4
 jupyterlab>=4.0,<5
 ipykernel>=6.0,<7
 
-# Tests
+# Test and quality-assurance dependencies.
+# The local test suite uses fake/mocked providers and small local data; it does not
+# load model weights, build the FAISS index, or call Gemini/Groq. This file is wired
+# into both the local workflow and GitHub Actions for `pytest`.
 pytest>=7.4,<9
 httpx>=0.25,<1

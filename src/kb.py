@@ -2,8 +2,10 @@
 import hashlib
 import html
 import json
+import logging
 import os
 import re
+from urllib.parse import urlparse
 from xml.etree import ElementTree
 
 import faiss
@@ -13,11 +15,19 @@ from bs4 import BeautifulSoup
 
 from src import config
 
-# NIH pages end with site navigation text. Everything after the first marker is dropped.
+logger = logging.getLogger(__name__)
+
+# Navigation blocks are a trailing suffix of an NIH page, not a rule that fires anywhere in the text.
+# "More on:" inside an answer introduces another content section ("... More on: Biology\nInfective
+# Fasciola larvae (metacercariae) are found ..."), so cutting at the first occurrence deleted real
+# text from 57 answers in the shipped MedQuAD snapshot.
 BOILERPLATE = [
     "More on:", "Top of Page", "Related Pages", "Images and logos on this website",
     "This graphic notice means", "Go to:", "Back to Top",
 ]
+# A marker in the last quarter of a document is part of the trailing navigation block even if a
+# sentence follows it, which is how the copyright notice after "Top of Page" is still removed.
+TRAILING_FRACTION = 0.75
 TAG_RE = re.compile(r"</?[a-zA-Z][^>]*>")   # real tags only, so "<5 mg" survives
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 MIN_CHUNK_CHARS = 30
@@ -38,10 +48,29 @@ def clean_text(text):
     return text.replace(" .", ".").replace(" ,", ",").strip()
 
 
-def strip_boilerplate(text):
+def strip_boilerplate(text, removed_stats=None):
+    """Drop a trailing navigation block, never text from the middle of an answer.
+
+    A marker counts as boilerplate only when it looks trailing: either nothing after it is a
+    sentence (just navigation labels such as "Top of Page Related Pages junk"), or it sits in the
+    last quarter of the document. "Treatment works. Go to: the ER if pain persists." is untouched.
+    When text is dropped, its length is appended to ``removed_stats`` so the notebook can report how
+    much the rule actually removes.
+    """
+    if text is None or pd.isna(text):
+        return ""
+    text = re.sub(r"\s+", " ", str(text)).strip()
+    cut = len(text)
     for marker in BOILERPLATE:
-        text = text.split(marker)[0]
-    return re.sub(r"\s+", " ", text).strip()
+        index = text.find(marker)
+        if index == -1:
+            continue
+        tail = text[index:]
+        if index >= len(text) * TRAILING_FRACTION or not re.search(r"[.!?]", tail):
+            cut = min(cut, index)
+    if removed_stats is not None and cut < len(text):
+        removed_stats.append(len(text) - cut)
+    return text[:cut].strip()
 
 
 def html_to_text(text):
@@ -109,8 +138,41 @@ def prepare_medlineplus(raw):
     return df.drop_duplicates(subset="url").reset_index(drop=True)
 
 
+# MedQuAD republishes the MedlinePlus Health Topics, which this project also downloads as the
+# official XML. Both copies then compete in retrieval for the same topic.
+MEDQUAD_MEDLINEPLUS_SOURCE = "MPlusHealthTopics"
+
+
+def medlineplus_slug(url) -> str:
+    """Topic slug from either MedlinePlus URL form.
+
+    MedQuAD links to the old host (nlm.nih.gov/medlineplus/<slug>.html); the official XML uses
+    medlineplus.gov/<slug>.html. Only the slug is comparable.
+    """
+    path = urlparse(str(url)).path.rstrip("/")
+    return re.sub(r"\.html$", "", path.split("/")[-1]).casefold()
+
+
+def drop_medlineplus_duplicates(medquad, medlineplus):
+    """Keep the official MedlinePlus XML copy of a topic and drop MedQuAD's duplicate.
+
+    Measured on the shipped snapshot: 799 of 867 MedQuAD (MPlusHealthTopics) rows repeat a topic the
+    XML already provides, which is why the same diabetes topic appeared twice in the top 5.
+    """
+    official = {medlineplus_slug(url) for url in medlineplus["url"]} - {""}
+    duplicate = (
+        medquad["source"].str.contains(MEDQUAD_MEDLINEPLUS_SOURCE, regex=False)
+        & medquad["url"].map(medlineplus_slug).isin(official)
+    )
+    dropped = int(duplicate.sum())
+    if dropped:
+        logger.info("Dropped %d MedQuAD rows duplicated by the MedlinePlus XML", dropped)
+    return medquad.loc[~duplicate].reset_index(drop=True)
+
+
 def build_kb(medquad, medlineplus):
-    kb = pd.concat([medquad, medlineplus], ignore_index=True)
+    """One row per health topic, with MedQuAD's MedlinePlus subset deduplicated against the XML."""
+    kb = pd.concat([drop_medlineplus_duplicates(medquad, medlineplus), medlineplus], ignore_index=True)
     kb.insert(0, "doc_id", range(len(kb)))
     return kb[KB_COLUMNS]
 
@@ -306,12 +368,18 @@ def load_index():
         "embedding_model_revision": config.EMBEDDING_MODEL_REVISION,
         "reranker_model": config.RERANKER_MODEL,
         "reranker_model_revision": config.RERANKER_MODEL_REVISION,
-        "model_runtime_versions": config.model_runtime_versions(),
         "chunk_max_chars": config.CHUNK_MAX_CHARS,
         "chunk_overlap_chars": config.CHUNK_OVERLAP_CHARS,
     }
     if any(manifest.get(key) != value for key, value in expected_settings.items()):
         raise ValueError("Index was built with different model/retrieval settings. Rebuild with notebook 02.")
+    # A pinned model with a newer library patch release usually still returns the same vectors, so
+    # this is reported rather than rejected. Rebuild the index if retrieval scores actually move.
+    if manifest.get("model_runtime_versions") != config.model_runtime_versions():
+        logger.warning(
+            "Index was built with different library versions (%s); rebuild it if retrieval scores shift.",
+            manifest.get("model_runtime_versions"),
+        )
     if manifest.get("index_sha256") != _file_sha256(config.INDEX_PATH):
         raise ValueError("FAISS index checksum mismatch. Rebuild with notebook 02.")
     if manifest.get("chunks_sha256") != _file_sha256(config.CHUNKS_PATH):

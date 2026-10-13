@@ -1,6 +1,6 @@
 """Rule-based checks that run before retrieval.
 
-Three checks, in this order:
+Three checks run after normalization (typographic apostrophes are lowered to ASCII, so phone-typed text is handled). Checks run in this order:
 
 1. Emergency: the person describes an acute emergency happening now (chest pain, stroke signs,
    an overdose, thoughts of suicide). The answer is a fixed message with emergency numbers.
@@ -10,13 +10,28 @@ Three checks, in this order:
    specific person. A static knowledge base cannot answer that, so the answer is a fixed
    redirect to a doctor or pharmacist.
 
-These are deliberately narrow keyword rules, not a classifier. A question that matches nothing goes
+These are deliberately narrow keyword rules, not a classifier. They handle curly and straight apostrophes identically, so phone-typed text reaches the same result as typed text. Generation and the API run the same normalized safety check as the evaluation harness and the notebooks, and the `src/safety.py` file on disk is the single shared module every one of them imports. A question that matches nothing goes
 through retrieval, where the evidence threshold and the prompt rules still apply. A wrong match is
-the costly mistake (an educational question gets a fixed reply), so the emergency phrases only count
-when the question is written about a real person ("I", "my", "he"), and every rule is tested
-against educational questions it must not catch (tests/test_safety.py).
-"""
+costly (an educational question gets a fixed reply), so the rules are split in two tiers:
+
+* Tier 1 names a specific act or desire of the speaker in any inflection - "killing myself",
+  "swallowed a bottle of pills", "I took 20 paracetamol tablets" - and needs no other context. A
+  missed crisis is the worst thing this module can do, so these stand alone.
+* Tier 2 matches words that also appear in lessons, poems and news ("suicide", "chest pain",
+  "choking") and only counts when the question is about a real person rather than a topic.
+
+The patterns are intentionally stem-tolerant, because the earlier phrase list missed common
+inflections such as "I've been thinking about killing myself" and phone-typed apostrophes. Recall and false positives are both
+measured against a held-out probe set (data/eval/safety_probes.csv, tests/test_safety_probes.py);
+the notebook evaluation harness and the FastAPI service import the same `src.safety` module, so a safety fix in this file is reflected in the API, the notebooks, and the evaluation harness at once. `SAFETY_RULES_VERSION` is the calibration fingerprint for these rules: bump it when a pattern or constant changes, and a saved threshold whose version no longer matches is rejected so a deployment never runs on a threshold computed against different rules than the live code. A comment or a line-ending change does not move that version.
+ """
 import re
+
+# Bump this whenever a pattern, constant or normalization in this file changes. It is what the
+# calibrated threshold is keyed to. A hash of the file would also change for a typo in a comment or
+# for a CRLF checkout, silently invalidating a saved calibration for a change that cannot alter a
+# single safety decision.
+SAFETY_RULES_VERSION = "2026-10-13.1"
 
 # The question describes a real person's situation, not a topic. A bare "I" is not enough:
 # "What should I know about chest pain?" is an educational question.
@@ -25,20 +40,74 @@ PERSONAL = re.compile(
     r"|my|myself|he|she|he's|she's|his|her)\b"
 )
 
-# Explicit self-directed phrases need no extra personal marker.
-CRISIS_ALWAYS = [
-    "kill myself", "end my life", "take my own life", "hurt myself", "harm myself",
-    "cut myself", "better off dead",
-]
-CRISIS_WITH_MARKER = ["suicidal", "suicide", "self-harm", "self harm"]
+# A bare "I" is enough for the rules below, because each one already names a specific act ("swallowed
+# a bottle of", "kill myself"). It is not enough for a topic word such as "chest pain", which is why
+# the acute-symptom tier keeps using the stricter PERSONAL marker above: "When should I call 911 for
+# chest pain?" is a question about when to call, not a person in trouble.
+SPEAKER = re.compile(r"\b(i|i'm|im|i've|ive|i'd|i'll|we|we're|my|our|myself|ourselves)\b")
+
+# Direct statements about the speaker's own life or body. These need no extra marker: they name a
+# specific act or desire, and a missed crisis costs far more than an unnecessary crisis page.
+CRISIS_ALWAYS = [re.compile(p) for p in [
+    r"\b(kill|killing)\s+myself\b",
+    # "I cut myself shaving" is a minor injury, not a crisis, so a following "shaving" is excluded.
+    r"\b(cut|cutting)\s+myself\b(?!\s+(shaving|while\s+shaving))",
+    r"\b(hurt|hurting|harm|harming)\s+myself\b",
+    r"\b(end|ending|take|taking)\s+(my|mine)\s+(own\s+)?life\b",
+    r"\b(better\s+off\s+dead|wish\s+i\s+(was|were|am)\s+dead)\b",
+    r"\b(don'?t|do\s+not|dont)\s+want\s+to\s+live\b",
+    r"\b(no|any)\s+(reason|point|sense)\s+(to|in)\s+((liv|continu)\w*|go(ing)?\s+on|being\s+here)\b",
+    r"\b(can'?t|cannot|cant)\s+go\s+on\b",
+]]
+
+# Words that also appear in lessons, poems and news, so they only mean a crisis when the question is
+# about a real person ("my friend says he wants to die").
+CRISIS_WITH_MARKER = [re.compile(p) for p in [
+    r"\bsuicid\w*",
+    r"\bself[-\s]?harm\w*",
+    r"\b(want|wants|wanna|wish|wishes|thinking|think|thought|thoughts|plan|planning)\b[^?.!]{0,30}"
+    r"\b(die|dying|dead|death|suicid\w*|kill\w*|end(ing)?\s+it(\s+all)?|ending\s+(my|his|her|their)\s+life)\b",
+]]
 CRISIS_DESIRE_TO_DIE = re.compile(r"\b(want|wants|wanna|wish|wishes)\s+to\s+die\b")
 FIRST_PERSON_DESIRE_TO_DIE = re.compile(r"\bi\b.{0,30}\b(want|wanna|wish)\b.{0,20}\bdie\b")
+
+# Swallowing or taking far too much of something. The speaker marker is required so that "what
+# happens if a child swallowed a battery?" stays a question and does not become an emergency page.
+INGESTION_PATTERNS = [re.compile(p) for p in [
+    r"\b(took|taken|swallow(ed|ing)?|drank|drunk|ate|eaten)\b[^?.!]{0,40}"
+    r"\b(too\s+many|too\s+much|all\s+(of\s+)?(my|the)|a\s+handful|an?\s+(whole|entire)\s+bottle"
+    r"|bottle\s+of|handful\s+of|packet\s+of|pack\s+of)\b[^?.!]{0,25}"
+    r"\b(pills?|tablets?|capsules?|medicine|medication|paracetamol|acetaminophen|ibuprofen|aspirin"
+    r"|painkillers?|opioids?|antidepressants?|sleeping\s+(pills?|tablets?)|drugs?"
+    r"|bleach|detergent|chemicals?|batter(y|ies))\b",
+    # A count of ten or more at once is not a dose, so "I took 20 paracetamol tablets" fires while
+    # "I took 2 tablets" does not. A unit between the number and the noun is excluded, so
+    # "I took 10 mg tablets" is left alone.
+    r"\b(took|taken|swallow(ed|ing)?)\b[^?.!]{0,30}\b(1\d|[2-9]\d|\d{3,})\s*"
+    r"(?!(mg|mcg|g|ml|units?|drops?)\b)[^?.!]{0,20}"
+    r"\b(pills?|tablets?|capsules?|paracetamol|acetaminophen|ibuprofen|aspirin|painkillers?|opioids?)\b",
+    # An overdose is an acute medical emergency, not a crisis call.
+    r"\boverdos(e|ed|ing)\b",
+]]
 
 # Block explicit requests for actionable harm, drug diversion, or prescription fraud before
 # retrieval or generation. These narrow rules target intent, not broad educational topic words.
 HARMFUL_REQUEST_PATTERNS = [re.compile(p) for p in [
-    r"\bhow\s+(many|much)\b.{0,80}\b(pills?|tablets?|capsules?|medicine|medication|dose|dosage)\b"
-    r".{0,60}\b(kill|die|fatal|lethal|overdose)\b",
+    r"\bhow\s+(many|much)\b.{0,80}\b(pills?|tablets?|capsules?|medicine|medication|dose|dosage"
+    r"|painkillers?|paracetamol|acetaminophen|ibuprofen|aspirin|insulin|opioids?|antidepressants?"
+    r"|sleeping\s+pills?|drugs?)\b.{0,60}\b(kill|die|fatal|lethal|overdose|death)\b",
+    # "what is the best way to overdose" / "...to end my life"
+    r"\b(what|which|where)\b[^?.!]{0,40}\b(best|quickest|easiest|fastest|painless|pain-free|reliable|surest)\b"
+    r"[^?.!]{0,40}\b(way|method|technique)\b[^?.!]{0,40}\b(overdose|kill\s+(myself|himself|herself|someone)"
+    r"|die|suicide|end\s+(my|his|her)\s+life)\b",
+    # harming another person, but only with explicit intent to escape consequences
+    r"\b(hurt|harm|poison|kill|attack)\b[^?.!]{0,40}\b(someone|somebody|another\s+person|him|her|them"
+    r"|my\s+(husband|wife|partner|ex|boss|neighbour|neighbor|roommate))\b[^?.!]{0,40}"
+    r"\b(get\s+away\s+with|without\s+(getting\s+caught|being\s+caught|anyone\s+knowing)|not\s+get\s+caught)\b",
+    # pressuring a prescriber, gated on the deception or escalation the request is actually after
+    r"\b(get|convince|persuade|pressure|trick|manipulate|mislead|lie\s+to)\b[^?.!]{0,40}"
+    r"\b(my\s+)?(doctor|prescriber|psychiatrist|physician|gp)\b[^?.!]{0,60}\b(prescribe|prescribing|give\s+me)\b"
+    r"[^?.!]{0,40}\b(more|extra|stronger|higher|opioids?|painkillers?|controlled|without|drugs?)\b",
     r"\b(make|create|prepare|produce|synthesize|formulate)\b.{0,80}\b(poison|toxin)\b"
     r".{0,80}\b(undetectable|cannot be detected|can't be detected|without detection)\b",
     r"\b(get|obtain|buy|acquire)\b.{0,60}\b(strong\s+)?(opioids?|controlled drugs?|prescription painkillers?)\b"
@@ -52,7 +121,10 @@ HARMFUL_REQUEST_PATTERNS = [re.compile(p) for p in [
 MEDICAL_PHRASES = [
     "can't breathe", "cant breathe", "cannot breathe", "can not breathe", "unable to breathe",
     "struggling to breathe", "gasping", "stopped breathing", "not breathing",
+    "isn't breathing", "isnt breathing", "is not breathing", "stopped breathing", "stops breathing",
+    "choking", "collapsed", "was unresponsive",
     "anaphylaxis", "anaphylactic", "throat is closing", "throat closing", "throat is swelling",
+    "severe allergic reaction", "allergic reaction",
     "took too many", "took too much", "overdosed", "poisoned",
     "bottle of pills", "handful of pills", "handful of tablets",
     "chest pain", "chest pressure", "chest tightness", "chest heaviness", "crushing chest",
@@ -60,7 +132,8 @@ MEDICAL_PHRASES = [
     "having a heart attack", "having a stroke", "face drooping", "face is drooping", "face is numb",
     "slurred speech", "can't speak", "sudden weakness on one side",
     "severe bleeding", "heavy bleeding", "won't stop bleeding", "wont stop bleeding",
-    "bleeding heavily", "bleeding a lot",
+    "bleeding heavily", "bleeding a lot", "bleeding and it won't stop",
+    "coughing up blood", "vomiting blood",
     "having a seizure", "having a fit", "convulsion",
     "unconscious", "unresponsive", "passed out", "won't wake", "wont wake", "no pulse",
     "worst headache", "thunderclap",
@@ -73,6 +146,11 @@ MEDICAL_PATTERNS = [
     re.compile(r"\b(fever|temperature)\b.*\b(newborn|infant|baby|\d+[- ]?(day|week)s?[- ]?old|[1-3][- ]?months?[- ]?old)\b"),
     # a diabetic who is very unwell
     re.compile(r"\b(diabetic|blood sugar|glucose)\b.{0,80}\b(vomiting|very drowsy|confused|unconscious)\b"),
+    # a road traffic collision described as happening to the speaker or their family
+    re.compile(r"\b(car|motorcycle|motorbike|road|bike|cycling)\s+(accident|crash|collision)\b"),
+    # breathing described as absent or failing, in any common wording
+    re.compile(r"\b(isn't|isnt|is\s+not|wasn't|wasnt|not|stopped|stops|hasn't|hasnt)\b\s+breathing\b"),
+    re.compile(r"\b(can't|cant|cannot|unable\s+to)\s+(breathe|breath)\b"),
 ]
 
 EMERGENCY_RESPONSES = {
@@ -153,33 +231,38 @@ def _normalise(question):
 def detect_emergency(question):
     """Return "crisis", "medical" or None.
 
-    Explicit educational context should not be mistaken for a current emergency solely because
-    the question mentions a condition. Explicit self-harm intent and clear acute-symptom wording
-    still take priority over educational wording.
+    Rules run in two tiers. Tier 1 names a specific act by the speaker ("kill myself", "swallowed a
+    bottle of pills") and stands on its own. Tier 2 matches words that also appear in lessons, poems
+    and news ("suicide", "chest pain") and only counts when the question is about a real person.
+
+    Explicit educational context should not be mistaken for a current emergency solely because the
+    question mentions a condition, but it never excuses a live one: "I am researching heart attacks
+    for class, but I have crushing chest pain right now" is still an emergency.
     """
     q = _normalise(question)
 
-    # These are direct statements of current danger, not mentions of a condition in a lesson.
-    if any(phrase in q for phrase in CRISIS_ALWAYS) or FIRST_PERSON_DESIRE_TO_DIE.search(q):
+    # Tier 1: a named act or desire of the speaker. A missed crisis is far worse than a spare one,
+    # so these short-circuit everything, including explicit educational wording
+    # ("I am studying self-harm, but I want to kill myself").
+    if any(pattern.search(q) for pattern in CRISIS_ALWAYS) or FIRST_PERSON_DESIRE_TO_DIE.search(q):
         return "crisis"
     personal_context = bool(PERSONAL.search(q))
-    if CRISIS_DESIRE_TO_DIE.search(q) and personal_context:
-        return "crisis"
-    live_crisis_phrases = (
-        "i am suicidal", "i'm suicidal", "ive been self-harming", "i've been self-harming",
-        "i am self-harming", "i'm self-harming", "i can't stop self-harming", "i cant stop self-harming",
-    )
-    if any(phrase in q for phrase in live_crisis_phrases):
-        return "crisis"
+    speaker = bool(SPEAKER.search(q))
+    if speaker and any(pattern.search(q) for pattern in INGESTION_PATTERNS):
+        return "medical"
 
     educational_context = (
         "for a class", "for my class", "for school", "school project", "health class",
         "researching", "studying", "writing about", "reading about", "for an assignment",
         "for my assignment", "for my essay", "for my homework", "for a project",
     )
+    # Unambiguous acute symptoms, used to decide whether educational wording excuses a live cue.
+    # Broad topic words such as "anaphylaxis" are deliberately absent here, so that "I am
+    # researching anaphylaxis for a school project" stays a question.
     live_medical_phrases = (
         "can't breathe", "cant breathe", "cannot breathe", "unable to breathe",
         "struggling to breathe", "gasping", "stopped breathing", "not breathing",
+        "isn't breathing", "isnt breathing", "is not breathing", "choking", "collapsed",
         "my throat is closing", "throat is closing", "throat is swelling",
         "took too many", "took too much", "overdosed", "poisoned", "handful of pills",
         "handful of tablets", "my chest hurts", "my chest is tight", "chest hurts",
@@ -187,6 +270,7 @@ def detect_emergency(question):
         "having a heart attack", "having a stroke", "face is drooping", "slurred speech",
         "can't speak", "sudden weakness on one side", "severe bleeding", "heavy bleeding",
         "won't stop bleeding", "wont stop bleeding", "bleeding heavily", "bleeding a lot",
+        "coughing up blood", "vomiting blood",
         "having a seizure", "having a fit", "convulsion", "unconscious", "unresponsive",
         "passed out", "won't wake", "wont wake", "no pulse", "worst headache", "thunderclap",
     )
@@ -195,10 +279,15 @@ def detect_emergency(question):
     )
     if any(context in q for context in educational_context) and not has_live_medical_cue:
         return None
+
+    # Tier 2: words that also appear in lessons, poems and news. They only mean an emergency when
+    # the question is about a real person rather than a topic.
+    if speaker and any(pattern.search(q) for pattern in CRISIS_WITH_MARKER):
+        return "crisis"
+    if personal_context and CRISIS_DESIRE_TO_DIE.search(q):
+        return "crisis"
     if not personal_context:
         return None
-    if any(phrase in q for phrase in CRISIS_WITH_MARKER):
-        return "crisis"
     if any(phrase in q for phrase in MEDICAL_PHRASES) or any(p.search(q) for p in MEDICAL_PATTERNS):
         return "medical"
     return None
@@ -220,7 +309,11 @@ def is_harmful_request(question):
 
 
 def check(question):
-    """Return a fixed safety action before retrieval, or None for an educational query."""
+    """Return a fixed safety action before retrieval, or None for an educational query.
+
+    This is the public entry point used by the pipeline, the evaluation harness, and the FastAPI
+    service. Normalization happens here, so all three consumers run the same rules on the same
+    normalized text."""
     kind = detect_emergency(question)
     if kind:
         return "emergency", EMERGENCY_RESPONSES[kind]

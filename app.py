@@ -26,7 +26,10 @@ class Source(BaseModel):
 
 class QueryResponse(BaseModel):
     answer: str
-    abstained: bool   # True when the sources did not contain enough relevant evidence
+    abstained: bool   # True when no generated answer was returned to the user
+    # Why it was withheld: "insufficient_evidence" (the threshold), "citation_validation_failed"
+    # (the answer cited nothing usable) or "uncalibrated" (no trusted threshold yet).
+    abstain_reason: str | None = None
     emergency: bool   # True when the question described an emergency (fixed message, no retrieval, no LLM)
     redirected: bool  # True when the question asked for personal medical advice (fixed redirect to a doctor)
     refused: bool     # True when the question requested harmful or deceptive instructions

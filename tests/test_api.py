@@ -32,7 +32,9 @@ class FakePipeline:
         if self.refuse:
             return {**flags, "answer": REFUSAL_MESSAGE, "refused": True, "sources": [], "passages": [], "disclaimer": DISCLAIMER}
         if self.abstain:
-            return {**flags, "answer": ABSTAIN_MESSAGE, "abstained": True, "sources": [], "passages": [], "disclaimer": DISCLAIMER}
+            return {**flags, "answer": ABSTAIN_MESSAGE, "abstained": True,
+                    "abstain_reason": "insufficient_evidence", "sources": [], "passages": [],
+                    "disclaimer": DISCLAIMER}
         return {**flags, "answer": "Fever is a common symptom [1].", "sources": [SOURCE],
                 "passages": [{"text": "internal passage text"}], "disclaimer": DISCLAIMER}
 
@@ -64,15 +66,17 @@ def post_query(pipeline, payload):
 def test_query_returns_answer_sources_and_disclaimer(pipeline):
     status, body = post_query(pipeline, {"question": "  What causes a fever?  "})
     assert status == 200
-    assert body == {"answer": "Fever is a common symptom [1].", "abstained": False, "emergency": False,
-                    "redirected": False, "refused": False, "sources": [SOURCE], "disclaimer": DISCLAIMER}
+    assert body == {"answer": "Fever is a common symptom [1].", "abstained": False, "abstain_reason": None,
+                    "emergency": False, "redirected": False, "refused": False, "sources": [SOURCE],
+                    "disclaimer": DISCLAIMER}
     assert pipeline.questions == ["What causes a fever?"]
 
 
-def test_an_abstention_has_no_sources(pipeline):
+def test_an_abstention_has_no_sources_and_reports_why(pipeline):
     pipeline.abstain = True
     _, body = post_query(pipeline, {"question": "What is the Zelvarin-Moss syndrome?"})
     assert body["abstained"] is True and body["emergency"] is False and body["sources"] == []
+    assert body["abstain_reason"] == "insufficient_evidence"
 
 
 def test_an_emergency_has_no_sources_and_is_flagged(pipeline):

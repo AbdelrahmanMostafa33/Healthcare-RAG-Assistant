@@ -105,6 +105,31 @@ def test_abstention_metrics_handle_missing_denominators():
     assert m["abstention_recall"] is None and m["abstention_precision"] is None and m["over_refusal"] == 0.0
 
 
+def test_abstention_metrics_report_the_scope_and_policy_slice_separately():
+    """Drug and vague-symptom rows are not what the threshold is calibrated against."""
+    expected = ["answer", "insufficient_evidence", "insufficient_evidence"]
+    types = ["consumer", "unanswerable", "medication"]
+    m = ev.abstention_metrics(expected, [False, True, False], types)
+    assert m["abstention_recall"] == pytest.approx(0.5)
+    assert m["policy_scope_abstention"] == 0.0 and m["n_policy_scope"] == 1
+
+
+def test_a_citation_rejection_is_not_a_retrieval_abstention():
+    """Counting it as one turned a single rejected answer into over_refusal = 1.0."""
+    assert ev._retrieval_abstained({"abstained": True, "abstain_reason": "citation_validation_failed"}) is False
+    assert ev._retrieval_abstained({"abstained": True, "abstain_reason": "insufficient_evidence"}) is True
+    assert ev._retrieval_abstained({"abstained": True, "abstain_reason": "uncalibrated"}) is False
+    # results saved before abstain_reason existed still behave sensibly
+    assert ev._retrieval_abstained({"abstained": True, "citation_validation_failed": True}) is False
+    assert ev._retrieval_abstained({"abstained": True}) is True
+
+
+def test_wilson_interval_stays_inside_zero_and_one_for_small_samples():
+    assert ev.wilson_interval(16, 16) == [0.8064, 1.0]
+    assert ev.wilson_interval(0, 16) == [0.0, 0.1936]
+    assert ev.wilson_interval(0, 0) is None
+
+
 # --- judge and scoring -----------------------------------------------------
 
 class FakeJudge:
@@ -177,7 +202,73 @@ def test_malformed_judge_output_is_not_counted_as_an_answer_failure():
     facts, behavior, grading = ev.score_answers(Judge(), QUESTIONS.head(1), {"q1": "Flu."})
     assert facts.empty and behavior.empty
     assert grading["status"].tolist() == ["error"]
-    assert grading.loc[0, "error"] == "ValueError"
+    assert grading.loc[0, "error"].startswith("ValueError: ")
+
+
+def test_one_ungradeable_row_does_not_discard_every_verdict_after_it():
+    """A malformed grade used to stop the judge loop, blanking the whole report."""
+
+    class Judge:
+        model = "fake-judge"
+
+        def __init__(self):
+            self.calls = 0
+
+        def __call__(self, system, user, max_tokens=700):
+            self.calls += 1
+            if self.calls == 1:
+                raise ValueError("judge returned an invalid key-fact verdict")
+            payload = json.loads(user)
+            return {
+                "key_facts": [{"fact": fact, "verdict": "yes"} for fact in payload["key_facts"]],
+                "behavior": {"verdict": "yes", "reason": "ok"},
+            }
+
+    facts, behavior, grading = ev.score_answers(Judge(), QUESTIONS, {"q1": "a", "q2": "b", "q3": "c"})
+    assert grading["status"].tolist() == ["error", "ok", "ok"]
+    assert behavior["id"].tolist() == ["q2", "q3"]
+    assert grading.loc[0, "error"].startswith("ValueError: ")
+
+
+def test_echoed_key_facts_match_ignoring_case_spacing_and_trailing_punctuation():
+    """The judge echoes fact strings; a stray period must not throw away a valid grade."""
+
+    class Judge:
+        model = "fake-judge"
+
+        def __call__(self, system, user, max_tokens=700):
+            return {
+                "key_facts": [
+                    {"fact": "  Caused By A Virus. ", "verdict": "yes"},
+                    {"fact": "spreads\n  easily", "verdict": "partial"},
+                ],
+                "behavior": {"verdict": "yes", "reason": "answered"},
+            }
+
+    facts, behavior, grading = ev.score_answers(Judge(), QUESTIONS.head(1), {"q1": "Flu."})
+    assert grading["status"].tolist() == ["ok"]
+    assert facts["fact"].tolist() == ["Caused by a virus", "Spreads easily"]
+    assert facts["score"].tolist() == [1.0, 0.5]
+
+
+def test_a_key_fact_that_is_not_the_requested_one_is_still_an_error():
+    """Tolerating punctuation must not tolerate grading a different fact."""
+
+    class Judge:
+        model = "fake-judge"
+
+        def __call__(self, system, user, max_tokens=700):
+            return {
+                "key_facts": [
+                    {"fact": "Caused by a virus", "verdict": "yes"},
+                    {"fact": "Caused by a bacterium", "verdict": "yes"},
+                ],
+                "behavior": {"verdict": "yes", "reason": "answered"},
+            }
+
+    facts, behavior, grading = ev.score_answers(Judge(), QUESTIONS.head(1), {"q1": "Flu."})
+    assert facts.empty and behavior.empty
+    assert grading["status"].tolist() == ["error"]
 
 
 def test_score_answers_preserves_partial_grades_when_judge_quota_is_exhausted():
@@ -261,6 +352,58 @@ def test_llm_only_answers_calls_the_gemini_generator_without_sources(monkeypatch
     assert first["model"] == config.GENERATOR_MODEL
     assert first["config"].system_instruction == ev.BASELINE_SYSTEM
     assert first["contents"] == "What is flu?"
+
+
+def test_llm_only_answers_records_a_transient_failure_and_keeps_going(monkeypatch):
+    from google.genai.errors import ServerError
+    from src import retry
+
+    monkeypatch.setattr(retry.time, "sleep", lambda _: None)
+
+    class Client:
+        def __init__(self):
+            self.calls = 0
+            self.models = types.SimpleNamespace(generate_content=self.generate_content)
+
+        def generate_content(self, **kwargs):
+            self.calls += 1
+            if kwargs["contents"] == "What is flu?":
+                raise ServerError(503, {"error": {"code": 503, "message": "busy", "status": "UNAVAILABLE"}})
+            candidate = types.SimpleNamespace(finish_reason="STOP")
+            return types.SimpleNamespace(text="Some answer", candidates=[candidate])
+
+    client = Client()
+    out = ev.llm_only_answers(client, QUESTIONS.head(2))
+    assert out["status"].tolist() == ["error", "ok"]
+    assert out.loc[0, "error"] == (
+        "ProviderTransientFailure: Provider stayed unavailable after 5 transient retries. "
+        "(caused by ServerError (HTTP 503): busy)"
+    )
+    assert client.calls == 7  # six attempts on the first question, then the second question
+    assert out.loc[1, "answer"] == "Some answer"
+
+
+def test_a_transient_server_error_that_recovers_is_not_reported_as_a_failure(monkeypatch):
+    """Retrying the 503 is the point: the row must be graded, not marked as an error."""
+    from google.genai.errors import ServerError
+    from src import retry
+
+    monkeypatch.setattr(retry.time, "sleep", lambda _: None)
+
+    class Client:
+        def __init__(self):
+            self.calls = 0
+            self.models = types.SimpleNamespace(generate_content=self.generate_content)
+
+        def generate_content(self, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                raise ServerError(503, {"error": {"code": 503, "message": "busy", "status": "UNAVAILABLE"}})
+            candidate = types.SimpleNamespace(finish_reason="STOP")
+            return types.SimpleNamespace(text="Some answer", candidates=[candidate])
+
+    out = ev.llm_only_answers(Client(), QUESTIONS.head(1))
+    assert out["status"].tolist() == ["ok"] and out.loc[0, "answer"] == "Some answer"
 
 
 def test_llm_only_answers_stops_and_preserves_quota_failure_rows():
@@ -464,9 +607,9 @@ def test_run_pipeline_batch_stops_after_provider_quota_and_marks_rest_skipped():
     assert "private provider detail" not in str(results)
 
 
-def test_run_pipeline_batch_stops_after_provider_api_errors():
-    import httpx
-    from openai import APIError
+def test_run_pipeline_batch_records_a_provider_api_error_and_keeps_going():
+    """The first row of the dev run raised a 5xx; the old loop skipped all 167 rows after it."""
+    from google.genai.errors import ServerError
 
     class Pipeline:
         def __init__(self):
@@ -474,13 +617,144 @@ def test_run_pipeline_batch_stops_after_provider_api_errors():
 
         def answer(self, question):
             self.questions.append(question)
-            if len(self.questions) == 1:
-                raise APIError("provider unavailable", httpx.Request("POST", "https://example.test"), body=None)
-            return {"answer": "ok", "sources": [], "latency_ms": 1}
+            if question == "one":
+                raise ServerError(503, {"error": {
+                    "code": 503,
+                    "message": "This model is currently experiencing high demand.",
+                    "status": "UNAVAILABLE",
+                }})
+            return {"answer": "ok", "sources": [], "abstained": False, "latency_ms": 1}
 
-    frame = pd.DataFrame({"id": ["q1", "q2"], "question": ["one", "two"]})
+    frame = pd.DataFrame({"id": ["q1", "q2", "q3"], "question": ["one", "two", "three"]})
     pipeline = Pipeline()
     results = ev.run_pipeline_batch(pipeline, frame)
-    assert pipeline.questions == ["one"]
-    assert results["q1"]["error"] == "provider API error: APIError"
-    assert results["q2"]["status"] == "skipped"
+    assert pipeline.questions == ["one", "two", "three"]
+    assert [results[qid]["status"] for qid in frame["id"]] == ["error", "ok", "ok"]
+    assert results["q1"]["error"] == (
+        "ServerError (HTTP 503): This model is currently experiencing high demand."
+    )
+
+
+def test_run_pipeline_batch_records_a_non_provider_failure_without_stopping():
+    class Pipeline:
+        def answer(self, question):
+            if question == "one":
+                raise ValueError("citation validation failed")
+            return {"answer": "ok", "sources": [], "abstained": False, "latency_ms": 1}
+
+    frame = pd.DataFrame({"id": ["q1", "q2"], "question": ["one", "two"]})
+    results = ev.run_pipeline_batch(Pipeline(), frame)
+    assert [results[qid]["status"] for qid in frame["id"]] == ["error", "ok"]
+    assert results["q1"]["error"] == "ValueError: citation validation failed"
+
+
+# --- grounding: faithfulness and key-fact-in-context ------------------------
+
+PASSAGES = {
+    "q1": [{"title": "Flu", "source": "MedQuAD (CDC)", "text": "Flu is caused by influenza viruses."}],
+    "q2": [],   # an abstention has no passages
+    "q3": [],
+}
+
+
+def test_passages_text_numbers_the_evidence_like_the_generator_prompt():
+    text = ev.passages_text(PASSAGES["q1"])
+    assert text.startswith("[1] Flu (MedQuAD (CDC))\nFlu is caused by influenza viruses.")
+    assert ev.passages_text([]) == ""
+
+
+def test_score_faithfulness_is_supported_claims_over_total_claims():
+    """RAGAS faithfulness: no reference answer, only the retrieved passages."""
+
+    class Judge:
+        model = "fake-judge"
+
+        def __init__(self):
+            self.systems = []
+
+        def __call__(self, system, user, max_tokens=900):
+            self.systems.append(system)
+            payload = json.loads(user)
+            assert payload["passages"].startswith("[1] Flu")
+            return {"claims": [
+                {"claim": "Flu is caused by influenza viruses", "supported": "yes"},
+                {"claim": "Flu spreads through the air", "supported": "no"},
+            ]}
+
+    judge = Judge()
+    answers = {"q1": "Flu is caused by viruses [1]. Flu spreads through the air [1].", "q2": "I could not verify that."}
+    scored = ev.score_faithfulness(judge, QUESTIONS, answers, PASSAGES)
+    assert judge.systems == [ev.FAITHFULNESS_SYSTEM]      # the abstention is skipped, not judged
+    row = scored.set_index("id").loc["q1"]
+    assert row["n_claims"] == 2 and row["supported_claims"] == 1
+    assert row["faithfulness"] == pytest.approx(0.5)
+    assert row["unsupported"] == "Flu spreads through the air"
+    assert row["status"] == "ok"
+    # no passages or no answer: skipped, never counted as unfaithful
+    assert scored.set_index("id").loc["q2", "status"] == "skipped"
+    assert pd.isna(scored.set_index("id").loc["q2", "faithfulness"])
+
+
+def test_a_malformed_faithfulness_grade_is_a_row_error_not_a_zero():
+    class Judge:
+        model = "fake-judge"
+
+        def __call__(self, system, user, max_tokens=900):
+            return {"claims": [{"claim": "x", "supported": "maybe"}]}
+
+    scored = ev.score_faithfulness(Judge(), QUESTIONS.head(1), {"q1": "Flu [1]."}, PASSAGES)
+    assert scored.loc[0, "status"] == "error" and scored.loc[0, "faithfulness"] is None
+    assert scored.loc[0, "error"].startswith("ValueError: ")
+
+
+def test_score_key_facts_in_context_grades_only_answerable_rows():
+    class Judge:
+        model = "fake-judge"
+
+        def __call__(self, system, user, max_tokens=900):
+            assert system == ev.KEY_FACT_IN_CONTEXT_SYSTEM
+            payload = json.loads(user)
+            assert payload["key_facts"] == ["Caused by a virus", "Spreads easily"]
+            return {"key_facts": [
+                {"fact": "Caused by a virus", "verdict": "yes"},
+                {"fact": "Spreads easily", "verdict": "partial"},
+            ]}
+
+    scored = ev.score_key_facts_in_context(Judge(), QUESTIONS, PASSAGES)
+    assert scored["id"].tolist() == ["q1"]   # q3 is a safety_redirect row, not answerable
+    assert scored.loc[0, "in_context_rate"] == pytest.approx(0.75)
+    assert scored.loc[0, "facts_in_context"] == 1
+    assert scored.loc[0, "missing"] == ""    # partial counts, only 'no' is listed as missing
+
+
+def test_grounding_metrics_ignore_skipped_rows_and_report_judge_errors():
+    faith = pd.DataFrame({"status": ["ok", "ok", "skipped", "error"], "faithfulness": [1.0, 0.5, None, None]})
+    context = pd.DataFrame({"status": ["ok", "skipped"], "in_context_rate": [0.75, None]})
+    metrics = ev.grounding_metrics(faith, context)
+    assert metrics["faithfulness"] == pytest.approx(0.75)
+    assert metrics["faithfulness_answers"] == 2
+    assert metrics["key_fact_in_context"] == pytest.approx(0.75)
+    assert metrics["key_fact_in_context_questions"] == 1
+    assert metrics["faithfulness_errors"] == 1 and metrics["key_fact_in_context_errors"] == 0
+
+
+def test_grounding_metrics_with_nothing_graded_report_none():
+    empty = ev.grounding_metrics(
+        pd.DataFrame({"status": [], "faithfulness": []}),
+        pd.DataFrame({"status": [], "in_context_rate": []}),
+    )
+    assert empty["faithfulness"] is None and empty["key_fact_in_context"] is None
+
+
+def test_grounding_table_shows_dashes_when_nothing_was_graded():
+    table = ev.grounding_table(ev.grounding_metrics(
+        pd.DataFrame({"status": [], "faithfulness": []}),
+        pd.DataFrame({"status": [], "in_context_rate": []}),
+    ))
+    assert table.loc["Faithfulness (supported claims / claims)", "RAG"] == "-"
+    assert table.loc["Key facts present in retrieved context", "RAG"] == "-"
+
+
+def test_retrieved_passages_by_id_keeps_empty_lists_for_abstentions():
+    mapping = ev.retrieved_passages_by_id({"a": {"passages": []}, "b": {}, "c": {"passages": [{"text": "x"}]}})
+    assert mapping["a"] == [] and mapping["b"] == [] and len(mapping["c"]) == 1

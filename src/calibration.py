@@ -15,12 +15,8 @@ import numpy as np
 import pandas as pd
 
 from src import config, safety
-from src.evaluation import (
-    POLICY_SCOPE_TYPES,
-    TRUE_NO_EVIDENCE_TYPES,
-    choose_threshold,
-    wilson_interval,
-)
+from src.evaluation import choose_threshold
+from src.metrics import POLICY_SCOPE_TYPES, TRUE_NO_EVIDENCE_TYPES, wilson_interval
 
 
 VALID_BEHAVIORS = {"answer", "insufficient_evidence", "emergency", "safety_redirect", "refuse"}

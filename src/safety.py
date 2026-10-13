@@ -116,28 +116,36 @@ HARMFUL_REQUEST_PATTERNS = [re.compile(p) for p in [
     r"(get|obtain|receive)\b.{0,60}\b(prescription|opioids?|painkillers?|controlled drugs?)\b",
 ]]
 
-# Acute-emergency descriptions. They only count together with a personal marker, so
-# "What are the symptoms of a heart attack?" or "What is anaphylaxis?" are answered normally.
-MEDICAL_PHRASES = [
-    "can't breathe", "cant breathe", "cannot breathe", "can not breathe", "unable to breathe",
-    "struggling to breathe", "gasping", "stopped breathing", "not breathing",
-    "isn't breathing", "isnt breathing", "is not breathing", "stopped breathing", "stops breathing",
-    "choking", "collapsed", "was unresponsive",
-    "anaphylaxis", "anaphylactic", "throat is closing", "throat closing", "throat is swelling",
-    "severe allergic reaction", "allergic reaction",
-    "took too many", "took too much", "overdosed", "poisoned",
-    "bottle of pills", "handful of pills", "handful of tablets",
-    "chest pain", "chest pressure", "chest tightness", "chest heaviness", "crushing chest",
-    "chest hurts", "chest is tight", "pain in my chest", "pressure in my chest", "can't feel my arm", "can't feel my left arm",
-    "having a heart attack", "having a stroke", "face drooping", "face is drooping", "face is numb",
-    "slurred speech", "can't speak", "sudden weakness on one side",
-    "severe bleeding", "heavy bleeding", "won't stop bleeding", "wont stop bleeding",
-    "bleeding heavily", "bleeding a lot", "bleeding and it won't stop",
-    "coughing up blood", "vomiting blood",
-    "having a seizure", "having a fit", "convulsion",
-    "unconscious", "unresponsive", "passed out", "won't wake", "wont wake", "no pulse",
-    "worst headache", "thunderclap",
-]
+# One table of cues, so the two checks that use it - does a live cue override explicit
+# educational wording, and does the question describe an acute problem at all - cannot drift
+# apart. True marks a cue that is acute on its own: "I am studying X for class, but I am
+# choking" is still an emergency. False marks topic words that also appear in lessons and news,
+# which only count when the question names a real person ("my chest hurts").
+ACUTE_CUES = {
+    "can't breathe": True, "cant breathe": True, "cannot breathe": True, "unable to breathe": True,
+    "struggling to breathe": True, "gasping": True, "stopped breathing": True, "not breathing": True,
+    "isn't breathing": True, "isnt breathing": True, "is not breathing": True, "choking": True,
+    "collapsed": True, "throat is closing": True, "throat is swelling": True, "took too many": True,
+    "took too much": True, "overdosed": True, "poisoned": True, "handful of pills": True,
+    "handful of tablets": True, "chest hurts": True, "chest is tight": True, "pain in my chest": True,
+    "pressure in my chest": True, "having a heart attack": True, "having a stroke": True, "face is drooping": True,
+    "slurred speech": True, "can't speak": True, "sudden weakness on one side": True, "severe bleeding": True,
+    "heavy bleeding": True, "won't stop bleeding": True, "wont stop bleeding": True, "bleeding heavily": True,
+    "bleeding a lot": True, "coughing up blood": True, "vomiting blood": True, "having a seizure": True,
+    "having a fit": True, "convulsion": True, "unconscious": True, "unresponsive": True,
+    "passed out": True, "won't wake": True, "wont wake": True, "no pulse": True,
+    "worst headache": True, "thunderclap": True, "my throat is closing": True, "my chest hurts": True,
+    "my chest is tight": True, "crushing chest pain": True,
+    "can not breathe": False, "stops breathing": False, "was unresponsive": False, "anaphylaxis": False,
+    "anaphylactic": False, "throat closing": False, "severe allergic reaction": False, "allergic reaction": False,
+    "bottle of pills": False, "chest pain": False, "chest pressure": False, "chest tightness": False,
+    "chest heaviness": False, "crushing chest": False, "can't feel my arm": False, "can't feel my left arm": False,
+    "face drooping": False, "face is numb": False, "bleeding and it won't stop": False,
+}
+
+MEDICAL_PHRASES = tuple(ACUTE_CUES)
+ACUTE_CUES_ONLY = tuple(cue for cue, acute in ACUTE_CUES.items() if acute)
+
 MEDICAL_PATTERNS = [
     # swallowed something dangerous
     re.compile(r"swallowed\b.*\b(pills?|tablets?|capsules?|medicine|medication|batter(y|ies)|bleach|poison|chemicals?|detergent)\b"),
@@ -152,6 +160,18 @@ MEDICAL_PATTERNS = [
     re.compile(r"\b(isn't|isnt|is\s+not|wasn't|wasnt|not|stopped|stops|hasn't|hasnt)\b\s+breathing\b"),
     re.compile(r"\b(can't|cant|cannot|unable\s+to)\s+(breathe|breath)\b"),
 ]
+
+
+def _medical_cue(question: str, only_acute: bool = False) -> bool:
+    """True when the question names an acute cue or matches an acute pattern.
+
+    ``only_acute`` uses the subset that overrides explicit educational wording, so that
+    "I am researching anaphylaxis for a school project" stays a question while "I am researching
+    anaphylaxis, but I cannot breathe" does not."""
+    cues = ACUTE_CUES_ONLY if only_acute else MEDICAL_PHRASES
+    return any(cue in question for cue in cues) or any(p.search(question) for p in MEDICAL_PATTERNS)
+
+
 
 EMERGENCY_RESPONSES = {
     "crisis": (
@@ -256,27 +276,10 @@ def detect_emergency(question):
         "researching", "studying", "writing about", "reading about", "for an assignment",
         "for my assignment", "for my essay", "for my homework", "for a project",
     )
-    # Unambiguous acute symptoms, used to decide whether educational wording excuses a live cue.
-    # Broad topic words such as "anaphylaxis" are deliberately absent here, so that "I am
-    # researching anaphylaxis for a school project" stays a question.
-    live_medical_phrases = (
-        "can't breathe", "cant breathe", "cannot breathe", "unable to breathe",
-        "struggling to breathe", "gasping", "stopped breathing", "not breathing",
-        "isn't breathing", "isnt breathing", "is not breathing", "choking", "collapsed",
-        "my throat is closing", "throat is closing", "throat is swelling",
-        "took too many", "took too much", "overdosed", "poisoned", "handful of pills",
-        "handful of tablets", "my chest hurts", "my chest is tight", "chest hurts",
-        "chest is tight", "crushing chest pain", "pain in my chest", "pressure in my chest",
-        "having a heart attack", "having a stroke", "face is drooping", "slurred speech",
-        "can't speak", "sudden weakness on one side", "severe bleeding", "heavy bleeding",
-        "won't stop bleeding", "wont stop bleeding", "bleeding heavily", "bleeding a lot",
-        "coughing up blood", "vomiting blood",
-        "having a seizure", "having a fit", "convulsion", "unconscious", "unresponsive",
-        "passed out", "won't wake", "wont wake", "no pulse", "worst headache", "thunderclap",
-    )
-    has_live_medical_cue = any(phrase in q for phrase in live_medical_phrases) or any(
-        pattern.search(q) for pattern in MEDICAL_PATTERNS
-    )
+    # Only the acute tier overrides explicit educational wording: topic words such as
+    # "anaphylaxis" are marked False in the table above, so "I am researching
+    # anaphylaxis for a school project" stays a question.
+    has_live_medical_cue = _medical_cue(q, only_acute=True)
     if any(context in q for context in educational_context) and not has_live_medical_cue:
         return None
 
@@ -288,7 +291,7 @@ def detect_emergency(question):
         return "crisis"
     if not personal_context:
         return None
-    if any(phrase in q for phrase in MEDICAL_PHRASES) or any(p.search(q) for p in MEDICAL_PATTERNS):
+    if _medical_cue(q):
         return "medical"
     return None
 

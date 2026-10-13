@@ -7,6 +7,7 @@ import pytest
 
 from src import config
 from src import evaluation as ev
+from src import metrics as mx
 from src.calibration import validate_evaluation_data
 from tests.conftest import FakeClient
 
@@ -94,14 +95,14 @@ def test_evaluation_data_validator_rejects_duplicate_ids_and_missing_answer_key_
 def test_abstention_metrics():
     expected = ["answer", "answer", "answer", "insufficient_evidence", "insufficient_evidence", "emergency"]
     declined = [False, True, False, True, False, False]
-    m = ev.abstention_metrics(expected, declined)
+    m = mx.abstention_metrics(expected, declined)
     assert m["abstention_recall"] == pytest.approx(0.5)       # 1 of 2 unanswerable declined
     assert m["abstention_precision"] == pytest.approx(0.5)    # 1 of 2 declined questions should have been
     assert m["over_refusal"] == pytest.approx(1 / 3)          # 1 of 3 answerable declined
 
 
 def test_abstention_metrics_handle_missing_denominators():
-    m = ev.abstention_metrics(["answer", "answer"], [False, False])
+    m = mx.abstention_metrics(["answer", "answer"], [False, False])
     assert m["abstention_recall"] is None and m["abstention_precision"] is None and m["over_refusal"] == 0.0
 
 
@@ -109,25 +110,25 @@ def test_abstention_metrics_report_the_scope_and_policy_slice_separately():
     """Drug and vague-symptom rows are not what the threshold is calibrated against."""
     expected = ["answer", "insufficient_evidence", "insufficient_evidence"]
     types = ["consumer", "unanswerable", "medication"]
-    m = ev.abstention_metrics(expected, [False, True, False], types)
+    m = mx.abstention_metrics(expected, [False, True, False], types)
     assert m["abstention_recall"] == pytest.approx(0.5)
     assert m["policy_scope_abstention"] == 0.0 and m["n_policy_scope"] == 1
 
 
 def test_a_citation_rejection_is_not_a_retrieval_abstention():
     """Counting it as one turned a single rejected answer into over_refusal = 1.0."""
-    assert ev._retrieval_abstained({"abstained": True, "abstain_reason": "citation_validation_failed"}) is False
-    assert ev._retrieval_abstained({"abstained": True, "abstain_reason": "insufficient_evidence"}) is True
-    assert ev._retrieval_abstained({"abstained": True, "abstain_reason": "uncalibrated"}) is False
+    assert mx._retrieval_abstained({"abstained": True, "abstain_reason": "citation_validation_failed"}) is False
+    assert mx._retrieval_abstained({"abstained": True, "abstain_reason": "insufficient_evidence"}) is True
+    assert mx._retrieval_abstained({"abstained": True, "abstain_reason": "uncalibrated"}) is False
     # results saved before abstain_reason existed still behave sensibly
-    assert ev._retrieval_abstained({"abstained": True, "citation_validation_failed": True}) is False
-    assert ev._retrieval_abstained({"abstained": True}) is True
+    assert mx._retrieval_abstained({"abstained": True, "citation_validation_failed": True}) is False
+    assert mx._retrieval_abstained({"abstained": True}) is True
 
 
 def test_wilson_interval_stays_inside_zero_and_one_for_small_samples():
-    assert ev.wilson_interval(16, 16) == [0.8064, 1.0]
-    assert ev.wilson_interval(0, 16) == [0.0, 0.1936]
-    assert ev.wilson_interval(0, 0) is None
+    assert mx.wilson_interval(16, 16) == [0.8064, 1.0]
+    assert mx.wilson_interval(0, 16) == [0.0, 0.1936]
+    assert mx.wilson_interval(0, 0) is None
 
 
 # --- judge and scoring -----------------------------------------------------
@@ -456,16 +457,16 @@ BEHAVIOR = pd.DataFrame({"expected": ["answer", "answer", "emergency"], "ok": [T
 
 
 def test_summarize():
-    s = ev.summarize(FACTS, BEHAVIOR, latency_ms=2500)
+    s = mx.summarize(FACTS, BEHAVIOR, latency_ms=2500)
     assert s["key_fact_coverage"] == pytest.approx(0.5)
     assert s["coverage_by_type"] == {"consumer": 0.75, "research": 0.0}
     assert s["behavior"] == {"answer": "1/2", "emergency": "1/1"} and s["latency_s"] == 2.5
 
 
 def test_comparison_table_has_one_row_per_metric_and_dashes_for_missing_values():
-    base = ev.summarize(FACTS, BEHAVIOR, 1000)
-    rag = ev.summarize(FACTS.iloc[:0], BEHAVIOR, 3000)   # no facts at all
-    table = ev.comparison_table(base, rag, {"abstention_recall": 0.9, "abstention_precision": None, "over_refusal": 0.25})
+    base = mx.summarize(FACTS, BEHAVIOR, 1000)
+    rag = mx.summarize(FACTS.iloc[:0], BEHAVIOR, 3000)   # no facts at all
+    table = mx.comparison_table(base, rag, {"abstention_recall": 0.9, "abstention_precision": None, "over_refusal": 0.25})
     assert list(table.columns) == ["LLM-only", "RAG"]
     assert table.loc["Key-fact coverage"].tolist() == ["0.500", "-"]
     assert table.loc["Behaviour pass: answer"].tolist() == ["1/2", "1/2"]
@@ -474,12 +475,12 @@ def test_comparison_table_has_one_row_per_metric_and_dashes_for_missing_values()
 
 
 def test_md_table():
-    text = ev.md_table(pd.DataFrame({"a": [1]}, index=["row"]), "Metric")
+    text = mx.md_table(pd.DataFrame({"a": [1]}, index=["row"]), "Metric")
     assert text.splitlines() == ["| Metric | a |", "|---|---|", "| row | 1 |"]
 
 
 def test_citation_metrics_report_valid_refs_and_fail_closed_rejections():
-    metrics = ev.citation_metrics({
+    metrics = mx.citation_metrics({
         "good": {"answer": "Statement [1].", "sources": [{"n": 1}], "abstained": False},
         "bad": {"answer": "I couldn't verify the answer.", "sources": [], "abstained": True,
                 "citation_validation_failed": True},
@@ -492,7 +493,7 @@ def test_citation_metrics_report_valid_refs_and_fail_closed_rejections():
 
 
 def test_citation_metrics_accept_non_contiguous_prompt_citation_ids():
-    metrics = ev.citation_metrics({
+    metrics = mx.citation_metrics({
         "answer": {"answer": "Claim [4].", "sources": [{"n": 4, "title": "Source"}], "abstained": False},
     })
     assert metrics["valid_reference_rate"] == 1.0
@@ -730,7 +731,7 @@ def test_score_key_facts_in_context_grades_only_answerable_rows():
 def test_grounding_metrics_ignore_skipped_rows_and_report_judge_errors():
     faith = pd.DataFrame({"status": ["ok", "ok", "skipped", "error"], "faithfulness": [1.0, 0.5, None, None]})
     context = pd.DataFrame({"status": ["ok", "skipped"], "in_context_rate": [0.75, None]})
-    metrics = ev.grounding_metrics(faith, context)
+    metrics = mx.grounding_metrics(faith, context)
     assert metrics["faithfulness"] == pytest.approx(0.75)
     assert metrics["faithfulness_answers"] == 2
     assert metrics["key_fact_in_context"] == pytest.approx(0.75)
@@ -739,7 +740,7 @@ def test_grounding_metrics_ignore_skipped_rows_and_report_judge_errors():
 
 
 def test_grounding_metrics_with_nothing_graded_report_none():
-    empty = ev.grounding_metrics(
+    empty = mx.grounding_metrics(
         pd.DataFrame({"status": [], "faithfulness": []}),
         pd.DataFrame({"status": [], "in_context_rate": []}),
     )
@@ -747,7 +748,7 @@ def test_grounding_metrics_with_nothing_graded_report_none():
 
 
 def test_grounding_table_shows_dashes_when_nothing_was_graded():
-    table = ev.grounding_table(ev.grounding_metrics(
+    table = mx.grounding_table(mx.grounding_metrics(
         pd.DataFrame({"status": [], "faithfulness": []}),
         pd.DataFrame({"status": [], "in_context_rate": []}),
     ))

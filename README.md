@@ -131,7 +131,8 @@ src/provider_clients.py        Gemini generator and Groq judge clients
 src/retry.py                   bounded retries for transient rate limits and 5xx failures
 src/pipeline.py                shared safety/retrieval/abstention/generation flow
 src/calibration.py             dev-only threshold calibration
-src/evaluation.py              batching, scoring, judge, and report helpers
+src/evaluation.py              batching, comparing and saving evaluation runs
+src/metrics.py                 pure scoring over saved rows: coverage, abstention, grounding, intervals
 notebooks/                     data, index, pipeline walkthrough, evaluation
 data/eval/                     hand-authored labels, splits and safety probes
 tests/                         local unit, API and safety-probe tests

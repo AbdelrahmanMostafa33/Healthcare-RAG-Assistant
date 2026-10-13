@@ -12,8 +12,31 @@ def test_clean_text_removes_html_tags_but_keeps_clinical_symbols():
     assert kb.clean_text("dose < 5 mg and BP <120") == "dose < 5 mg and BP <120"
 
 
-def test_strip_boilerplate_cuts_at_first_marker():
+def test_strip_boilerplate_drops_a_trailing_navigation_block():
     assert kb.strip_boilerplate("Real answer. Top of Page Related Pages junk") == "Real answer."
+
+
+def test_strip_boilerplate_keeps_a_marker_inside_the_answer():
+    """A mid-answer marker introduces more content; 57 raw answers lost text to the old rule."""
+    text = "Treatment works. Go to: the emergency room if the pain persists."
+    assert kb.strip_boilerplate(text) == text
+    # The real shape: the marker sits early, and the answer keeps going after it.
+    long_answer = "More on: Prevention & Control A lice comb helps. " + "More detail about lice follows. " * 40
+    assert "More on:" in kb.strip_boilerplate(long_answer)
+
+
+def test_strip_boilerplate_cuts_a_marker_in_the_last_quarter_even_if_a_sentence_follows():
+    """The copyright notice after 'Top of Page' is boilerplate even though it is prose."""
+    text = "Vaccines protect children. " * 20 + "Top of Page Images and logos on this website are not public domain."
+    assert "Top of Page" not in kb.strip_boilerplate(text)
+
+
+def test_strip_boilerplate_reports_how_much_it_removed():
+    removed = []
+    kb.strip_boilerplate("Real answer. Top of Page junk", removed_stats=removed)
+    assert removed == [len("Top of Page junk")]
+    kb.strip_boilerplate("An answer with no marker at all.", removed_stats=removed)
+    assert removed == [len("Top of Page junk")]   # nothing dropped, nothing recorded
 
 
 def test_html_to_text_parses_lists_and_entities():
@@ -83,6 +106,38 @@ def test_medlineplus_to_kb_table():
     table = kb.build_kb(kb.prepare_medquad(raw_medquad()), medline)
     assert table["doc_id"].tolist() == list(range(len(table)))
     assert list(table.columns) == kb.KB_COLUMNS
+
+
+# --- MedQuAD/MedlinePlus deduplication ---
+
+def test_medlineplus_slug_reads_both_url_forms():
+    """MedQuAD links to the old host; the official XML uses medlineplus.gov."""
+    assert kb.medlineplus_slug("https://www.nlm.nih.gov/medlineplus/DiabetesType2.html") == "diabetestype2"
+    assert kb.medlineplus_slug("https://medlineplus.gov/diabetestype2.html") == "diabetestype2"
+    assert kb.medlineplus_slug("") == ""
+
+
+def test_build_kb_drops_a_medquad_topic_the_official_medlineplus_xml_already_has():
+    medquad = pd.DataFrame({
+        "source": ["MedQuAD (MPlusHealthTopics)", "MedQuAD (MPlusHealthTopics)", "MedQuAD (NIDDK)"],
+        "title": ["Asthma", "Gout", "Diabetes"],
+        "url": ["https://www.nlm.nih.gov/medlineplus/asthma.html",
+                "https://www.nlm.nih.gov/medlineplus/gout.html",
+                "https://www.niddk.nih.gov/diabetes"],
+        "question": ["What is Asthma?", "What is Gout?", "What is Diabetes?"],
+        "text": ["Asthma answer.", "Gout answer.", "Diabetes answer."],
+    })
+    medline = pd.DataFrame({
+        "source": ["MedlinePlus"], "title": ["Asthma"], "url": ["https://medlineplus.gov/asthma.html"],
+        "question": ["What is Asthma?"], "text": ["Asthma summary."],
+    })
+    table = kb.build_kb(medquad, medline)
+    questions = table["question"].tolist()
+    assert questions.count("What is Asthma?") == 1          # the duplicate MedQuAD row is gone
+    assert table.loc[table["question"] == "What is Asthma?", "source"].tolist() == ["MedlinePlus"]
+    assert "What is Gout?" in questions                     # no XML twin: MedQuAD row is kept
+    assert "What is Diabetes?" in questions                 # a non-MedlinePlus publisher is never touched
+    assert table["doc_id"].tolist() == list(range(len(table)))
 
 
 # --- chunking ---
@@ -170,6 +225,18 @@ def test_index_and_chunk_table_survive_a_save_and_load(index_files):
     assert loaded_chunks["title"].tolist() == chunks["title"].tolist()
     assert loaded_chunks["url"].tolist() == [""] * 6
     assert loaded_index.search(vectors[2:3], 1)[1][0][0] == 2
+
+
+def test_loading_warns_instead_of_rejecting_a_library_version_change(index_files, caplog):
+    """A torch patch release must not brick a built index; a model or revision change still does."""
+    index, chunks, _ = index_and_chunks()
+    kb.save_index(index, chunks)
+    manifest = __import__("json").loads(config.INDEX_MANIFEST_PATH.read_text(encoding="utf-8"))
+    manifest["model_runtime_versions"] = {"sentence-transformers": "0.0.0"}
+    config.INDEX_MANIFEST_PATH.write_text(__import__("json").dumps(manifest), encoding="utf-8")
+    loaded_index, loaded_chunks = kb.load_index()
+    assert loaded_index.ntotal == len(loaded_chunks) == 6
+    assert "different library versions" in caplog.text
 
 
 def test_loading_rejects_a_changed_processed_knowledge_base(index_files, tmp_path, monkeypatch):

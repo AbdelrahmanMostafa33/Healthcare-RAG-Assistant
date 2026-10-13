@@ -102,6 +102,26 @@ def test_rotator_turns_all_key_daily_quota_failures_into_a_bounded_stop():
     assert "key-a" not in str(error.value) and "key-b" not in str(error.value)
 
 
+def test_gemini_client_waits_far_longer_than_a_healthy_response(monkeypatch):
+    """Measured calls took 58-131 s, so a 60 s client timeout turned queuing into a 504."""
+    import src.provider_clients as providers
+    from src import config
+
+    monkeypatch.setenv("GOOGLE_API_KEY", "google-key")
+    seen = {}
+
+    def fake_client(**kwargs):
+        seen.update(kwargs)
+        return SimpleNamespace(models=SimpleNamespace(generate_content=lambda **call: call))
+
+    monkeypatch.setattr(providers.genai, "Client", fake_client)
+    client = providers.make_generator_client()
+    client.models.generate_content(model="test-model")
+    assert seen["http_options"].timeout == config.GENERATOR_TIMEOUT_MS
+    assert config.GENERATOR_TIMEOUT_MS >= 180_000
+    assert seen["http_options"].retry_options.attempts == 1
+
+
 def test_rotator_does_not_switch_keys_for_unrelated_client_errors():
     calls = []
 

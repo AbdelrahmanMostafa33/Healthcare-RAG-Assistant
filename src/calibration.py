@@ -1,4 +1,12 @@
-"""Small, reproducible calibration helpers for the evidence-abstention threshold."""
+"""Small, reproducible calibration helpers for the evidence-abstention threshold.
+
+The threshold answers one question: does the knowledge base hold evidence for this? So it is
+calibrated only on questions the base genuinely cannot answer - invented conditions and questions
+that need live data. The other declined rows are scope and policy cases (drug dosing, vague
+personal symptoms, out-of-scope research) whose retrieval scores overlap the answerable ones; left
+in the negative set they force the threshold up and refuse answerable questions. They are measured
+and reported as their own slice instead.
+"""
 import json
 import os
 from datetime import date
@@ -7,10 +15,16 @@ import numpy as np
 import pandas as pd
 
 from src import config, safety
-from src.evaluation import choose_threshold
+from src.evaluation import (
+    POLICY_SCOPE_TYPES,
+    TRUE_NO_EVIDENCE_TYPES,
+    choose_threshold,
+    wilson_interval,
+)
 
 
 VALID_BEHAVIORS = {"answer", "insufficient_evidence", "emergency", "safety_redirect", "refuse"}
+
 
 
 def validate_evaluation_data(questions: pd.DataFrame) -> None:
@@ -57,14 +71,15 @@ def score_dev_questions(retriever, questions: pd.DataFrame) -> pd.DataFrame:
         else:
             passages = retriever.retrieve(row.question)
             score = passages[0]["rerank_score"] if passages else np.nan
-        rows.append({"id": row.id, "split": row.split, "expected_behavior": row.expected_behavior,
+        rows.append({"id": row.id, "split": row.split, "type": row.type,
+                     "expected_behavior": row.expected_behavior,
                      "question": row.question, "best_score": score})
     return pd.DataFrame(rows)
 
 
 def calibration_from_scores(scores: pd.DataFrame, min_abstention_recall=0.90) -> dict:
     """Select a threshold from precomputed dev scores and attach compatibility fingerprints."""
-    required = {"id", "split", "expected_behavior", "best_score"}
+    required = {"id", "split", "type", "expected_behavior", "best_score"}
     missing = required - set(scores.columns)
     if missing:
         raise ValueError(f"Scored questions are missing columns: {sorted(missing)}")
@@ -78,8 +93,14 @@ def calibration_from_scores(scores: pd.DataFrame, min_abstention_recall=0.90) ->
         raise ValueError(f"Unknown or missing expected_behavior labels: {sorted(unknown)}")
     scored = scores.dropna(subset=["best_score"])
     answerable = scored.loc[scored["expected_behavior"] == "answer", "best_score"]
-    unanswerable = scored.loc[scored["expected_behavior"] == "insufficient_evidence", "best_score"]
-    result = choose_threshold(answerable, unanswerable, min_abstention_recall=min_abstention_recall)
+    declined = scored.loc[scored["expected_behavior"] == "insufficient_evidence"]
+    no_evidence = declined.loc[declined["type"].isin(TRUE_NO_EVIDENCE_TYPES), "best_score"]
+    if no_evidence.empty:
+        raise ValueError(
+            "No insufficient_evidence rows of type "
+            f"{sorted(TRUE_NO_EVIDENCE_TYPES)} were scored, so the threshold cannot be calibrated"
+        )
+    result = choose_threshold(answerable, no_evidence, min_abstention_recall=min_abstention_recall)
     metadata = config.calibration_metadata()
     if any(value is None for value in metadata.values()):
         raise RuntimeError("Cannot save calibration: evaluation file or built index manifest is missing")
@@ -87,7 +108,20 @@ def calibration_from_scores(scores: pd.DataFrame, min_abstention_recall=0.90) ->
         **result,
         **metadata,
         "rule": (f"lowest threshold keeping abstention recall >= {min_abstention_recall:.2f} "
-                 "on the dev split; threshold is frozen before final test evaluation"),
+                 f"on dev questions the base has no evidence for (types {sorted(TRUE_NO_EVIDENCE_TYPES)}); "
+                 "scope/policy questions are reported separately, not calibrated on; "
+                 "threshold is frozen before final test evaluation"),
+        "negatives_calibrated_on": ["true_no_evidence"],
+        "negatives_excluded": ["policy_scope"],
+        "answerable_answered_fraction": result["answerable_answered"],
+        "answerable_answered_ci95": wilson_interval(
+            round(result["answerable_answered"] * result["n_answerable"]), result["n_answerable"]
+        ),
+        "no_evidence_abstained_ci95": wilson_interval(
+            round(result["unanswerable_abstained"] * result["n_unanswerable"]), result["n_unanswerable"]
+        ),
+        "scored_by_expected_behavior": scored.groupby("expected_behavior").size().to_dict(),
+        "scored_by_type": scored.groupby("type").size().to_dict(),
         "calibrated_on": "dev",
         "dev_questions_scored": int(len(scored)),
         "dev_question_ids": scored["id"].astype(str).tolist(),

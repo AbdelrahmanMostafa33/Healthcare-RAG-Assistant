@@ -18,6 +18,7 @@ from src.retry import (
     ProviderQuotaExceeded,
     is_hard_quota_exhaustion,
     retry_after_seconds,
+    status_code,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,16 +30,6 @@ def api_keys(env_name: str) -> list[str]:
     if not values:
         raise RuntimeError(f"{env_name} is not set. Copy .env.example to .env and add an API key.")
     return values
-
-
-def _status_code(error: Exception) -> int | None:
-    value = getattr(error, "status_code", None)
-    if value is None:
-        value = getattr(error, "code", None)
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
 
 
 class RotatingCredentialCall:
@@ -101,7 +92,7 @@ class RotatingCredentialCall:
             try:
                 result = self._operation(self._client_for(index), *args, **kwargs)
             except Exception as error:
-                status = _status_code(error)
+                status = status_code(error)
                 hard_quota = is_hard_quota_exhaustion(error)
                 should_rotate = status in (401, 429) or (status == 403 and hard_quota)
                 if not should_rotate:
@@ -135,7 +126,7 @@ class RotatingCredentialCall:
         if errors:
             transient_limits = [
                 error for error in errors
-                if _status_code(error) == 429 and not is_hard_quota_exhaustion(error)
+                if status_code(error) == 429 and not is_hard_quota_exhaustion(error)
             ]
             if transient_limits:
                 raise transient_limits[-1]
@@ -160,7 +151,7 @@ def make_generator_client():
         return genai.Client(
             api_key=key,
             http_options=types.HttpOptions(
-                timeout=60_000,
+                timeout=config.GENERATOR_TIMEOUT_MS,
                 retry_options=types.HttpRetryOptions(attempts=1),
             ),
         )

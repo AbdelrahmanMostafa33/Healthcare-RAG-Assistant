@@ -37,6 +37,8 @@ def test_generate_makes_one_grounded_gemini_call_with_the_configured_model(monke
     assert call["model"] == config.GENERATOR_MODEL
     assert call["config"].system_instruction == SYSTEM_PROMPT
     assert call["config"].max_output_tokens == config.MAX_TOKENS
+    assert call["config"].temperature == config.GENERATOR_TEMPERATURE
+    assert call["config"].temperature == 0.0   # evaluation must be reproducible
     assert call["config"].thinking_config.thinking_level.value.lower() == config.GEMINI_THINKING_LEVEL
     assert "Evidence passages:" in call["contents"] and "Question: What is diabetes?" in call["contents"]
 
@@ -128,3 +130,35 @@ def test_citation_validation_requires_citations_that_reference_supplied_passages
 
 def test_citation_numbers_are_unique_and_keep_first_use_order():
     assert citation_numbers("First [2], then [1], then [2].") == [2, 1]
+
+
+@pytest.mark.parametrize("answer, expected", [
+    ("Fever [1].", [1]),
+    ("Fever [1, 2].", [1, 2]),
+    ("Fever [1,2].", [1, 2]),
+    ("Fever [1, 2, 3].", [1, 2, 3]),
+    ("Fever [1-3].", [1, 2, 3]),
+    ("Fever [1 - 3].", [1, 2, 3]),
+    ("Fever [2-3], cough [1].", [2, 3, 1]),
+])
+def test_citation_lists_and_ranges_are_expanded(answer, expected):
+    """Models write lists and ranges; both name the same passages as a bare [n]."""
+    assert citation_numbers(answer) == expected
+    assert citations_are_valid(answer, PASSAGES)
+
+
+def test_a_bracketed_year_is_not_a_citation_of_a_supplied_passage():
+    """[2024] is a year, not source 2024, and must not reject an otherwise cited answer."""
+    answer = "In 2024 the guidance changed [2024]. Fever is common [1]."
+    assert citation_numbers(answer, len(PASSAGES)) == [1]
+    assert citations_are_valid(answer, PASSAGES)
+
+
+def test_a_citation_outside_the_prompt_range_is_still_rejected():
+    assert not citations_are_valid("A claim [3].", PASSAGES)
+    assert not citations_are_valid("A claim [2024].", PASSAGES)
+    assert citation_numbers("A claim [1-4].", len(PASSAGES)) == [1, 2]
+
+
+def test_an_absurd_range_does_not_expand_into_a_huge_list():
+    assert citation_numbers("A claim [1-999999].", 5) == []

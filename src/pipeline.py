@@ -63,27 +63,40 @@ class RAGPipeline:
             return self._result(ABSTAIN_MESSAGE, start, abstained=True,
                                 abstain_reason=ABSTAIN_UNCALIBRATED)
 
+        # FAISS finds candidates first; the cross-encoder then ranks the evidence for this question.
+        retrieval_started = time.perf_counter()
         passages = self.retriever.retrieve(question)
+        retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
         top_score = passages[0]["rerank_score"] if passages else None
 
         if top_score is None or top_score < self.threshold:
             return self._result(ABSTAIN_MESSAGE, start, abstained=True, top_score=top_score,
-                                abstain_reason=ABSTAIN_INSUFFICIENT_EVIDENCE)
+                                abstain_reason=ABSTAIN_INSUFFICIENT_EVIDENCE,
+                                retrieval_ms=retrieval_ms, retrieved_passages=passages)
 
+        generation_started = time.perf_counter()
         answer = generate(self.client, question, passages)
+        generation_ms = (time.perf_counter() - generation_started) * 1000
         if not citations_are_valid(answer, passages):
             # Do not expose an answer with missing or impossible source references.
             return self._result(ABSTAIN_MESSAGE, start, abstained=True, top_score=top_score,
                                 citation_validation_failed=True,
-                                abstain_reason=ABSTAIN_CITATION_VALIDATION_FAILED)
+                                abstain_reason=ABSTAIN_CITATION_VALIDATION_FAILED,
+                                retrieval_ms=retrieval_ms, generation_ms=generation_ms,
+                                retrieved_passages=passages)
         return self._result(answer, start, passages=passages,
-                            cited_numbers=citation_numbers(answer, len(passages)), top_score=top_score)
+                            cited_numbers=citation_numbers(answer, len(passages)), top_score=top_score,
+                            retrieval_ms=retrieval_ms, generation_ms=generation_ms)
 
     @staticmethod
     def _result(answer, start, abstained=False, emergency=False, redirected=False, refused=False,
                 passages=(), top_score=None, citation_validation_failed=False, cited_numbers=None,
-                abstain_reason=None):
+                abstain_reason=None, retrieval_ms=None, generation_ms=None,
+                retrieved_passages=None):
         passages = list(passages)
+        # Retrieved passages are kept separately from the passages a generated answer cites, so an
+        # abstention or a rejected answer still records the evidence it actually retrieved.
+        retrieved = list(passages if retrieved_passages is None else retrieved_passages)
         cited_numbers = list(range(1, len(passages) + 1)) if cited_numbers is None else cited_numbers
         return {
             "answer": answer,
@@ -97,7 +110,11 @@ class RAGPipeline:
             "sources": [{"n": n, "source": passages[n - 1]["source"], "title": passages[n - 1]["title"],
                          "url": passages[n - 1]["url"]} for n in cited_numbers],
             "passages": passages,
+            "retrieved_passages": retrieved,
+            "passage_count": len(retrieved),
             "top_score": top_score,
+            "retrieval_ms": round(retrieval_ms, 1) if retrieval_ms is not None else None,
+            "generation_ms": round(generation_ms, 1) if generation_ms is not None else None,
             "latency_ms": round((time.perf_counter() - start) * 1000, 1),
             "disclaimer": DISCLAIMER,
         }

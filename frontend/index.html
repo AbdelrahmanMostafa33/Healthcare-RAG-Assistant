@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4faf9">
+    <meta name="description" content="A source-grounded health information assistant built as an educational AI engineering project.">
+    <title>Healthcare RAG Assistant</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=4">
+    <script src="/assets/app.js?v=3" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#demo">Skip to the live demo</a>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Healthcare RAG Assistant home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="brand-copy"><strong>Care<span>Source</span></strong><small>HEALTHCARE RAG ASSISTANT</small></span>
+      </a>
+      <nav class="header-nav" aria-label="Main navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="/docs" target="_blank" rel="noopener noreferrer">API docs <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-dot"></span> AN AI ENGINEERING PORTFOLIO PROJECT</p>
+          <h1 id="hero-title">Health information,<br><em>with its sources.</em></h1>
+          <p class="hero-description">Ask a general health question and explore how retrieval, evidence checks, and safety rules work together in a simple RAG assistant.</p>
+          <a class="text-link" href="#demo">Try the live demo <span aria-hidden="true">↓</span></a>
+          <div class="hero-note"><span class="note-icon" aria-hidden="true">i</span><p>For education only. The assistant cannot diagnose, prescribe, or replace a healthcare professional.</p></div>
+        </div>
+
+        <section class="demo-card" id="demo" aria-labelledby="demo-title">
+          <div class="demo-heading">
+            <div>
+              <p class="eyebrow">INTERACTIVE DEMO</p>
+              <h2 id="demo-title">Ask a question</h2>
+            </div>
+            <span class="service-status waiting" id="service-status" role="status" aria-live="polite">
+              <span class="status-dot" aria-hidden="true"></span><span id="service-status-text">Connecting</span>
+            </span>
+          </div>
+
+          <form id="question-form">
+            <label for="question">Your question</label>
+            <textarea id="question" name="question" rows="3" minlength="3" maxlength="1000" required placeholder="For example: What are common symptoms of type 2 diabetes?"></textarea>
+            <div class="input-meta"><span>General health education only</span><span id="character-count">0 / 1,000</span></div>
+            <button class="submit-button" id="submit-button" type="submit" disabled>
+              <span>Ask the assistant</span><span class="button-arrow" aria-hidden="true">→</span>
+            </button>
+          </form>
+
+          <div class="examples" aria-label="Example questions">
+            <span class="examples-label">Try an example</span>
+            <div class="example-list">
+              <button class="example-chip" type="button" data-question="What are common symptoms of type 2 diabetes?">Type 2 diabetes</button>
+              <button class="example-chip" type="button" data-question="What is asthma?">What is asthma?</button>
+              <button class="example-chip" type="button" data-question="I have sudden, severe chest pain">Safety check</button>
+            </div>
+          </div>
+
+          <section class="response" id="response" aria-labelledby="response-heading" aria-live="polite" aria-busy="false">
+            <div class="response-topline"><span class="response-icon" aria-hidden="true">✳</span><h3 id="response-heading">Assistant response</h3><span class="response-label" id="response-label">READY WHEN YOU ARE</span></div>
+            <p class="response-placeholder" id="response-placeholder">Your answer and cited sources will appear here.</p>
+            <p class="response-message" id="response-message" hidden></p>
+            <div class="answer-text" id="answer-text" hidden></div>
+            <div class="sources" id="sources" hidden>
+              <h4>Sources</h4>
+              <p class="sources-note">Excerpts show the stored passages used for this answer. Older source pages may have moved.</p>
+              <ul id="source-list"></ul>
+            </div>
+            <p class="answer-disclaimer" id="answer-disclaimer" hidden></p>
+          </section>
+        </section>
+      </section>
+
+      <section class="how-section" id="how-it-works" aria-labelledby="how-title">
+        <div class="section-heading">
+          <p class="eyebrow">BEHIND THE ANSWER</p>
+          <h2 id="how-title">A small pipeline, with clear checks.</h2>
+          <p>Each stage has one job, so it is easier to follow how an answer was produced.</p>
+        </div>
+        <div class="steps">
+          <article class="step-card"><span class="step-number">01</span><div class="step-symbol" aria-hidden="true">⌕</div><h3>Find evidence</h3><p>FAISS finds relevant passages from the curated health information collection.</p></article>
+          <article class="step-card"><span class="step-number">02</span><div class="step-symbol" aria-hidden="true">↗</div><h3>Check relevance</h3><p>A reranker selects the strongest passages. Weak or uncalibrated evidence leads to an abstention.</p></article>
+          <article class="step-card"><span class="step-number">03</span><div class="step-symbol" aria-hidden="true">✓</div><h3>Answer with care</h3><p>The answer is grounded in retrieved sources, with citation IDs checked before it is shown.</p></article>
+        </div>
+      </section>
+
+      <section class="notice" aria-label="Important health information notice">
+        <span class="notice-mark" aria-hidden="true">!</span>
+        <div><strong>This is not a clinical tool.</strong><p>Safety checks are simple keyword rules. In the current unseen-phrasing probe, they escalated 3 of 41 crisis, medical, and ingestion examples, so they miss many rephrasings. Do not use this demo for triage, diagnosis, treatment, urgent care, or personal health decisions. If you may be experiencing an emergency, contact local emergency services.</p></div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><span>Built as an educational AI engineering project.</span><a href="https://github.com/AbdelrahmanMostafa33/Healthcare-RAG-Assistant" target="_blank" rel="noopener noreferrer">Source code <span aria-hidden="true">↗</span></a></footer>
+  </body>
+</html>

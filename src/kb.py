@@ -214,6 +214,7 @@ def split_text(text, max_chars=None):
         if current and len(" ".join(current + [sentence])) > max_chars:
             chunks.append(" ".join(current))
             last = current[-1]
+            # Repeat one short sentence at chunk boundaries to keep nearby context together.
             fits = len(last) <= config.CHUNK_OVERLAP_CHARS and len(last) + 1 + len(sentence) <= max_chars
             current = [last] if fits else []
         current.append(sentence)

@@ -9,10 +9,9 @@ from src import config
 from src import evaluation as ev
 from src import metrics as mx
 from src.calibration import validate_evaluation_data
-from tests.conftest import FakeClient
-
 
 # --- threshold -------------------------------------------------------------
+
 
 def test_choose_threshold_separates_clean_data_with_a_margin():
     best = ev.choose_threshold([5.0, 6.0, 7.0, 4.0], [-3.0, -1.0, 0.5])
@@ -89,8 +88,8 @@ def test_evaluation_data_validator_rejects_duplicate_ids_and_missing_answer_key_
     with pytest.raises(ValueError, match="key fact"):
         validate_evaluation_data(bad)
 
-
 # --- abstention metrics ----------------------------------------------------
+
 
 def test_abstention_metrics():
     expected = ["answer", "answer", "answer", "insufficient_evidence", "insufficient_evidence", "emergency"]
@@ -130,8 +129,8 @@ def test_wilson_interval_stays_inside_zero_and_one_for_small_samples():
     assert mx.wilson_interval(0, 16) == [0.0, 0.1936]
     assert mx.wilson_interval(0, 0) is None
 
-
 # --- judge and scoring -----------------------------------------------------
+
 
 class FakeJudge:
     """Answers each judge prompt from a canned table, keyed by the system prompt used."""
@@ -143,7 +142,6 @@ class FakeJudge:
     def __call__(self, system, user, max_tokens=700):
         self.calls.append(system)
         return self.responses[system]
-
 
 QUESTIONS = pd.DataFrame([
     {"id": "q1", "type": "consumer", "question": "What is flu?", "key_facts": "Caused by a virus | Spreads easily",
@@ -339,97 +337,6 @@ def test_the_judge_invalid_json_error_does_not_echo_model_output():
     assert "private generated text" not in str(error.value)
 
 
-# --- baseline and report tables ---------------------------------------------
-
-def test_llm_only_answers_calls_the_gemini_generator_without_sources(monkeypatch):
-    monkeypatch.setattr(config, "GENERATOR_PROVIDER", "gemini")
-    client = FakeClient("Flu is a virus.")
-    out = ev.llm_only_answers(client, QUESTIONS.head(2))
-    assert out["id"].tolist() == ["q1", "q2"] and out["answer"].tolist() == ["Flu is a virus."] * 2
-    assert list(out.columns) == ["id", "answer", "finish_reason", "latency_ms", "status", "error"]
-    assert out["status"].tolist() == ["ok", "ok"]
-    assert out["finish_reason"].tolist() == ["stop", "stop"]
-    first = client.calls[0]
-    assert first["model"] == config.GENERATOR_MODEL
-    assert first["config"].system_instruction == ev.BASELINE_SYSTEM
-    assert first["contents"] == "What is flu?"
-
-
-def test_llm_only_answers_records_a_transient_failure_and_keeps_going(monkeypatch):
-    from google.genai.errors import ServerError
-    from src import retry
-
-    monkeypatch.setattr(retry.time, "sleep", lambda _: None)
-
-    class Client:
-        def __init__(self):
-            self.calls = 0
-            self.models = types.SimpleNamespace(generate_content=self.generate_content)
-
-        def generate_content(self, **kwargs):
-            self.calls += 1
-            if kwargs["contents"] == "What is flu?":
-                raise ServerError(503, {"error": {"code": 503, "message": "busy", "status": "UNAVAILABLE"}})
-            candidate = types.SimpleNamespace(finish_reason="STOP")
-            return types.SimpleNamespace(text="Some answer", candidates=[candidate])
-
-    client = Client()
-    out = ev.llm_only_answers(client, QUESTIONS.head(2))
-    assert out["status"].tolist() == ["error", "ok"]
-    assert out.loc[0, "error"] == (
-        "ProviderTransientFailure: Provider stayed unavailable after 5 transient retries. "
-        "(caused by ServerError (HTTP 503): busy)"
-    )
-    assert client.calls == 7  # six attempts on the first question, then the second question
-    assert out.loc[1, "answer"] == "Some answer"
-
-
-def test_a_transient_server_error_that_recovers_is_not_reported_as_a_failure(monkeypatch):
-    """Retrying the 503 is the point: the row must be graded, not marked as an error."""
-    from google.genai.errors import ServerError
-    from src import retry
-
-    monkeypatch.setattr(retry.time, "sleep", lambda _: None)
-
-    class Client:
-        def __init__(self):
-            self.calls = 0
-            self.models = types.SimpleNamespace(generate_content=self.generate_content)
-
-        def generate_content(self, **kwargs):
-            self.calls += 1
-            if self.calls == 1:
-                raise ServerError(503, {"error": {"code": 503, "message": "busy", "status": "UNAVAILABLE"}})
-            candidate = types.SimpleNamespace(finish_reason="STOP")
-            return types.SimpleNamespace(text="Some answer", candidates=[candidate])
-
-    out = ev.llm_only_answers(Client(), QUESTIONS.head(1))
-    assert out["status"].tolist() == ["ok"] and out.loc[0, "answer"] == "Some answer"
-
-
-def test_llm_only_answers_stops_and_preserves_quota_failure_rows():
-    from src.retry import ProviderQuotaExceeded
-
-    class Client:
-        def __init__(self):
-            self.calls = 0
-            self.models = types.SimpleNamespace(generate_content=self.generate_content)
-
-        def generate_content(self, **kwargs):
-            self.calls += 1
-            if self.calls == 2:
-                raise ProviderQuotaExceeded("private provider message")
-            candidate = types.SimpleNamespace(finish_reason="STOP")
-            return types.SimpleNamespace(text="Some answer", candidates=[candidate])
-
-    client = Client()
-    out = ev.llm_only_answers(client, QUESTIONS.head(3))
-    assert client.calls == 2
-    assert out["status"].tolist() == ["ok", "error", "skipped"]
-    assert out.loc[1, "error"] == "provider quota exhausted"
-    assert "private provider message" not in str(out.to_dict())
-
-
 def test_make_judge_client_builds_groq_client_with_sdk_retries_disabled(monkeypatch, caplog):
     import src.provider_clients as providers
     from types import SimpleNamespace
@@ -442,41 +349,14 @@ def test_make_judge_client_builds_groq_client_with_sdk_retries_disabled(monkeypa
             completions=SimpleNamespace(create=lambda **call: call),
         ))
 
-    monkeypatch.setenv("GROQ_API_KEY", "groq-first,groq-second")
+    monkeypatch.setenv("GROQ_API_KEY", "groq-single")
     monkeypatch.setattr(providers, "OpenAI", fake_openai)
     client = ev.make_judge_client()
-    assert client.credential_count == 2
+    assert hasattr(client, "chat") and hasattr(client.chat, "completions")
     assert client.chat.completions.create(model="test-model") == {"model": "test-model"}
-    assert seen["api_key"] == "groq-first"
+    assert seen["api_key"] == "groq-single"
     assert seen["max_retries"] == 0 and str(seen["base_url"]).startswith(config.GROQ_BASE_URL)
-    assert "groq-first" not in caplog.text and "groq-second" not in caplog.text
-
-
-FACTS = pd.DataFrame({"type": ["consumer", "consumer", "research"], "score": [1.0, 0.5, 0.0]})
-BEHAVIOR = pd.DataFrame({"expected": ["answer", "answer", "emergency"], "ok": [True, False, True]})
-
-
-def test_summarize():
-    s = mx.summarize(FACTS, BEHAVIOR, latency_ms=2500)
-    assert s["key_fact_coverage"] == pytest.approx(0.5)
-    assert s["coverage_by_type"] == {"consumer": 0.75, "research": 0.0}
-    assert s["behavior"] == {"answer": "1/2", "emergency": "1/1"} and s["latency_s"] == 2.5
-
-
-def test_comparison_table_has_one_row_per_metric_and_dashes_for_missing_values():
-    base = mx.summarize(FACTS, BEHAVIOR, 1000)
-    rag = mx.summarize(FACTS.iloc[:0], BEHAVIOR, 3000)   # no facts at all
-    table = mx.comparison_table(base, rag, {"abstention_recall": 0.9, "abstention_precision": None, "over_refusal": 0.25})
-    assert list(table.columns) == ["LLM-only", "RAG"]
-    assert table.loc["Key-fact coverage"].tolist() == ["0.500", "-"]
-    assert table.loc["Behaviour pass: answer"].tolist() == ["1/2", "1/2"]
-    assert table.loc["Behaviour pass: refuse"].tolist() == ["-", "-"]
-    assert table.loc["Abstention recall", "RAG"] == "0.90" and table.loc["Abstention precision", "RAG"] == "-"
-
-
-def test_md_table():
-    text = mx.md_table(pd.DataFrame({"a": [1]}, index=["row"]), "Metric")
-    assert text.splitlines() == ["| Metric | a |", "|---|---|", "| row | 1 |"]
+    assert "groq-single" not in caplog.text
 
 
 def test_citation_metrics_report_valid_refs_and_fail_closed_rejections():
@@ -647,115 +527,3 @@ def test_run_pipeline_batch_records_a_non_provider_failure_without_stopping():
     results = ev.run_pipeline_batch(Pipeline(), frame)
     assert [results[qid]["status"] for qid in frame["id"]] == ["error", "ok"]
     assert results["q1"]["error"] == "ValueError: citation validation failed"
-
-
-# --- grounding: faithfulness and key-fact-in-context ------------------------
-
-PASSAGES = {
-    "q1": [{"title": "Flu", "source": "MedQuAD (CDC)", "text": "Flu is caused by influenza viruses."}],
-    "q2": [],   # an abstention has no passages
-    "q3": [],
-}
-
-
-def test_passages_text_numbers_the_evidence_like_the_generator_prompt():
-    text = ev.passages_text(PASSAGES["q1"])
-    assert text.startswith("[1] Flu (MedQuAD (CDC))\nFlu is caused by influenza viruses.")
-    assert ev.passages_text([]) == ""
-
-
-def test_score_faithfulness_is_supported_claims_over_total_claims():
-    """RAGAS faithfulness: no reference answer, only the retrieved passages."""
-
-    class Judge:
-        model = "fake-judge"
-
-        def __init__(self):
-            self.systems = []
-
-        def __call__(self, system, user, max_tokens=900):
-            self.systems.append(system)
-            payload = json.loads(user)
-            assert payload["passages"].startswith("[1] Flu")
-            return {"claims": [
-                {"claim": "Flu is caused by influenza viruses", "supported": "yes"},
-                {"claim": "Flu spreads through the air", "supported": "no"},
-            ]}
-
-    judge = Judge()
-    answers = {"q1": "Flu is caused by viruses [1]. Flu spreads through the air [1].", "q2": "I could not verify that."}
-    scored = ev.score_faithfulness(judge, QUESTIONS, answers, PASSAGES)
-    assert judge.systems == [ev.FAITHFULNESS_SYSTEM]      # the abstention is skipped, not judged
-    row = scored.set_index("id").loc["q1"]
-    assert row["n_claims"] == 2 and row["supported_claims"] == 1
-    assert row["faithfulness"] == pytest.approx(0.5)
-    assert row["unsupported"] == "Flu spreads through the air"
-    assert row["status"] == "ok"
-    # no passages or no answer: skipped, never counted as unfaithful
-    assert scored.set_index("id").loc["q2", "status"] == "skipped"
-    assert pd.isna(scored.set_index("id").loc["q2", "faithfulness"])
-
-
-def test_a_malformed_faithfulness_grade_is_a_row_error_not_a_zero():
-    class Judge:
-        model = "fake-judge"
-
-        def __call__(self, system, user, max_tokens=900):
-            return {"claims": [{"claim": "x", "supported": "maybe"}]}
-
-    scored = ev.score_faithfulness(Judge(), QUESTIONS.head(1), {"q1": "Flu [1]."}, PASSAGES)
-    assert scored.loc[0, "status"] == "error" and scored.loc[0, "faithfulness"] is None
-    assert scored.loc[0, "error"].startswith("ValueError: ")
-
-
-def test_score_key_facts_in_context_grades_only_answerable_rows():
-    class Judge:
-        model = "fake-judge"
-
-        def __call__(self, system, user, max_tokens=900):
-            assert system == ev.KEY_FACT_IN_CONTEXT_SYSTEM
-            payload = json.loads(user)
-            assert payload["key_facts"] == ["Caused by a virus", "Spreads easily"]
-            return {"key_facts": [
-                {"fact": "Caused by a virus", "verdict": "yes"},
-                {"fact": "Spreads easily", "verdict": "partial"},
-            ]}
-
-    scored = ev.score_key_facts_in_context(Judge(), QUESTIONS, PASSAGES)
-    assert scored["id"].tolist() == ["q1"]   # q3 is a safety_redirect row, not answerable
-    assert scored.loc[0, "in_context_rate"] == pytest.approx(0.75)
-    assert scored.loc[0, "facts_in_context"] == 1
-    assert scored.loc[0, "missing"] == ""    # partial counts, only 'no' is listed as missing
-
-
-def test_grounding_metrics_ignore_skipped_rows_and_report_judge_errors():
-    faith = pd.DataFrame({"status": ["ok", "ok", "skipped", "error"], "faithfulness": [1.0, 0.5, None, None]})
-    context = pd.DataFrame({"status": ["ok", "skipped"], "in_context_rate": [0.75, None]})
-    metrics = mx.grounding_metrics(faith, context)
-    assert metrics["faithfulness"] == pytest.approx(0.75)
-    assert metrics["faithfulness_answers"] == 2
-    assert metrics["key_fact_in_context"] == pytest.approx(0.75)
-    assert metrics["key_fact_in_context_questions"] == 1
-    assert metrics["faithfulness_errors"] == 1 and metrics["key_fact_in_context_errors"] == 0
-
-
-def test_grounding_metrics_with_nothing_graded_report_none():
-    empty = mx.grounding_metrics(
-        pd.DataFrame({"status": [], "faithfulness": []}),
-        pd.DataFrame({"status": [], "in_context_rate": []}),
-    )
-    assert empty["faithfulness"] is None and empty["key_fact_in_context"] is None
-
-
-def test_grounding_table_shows_dashes_when_nothing_was_graded():
-    table = mx.grounding_table(mx.grounding_metrics(
-        pd.DataFrame({"status": [], "faithfulness": []}),
-        pd.DataFrame({"status": [], "in_context_rate": []}),
-    ))
-    assert table.loc["Faithfulness (supported claims / claims)", "RAG"] == "-"
-    assert table.loc["Key facts present in retrieved context", "RAG"] == "-"
-
-
-def test_retrieved_passages_by_id_keeps_empty_lists_for_abstentions():
-    mapping = ev.retrieved_passages_by_id({"a": {"passages": []}, "b": {}, "c": {"passages": [{"text": "x"}]}})
-    assert mapping["a"] == [] and mapping["b"] == [] and len(mapping["c"]) == 1

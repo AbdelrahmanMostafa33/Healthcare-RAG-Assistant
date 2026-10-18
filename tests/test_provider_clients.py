@@ -1,136 +1,73 @@
+"""Tests for the single-key provider client design."""
+
+from __future__ import annotations
+
 from types import SimpleNamespace
 
 import pytest
 
-from src.provider_clients import RotatingCredentialCall, api_keys
-from src.retry import ProviderQuotaExceeded, call_with_transient_rate_limit_retry
+from src.provider_clients import get_api_key, make_generator_client, make_judge_client
 
 
-class ProviderFailure(Exception):
-    def __init__(self, status_code, message):
-        super().__init__(message)
-        self.status_code = status_code
-        self.body = {"error": {"message": message}}
+def test_get_api_key_returns_stripped_value(monkeypatch) -> None:
+    monkeypatch.setenv("TEST_PROVIDER_KEY", "  abc123  ")
+    assert get_api_key("TEST_PROVIDER_KEY") == "abc123"
 
 
-def make_rotator(operation, keys=("key-a", "key-b")):
-    created = []
-
-    def client_factory(key):
-        created.append(key)
-        return SimpleNamespace(key=key)
-
-    return RotatingCredentialCall(list(keys), client_factory, operation, "TestProvider"), created
-
-
-def test_api_keys_trims_ignores_empty_values_and_deduplicates(monkeypatch):
-    monkeypatch.setenv("TEST_PROVIDER_KEY", " first , , second,first,  ")
-    assert api_keys("TEST_PROVIDER_KEY") == ["first", "second"]
-
-
-def test_api_keys_fails_when_value_contains_no_keys(monkeypatch):
-    monkeypatch.setenv("TEST_PROVIDER_KEY", " , , ")
+def test_get_api_key_fails_when_missing(monkeypatch) -> None:
+    monkeypatch.delenv("TEST_PROVIDER_KEY", raising=False)
     with pytest.raises(RuntimeError, match="TEST_PROVIDER_KEY"):
-        api_keys("TEST_PROVIDER_KEY")
+        get_api_key("TEST_PROVIDER_KEY")
 
 
-def test_rotator_fails_over_once_after_transient_rate_limit_and_uses_working_key_next():
-    calls = []
-
-    def operation(client):
-        calls.append(client.key)
-        if client.key == "key-a":
-            raise ProviderFailure(429, "Rate limit reached for requests per minute")
-        return "ok"
-
-    rotator, created = make_rotator(operation)
-    assert rotator() == "ok"
-    assert rotator() == "ok"
-    assert calls == ["key-a", "key-b", "key-b"]
-    assert created == ["key-a", "key-b"]
+def test_get_api_key_fails_for_blank_value(monkeypatch) -> None:
+    monkeypatch.setenv("TEST_PROVIDER_KEY", "   ")
+    with pytest.raises(RuntimeError, match="TEST_PROVIDER_KEY"):
+        get_api_key("TEST_PROVIDER_KEY")
 
 
-def test_transient_cooldown_matches_the_shared_retry_wait(monkeypatch):
-    import src.provider_clients as providers
-    from src import retry
-
-    now = [0.0]
-    waits = []
-    calls = []
-    monkeypatch.setattr(providers.time, "monotonic", lambda: now[0])
-
-    def fake_sleep(delay):
-        waits.append(delay)
-        now[0] += delay
-
-    monkeypatch.setattr(retry.time, "sleep", fake_sleep)
-
-    def operation(client):
-        calls.append(client.key)
-        if len(calls) < 3:
-            raise ProviderFailure(429, "Rate limit reached for requests per minute")
-        return "ok"
-
-    rotator, _created = make_rotator(operation)
-    assert call_with_transient_rate_limit_retry(rotator, max_transient_retries=1) == "ok"
-    assert calls == ["key-a", "key-b", "key-a"]
-    assert waits == [2.0]
+def test_get_api_key_fails_for_comma_separated_value(monkeypatch) -> None:
+    monkeypatch.setenv("TEST_PROVIDER_KEY", "first,second")
+    with pytest.raises(RuntimeError, match="single key"):
+        get_api_key("TEST_PROVIDER_KEY")
 
 
-def test_rotator_skips_a_bad_authentication_key_for_later_calls():
-    calls = []
-
-    def operation(client):
-        calls.append(client.key)
-        if client.key == "key-a":
-            raise ProviderFailure(401, "invalid API key")
-        return "ok"
-
-    rotator, _created = make_rotator(operation)
-    assert rotator() == "ok"
-    assert rotator() == "ok"
-    assert calls == ["key-a", "key-b", "key-b"]
-
-
-def test_rotator_turns_all_key_daily_quota_failures_into_a_bounded_stop():
-    def operation(_client):
-        raise ProviderFailure(429, "Requests per day quota exceeded")
-
-    rotator, _created = make_rotator(operation)
-    with pytest.raises(ProviderQuotaExceeded, match="all currently available credentials") as error:
-        rotator()
-    assert "key-a" not in str(error.value) and "key-b" not in str(error.value)
-
-
-def test_gemini_client_waits_far_longer_than_a_healthy_response(monkeypatch):
-    """Measured calls took 58-131 s, so a 60 s client timeout turned queuing into a 504."""
-    import src.provider_clients as providers
+def test_make_generator_client_reads_google_key(monkeypatch) -> None:
+    import google.genai as genai
     from src import config
 
-    monkeypatch.setenv("GOOGLE_API_KEY", "google-key")
-    seen = {}
+    monkeypatch.setenv("GOOGLE_API_KEY", "googlekey-1")
 
-    def fake_client(**kwargs):
-        seen.update(kwargs)
-        return SimpleNamespace(models=SimpleNamespace(generate_content=lambda **call: call))
+    class FakeClient:
+        def __init__(self, api_key: str, **kwargs) -> None:
+            self.api_key = api_key
+            self._httpx_client = SimpleNamespace(headers={})
+            self.models = SimpleNamespace(
+                generate_content=lambda **call: call
+            )
 
-    monkeypatch.setattr(providers.genai, "Client", fake_client)
-    client = providers.make_generator_client()
-    client.models.generate_content(model="test-model")
-    assert seen["http_options"].timeout == config.GENERATOR_TIMEOUT_MS
+    monkeypatch.setattr(genai, "Client", FakeClient)
+    client = make_generator_client()
+    client.models.generate_content(model="test-model", contents="hi")
+    assert client.api_key == "googlekey-1"
+    assert client._httpx_client.headers.get("x-goog-api-key") == "googlekey-1"
     assert config.GENERATOR_TIMEOUT_MS >= 180_000
-    assert seen["http_options"].retry_options.attempts == 1
 
 
-def test_rotator_does_not_switch_keys_for_unrelated_client_errors():
-    calls = []
+def test_make_judge_client_reads_groq_key(monkeypatch) -> None:
+    import src.provider_clients as providers
 
-    def operation(client):
-        calls.append(client.key)
-        raise ProviderFailure(403, "model is not available")
+    monkeypatch.setenv("GROQ_API_KEY", "groqkey-1")
+    seen: dict[str, object] = {}
 
-    rotator, created = make_rotator(operation)
-    with pytest.raises(ProviderFailure, match="model is not available"):
-        rotator()
-    assert calls == ["key-a"]
-    assert created == ["key-a"]
+    class FakeOpenAI:
+        def __init__(self, **kwargs) -> None:
+            seen.update(kwargs)
+            self.base_url = kwargs["base_url"]
+
+    monkeypatch.setattr(providers, "OpenAI", FakeOpenAI)
+    client = make_judge_client()
+    assert seen["api_key"] == "groqkey-1"
+    assert client.base_url == "https://api.groq.com/openai/v1"
+    assert seen["max_retries"] == 0
+    assert seen["timeout"] == 60

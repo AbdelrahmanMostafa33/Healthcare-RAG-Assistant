@@ -1,4 +1,5 @@
 """Small fakes so the tests need no model download, GPU or API key."""
+import json
 import re
 import types
 import zlib
@@ -61,6 +62,25 @@ class FakeClient:
         self.calls.append(kwargs)
         candidate = types.SimpleNamespace(finish_reason=self.finish_reason)
         return types.SimpleNamespace(text=self.answer, candidates=[candidate])
+
+
+class FakeJudge:
+    """Stands in for the Groq judge and answers the one grading contract: key facts plus expected
+    behaviour. Records every call, so a test can prove that a resumed run made no calls at all.
+    """
+
+    model = "fake-judge"
+
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, system, user, max_tokens=700):
+        self.calls.append("answer")
+        payload = json.loads(user)
+        return {
+            "key_facts": [{"fact": fact, "verdict": "yes"} for fact in payload["key_facts"]],
+            "behavior": {"verdict": "yes", "reason": "ok"},
+        }
 
 
 def make_chunks(n=25):

@@ -16,12 +16,10 @@ import pandas as pd
 
 from src import config, safety
 from src.evaluation import choose_threshold
-from src.metrics import POLICY_SCOPE_TYPES, TRUE_NO_EVIDENCE_TYPES, wilson_interval
+from src.metrics import TRUE_NO_EVIDENCE_TYPES, wilson_interval
 
 
 VALID_BEHAVIORS = {"answer", "insufficient_evidence", "emergency", "safety_redirect", "refuse"}
-
-
 
 def validate_evaluation_data(questions: pd.DataFrame) -> None:
     """Fail early on malformed labels, missing report fields or exact train/test leakage."""
@@ -90,6 +88,7 @@ def calibration_from_scores(scores: pd.DataFrame, min_abstention_recall=0.90) ->
     scored = scores.dropna(subset=["best_score"])
     answerable = scored.loc[scored["expected_behavior"] == "answer", "best_score"]
     declined = scored.loc[scored["expected_behavior"] == "insufficient_evidence"]
+    # Policy redirects are evaluated separately; only true no-evidence questions set this cutoff.
     no_evidence = declined.loc[declined["type"].isin(TRUE_NO_EVIDENCE_TYPES), "best_score"]
     if no_evidence.empty:
         raise ValueError(

@@ -35,14 +35,11 @@ a { color: inherit; }
 .site-header, main, .site-footer { width: min(1120px, calc(100% - 48px)); margin-inline: auto; }
 .site-header { height: 84px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--teal-light); }
 .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; }
-.brand-mark { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 3px; border-radius: 11px; background: var(--green); transform: rotate(-5deg); }
-.brand-mark span { width: 4px; height: 14px; border-radius: 4px; background: #fff; }
-.brand-mark span:first-child { height: 9px; opacity: .78; }
-.brand-mark span:last-child { height: 19px; opacity: .9; }
+.brand-logo { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; }
 .brand-copy { display: grid; gap: 2px; }
-.brand-copy strong { font-family: Manrope, sans-serif; font-size: 15px; letter-spacing: -.45px; }
-.brand-copy strong span { color: var(--green); }
-.brand-copy small { color: #596c6d; font-size: 9px; font-weight: 700; letter-spacing: 1.1px; }
+.brand-copy strong { font-family: 'Segoe UI', Arial, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -.9px; line-height: 1; }
+.brand-copy strong span { color: var(--teal-bright); }
+.brand-copy small { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .1px; }
 .header-nav { display: flex; align-items: center; gap: 29px; }
 .header-nav a { color: #405558; font-size: 14px; font-weight: 600; text-decoration: none; }
 .header-nav a:hover, .site-footer a:hover { color: var(--green); }
@@ -166,7 +163,7 @@ h1 em { color: var(--green); font-style: normal; }
 }
 @media (max-width: 420px) {
   .site-header, main, .site-footer { width: calc(100% - 28px); }
-  .brand-copy small { font-size: 8px; }
+  .brand-copy small { display: none; }
   .header-nav { gap: 11px; }
   .header-nav a { font-size: 11px; }
   .demo-card { padding: 18px; }

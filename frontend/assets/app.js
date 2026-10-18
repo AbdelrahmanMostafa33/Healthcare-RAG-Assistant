@@ -65,7 +65,7 @@ function responseKind(result) {
   if (result.abstained) {
     if (result.abstain_reason === 'uncalibrated') return 'ABSTAINED · NOT CALIBRATED';
     if (result.abstain_reason === 'citation_validation_failed') return 'ANSWER WITHHELD · CITATION CHECK';
-    return 'ABSTAINED · INSUFFICIENT EVIDENCE';
+    return 'OUT OF SCOPE OR NOT IN SOURCES';
   }
   return 'ANSWER WITH SOURCES';
 }

@@ -28,9 +28,17 @@ DISCLAIMER = (
 )
 
 ABSTAIN_MESSAGE = (
-    "I couldn't find enough relevant information in my current sources to answer this reliably. "
-    "Try rephrasing the question, or ask a doctor or pharmacist. If you think this could be an "
-    "emergency, call your local emergency number or go to the nearest emergency department now."
+    "I can only answer general health-education questions. Your question may be outside that scope, "
+    "or my current sources may not contain enough relevant information to answer it reliably. "
+    "Try asking a general health question or rephrasing it. If you think this could be an emergency, "
+    "call your local emergency number or go to the nearest emergency department now."
+)
+UNCALIBRATED_MESSAGE = (
+    "The assistant is not ready to answer reliably because its evidence check has not been calibrated. "
+    "Please try again later."
+)
+CITATION_CHECK_MESSAGE = (
+    "I couldn't verify the sources for my answer, so I withheld it. Please try again later."
 )
 
 
@@ -60,7 +68,7 @@ class RAGPipeline:
         # A placeholder threshold is not a usable evidence policy. Fail closed until a dev-set
         # threshold is calibrated for this exact model/index/evaluation-data combination.
         if not self.calibrated:
-            return self._result(ABSTAIN_MESSAGE, start, abstained=True,
+            return self._result(UNCALIBRATED_MESSAGE, start, abstained=True,
                                 abstain_reason=ABSTAIN_UNCALIBRATED)
 
         # FAISS finds candidates first; the cross-encoder then ranks the evidence for this question.
@@ -79,7 +87,7 @@ class RAGPipeline:
         generation_ms = (time.perf_counter() - generation_started) * 1000
         if not citations_are_valid(answer, passages):
             # Do not expose an answer with missing or impossible source references.
-            return self._result(ABSTAIN_MESSAGE, start, abstained=True, top_score=top_score,
+            return self._result(CITATION_CHECK_MESSAGE, start, abstained=True, top_score=top_score,
                                 citation_validation_failed=True,
                                 abstain_reason=ABSTAIN_CITATION_VALIDATION_FAILED,
                                 retrieval_ms=retrieval_ms, generation_ms=generation_ms,

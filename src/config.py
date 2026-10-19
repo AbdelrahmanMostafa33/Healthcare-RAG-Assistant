@@ -37,11 +37,14 @@ GENERATOR_PROVIDER = os.getenv("GENERATOR_PROVIDER", "gemini").strip().lower()
 GENERATOR_MODEL = os.getenv("GENERATOR_MODEL", "gemini-3.5-flash-lite").strip()
 GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "low").strip().lower()
 JUDGE_PROVIDER = os.getenv("JUDGE_PROVIDER", "groq").strip().lower()
-JUDGE_MODEL = os.getenv("JUDGE_MODEL", "openai/gpt-oss-120b").strip()
+_DEFAULT_JUDGE_MODEL = "gpt-oss-120b" if JUDGE_PROVIDER == "cerebras" else "openai/gpt-oss-120b"
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", _DEFAULT_JUDGE_MODEL).strip()
 GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1").strip()
+CEREBRAS_BASE_URL = os.getenv("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1").strip()
 
 RETRIEVE_K = 20
 CONTEXT_K = 5
+RAG_PIPELINE_VERSION = "source-diverse-context-v1"
 MAX_TOKENS = 2048
 
 # The timeout is a ceiling for a busy provider, not a target. A slower generator can still be
@@ -116,6 +119,7 @@ def calibration_metadata() -> dict:
         "embedding_model_revision": EMBEDDING_MODEL_REVISION,
         "reranker_model": RERANKER_MODEL,
         "reranker_model_revision": RERANKER_MODEL_REVISION,
+        "rag_pipeline_version": RAG_PIPELINE_VERSION,
         "model_runtime_versions": model_runtime_versions(),
         "eval_sha256": sha256_text_file(EVAL_PATH),
         "index_manifest_sha256": sha256_text_file(INDEX_MANIFEST_PATH),

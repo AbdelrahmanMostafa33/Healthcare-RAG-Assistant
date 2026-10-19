@@ -139,13 +139,39 @@ def _fact_verdicts(items, expected_labels, expected_count):
     return verdicts
 
 
-def score_answers(judge, df, answers):
-    """Grade key facts and expected behavior once per answer, preserving row-level failures."""
-    fact_rows, behavior_rows, status_rows = [], [], []
+def score_answers(judge, df, answers, previous=None, checkpoint=None):
+    """Grade answers, reuse completed grades, and checkpoint each finished row."""
+    previous = previous or {}
+    previous_facts = previous.get("facts", pd.DataFrame())
+    previous_behavior = previous.get("behavior", pd.DataFrame())
+    previous_grading = previous.get("grading", pd.DataFrame())
+    current_ids = set(df["id"])
+    completed_ids = set()
+    if not previous_grading.empty and {"id", "status"}.issubset(previous_grading.columns):
+        completed_ids = set(
+            previous_grading.loc[previous_grading["status"] == "ok", "id"]
+        ) & current_ids
+
+    # Keep only complete rows from the same judge; errors and skipped rows are retried.
+    fact_rows = (
+        previous_facts.loc[previous_facts["id"].isin(completed_ids)].to_dict("records")
+        if not previous_facts.empty and "id" in previous_facts else []
+    )
+    behavior_rows = (
+        previous_behavior.loc[previous_behavior["id"].isin(completed_ids)].to_dict("records")
+        if not previous_behavior.empty and "id" in previous_behavior else []
+    )
+    status_rows = {
+        row["id"]: {"id": row["id"], "status": "ok", "error": ""}
+        for row in previous_grading.to_dict("records")
+        if row.get("id") in completed_ids and row.get("status") == "ok"
+    } if not previous_grading.empty else {}
     stopped = False
     for row in df.itertuples(index=False):
+        if row.id in completed_ids:
+            continue
         if stopped:
-            status_rows.append({"id": row.id, "status": "skipped", "error": "judge batch stopped"})
+            status_rows[row.id] = {"id": row.id, "status": "skipped", "error": "judge batch stopped"}
             continue
 
         try:
@@ -184,24 +210,40 @@ def score_answers(judge, df, answers):
                 "verdict": behavior_verdict, "reason": reason,
                 "judge_model": judge.model, "ok": behavior_verdict == "yes",
             })
-            status_rows.append({"id": row.id, "status": "ok", "error": ""})
+            status_rows[row.id] = {"id": row.id, "status": "ok", "error": ""}
         except ProviderQuotaExceeded:
-            status_rows.append({"id": row.id, "status": "error", "error": "provider quota exhausted"})
+            status_rows[row.id] = {"id": row.id, "status": "error", "error": "provider quota exhausted"}
             stopped = True
         except ProviderRateLimitRejected:
-            status_rows.append({"id": row.id, "status": "error", "error": "unclassified provider rate limit"})
+            status_rows[row.id] = {"id": row.id, "status": "error", "error": "unclassified provider rate limit"}
             stopped = True
         except RateLimitError:
-            status_rows.append({"id": row.id, "status": "error", "error": "judge rate limit retries exhausted"})
+            status_rows[row.id] = {"id": row.id, "status": "error", "error": "judge rate limit retries exhausted"}
             stopped = True
         except Exception as error:
-            status_rows.append({"id": row.id, "status": "error", "error": error_detail(error)})
+            status_rows[row.id] = {"id": row.id, "status": "error", "error": error_detail(error)}
 
+        if checkpoint is not None:
+            grading = pd.DataFrame(
+                [status_rows[qid] for qid in df["id"] if qid in status_rows],
+                columns=["id", "status", "error"],
+            )
+            checkpoint(
+                pd.DataFrame(fact_rows, columns=["id", "type", "fact", "verdict", "judge_model", "score"]),
+                pd.DataFrame(behavior_rows, columns=["id", "type", "expected", "verdict", "reason", "judge_model", "ok"]),
+                grading,
+            )
+
+    grading = pd.DataFrame(
+        [status_rows[qid] for qid in df["id"] if qid in status_rows],
+        columns=["id", "status", "error"],
+    )
     facts = pd.DataFrame(fact_rows, columns=["id", "type", "fact", "verdict", "judge_model", "score"])
     behavior = pd.DataFrame(
         behavior_rows, columns=["id", "type", "expected", "verdict", "reason", "judge_model", "ok"]
     )
-    grading = pd.DataFrame(status_rows, columns=["id", "status", "error"])
+    if checkpoint is not None:
+        checkpoint(facts, behavior, grading)
     return facts, behavior, grading
 
 
@@ -282,7 +324,7 @@ def run_pipeline_batch(pipeline, df):
     return results
 
 
-def evaluate_pipeline_results(df, results, judge):
+def evaluate_pipeline_results(df, results, judge, previous_grades=None, checkpoint=None):
     """Grade completed answers and report errors separately from quality metrics."""
     question_ids = set(df["id"])
     missing = question_ids - set(results)
@@ -297,7 +339,9 @@ def evaluate_pipeline_results(df, results, judge):
     valid_ids = question_ids - error_ids - skipped_ids
     valid_df = df.loc[df["id"].isin(valid_ids)].copy()
     answers = {qid: results[qid].get("answer", "") for qid in valid_df["id"]}
-    facts, behavior, grading = score_answers(judge, valid_df, answers)
+    facts, behavior, grading = score_answers(
+        judge, valid_df, answers, previous=previous_grades, checkpoint=checkpoint
+    )
 
     grade_errors = int((grading["status"] == "error").sum())
     ungraded = int((grading["status"] == "skipped").sum())

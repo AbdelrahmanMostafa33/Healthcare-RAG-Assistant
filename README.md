@@ -16,7 +16,7 @@ The assistant needs a locally built knowledge index and a calibrated evidence th
 Question
   → shared safety checks
   → BGE-M3 embeddings and FAISS search (top 20 passages)
-  → BGE reranking (top 5 passages)
+  → BGE reranking (up to 5 passages, at most 2 per source page)
   → calibrated evidence threshold
   → grounded Gemini answer, or abstention
   → citation ID check and source links
@@ -42,11 +42,12 @@ Copy-Item .env.example .env
 
 Add one Google AI Studio key to **.env** as **GOOGLE_API_KEY**. Keep the key private and do not commit **.env**.
 
-Build the local data and retrieval index with the notebooks, then calibrate the threshold on the development split:
+Build and calibrate the local retrieval pipeline, then run the walkthrough and evaluation:
 
 1. Run **notebooks/01_data_and_kb.ipynb** to download and clean the source data.
-2. Run **notebooks/02_build_index.ipynb** to download the pinned retrieval models and build the FAISS index.
-3. In **notebooks/04_evaluation.ipynb**, run the validation, index-loading, and calibration sections. Calibration uses development questions and does not call a provider. Stop after calibration if you only need to run the demo.
+2. Run **notebooks/02_build_index.ipynb** to build the FAISS index and calibrate its evidence threshold locally. Calibration uses development questions and does not call a provider.
+3. Run **notebooks/03_rag_pipeline.ipynb** for the calibrated walkthrough.
+4. Run **notebooks/04_evaluation.ipynb** when you are ready for provider-based answer generation and judging.
 
 Start the local app:
 

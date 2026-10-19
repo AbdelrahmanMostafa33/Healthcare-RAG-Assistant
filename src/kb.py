@@ -110,28 +110,53 @@ def prepare_medquad(raw):
 
 
 def parse_medlineplus_xml(xml_bytes):
-    """MedlinePlus topics XML -> title, url, summary (English topics only)."""
+    """MedlinePlus topics XML -> title, URL, summary and search aliases (English only)."""
     rows = []
     for topic in ElementTree.fromstring(xml_bytes).findall("health-topic"):
         if topic.get("language") != "English":
             continue
         summary = topic.find("full-summary")
+        aliases = [
+            (node.text or "").strip()
+            for tag in ("also-called", "see-reference")
+            for node in topic.findall(tag)
+            if (node.text or "").strip()
+        ]
         rows.append({
             "title": topic.get("title", ""),
             "url": topic.get("url", ""),
             "summary": "".join(summary.itertext()).strip() if summary is not None else "",
+            "aliases": list(dict.fromkeys(aliases)),
         })
-    return pd.DataFrame(rows, columns=["title", "url", "summary"])
+    return pd.DataFrame(rows, columns=["title", "url", "summary", "aliases"])
 
 
 def prepare_medlineplus(raw):
     """One KB row per health topic. MedlinePlus has no questions, so we use 'What is <topic>?'."""
     title = raw["title"].apply(clean_text)
+    if "aliases" in raw.columns:
+        aliases = raw["aliases"].apply(
+            lambda values: [clean_text(value) for value in values]
+            if isinstance(values, (list, tuple, set)) else []
+        )
+        aliases = aliases.apply(lambda values: list(dict.fromkeys(value for value in values if value)))
+    else:
+        aliases = pd.Series([[] for _ in range(len(raw))], index=raw.index)
+    aliases = pd.Series(
+        [[alias for alias in names if alias.casefold() != name.casefold()]
+         for name, names in zip(title, aliases)],
+        index=raw.index,
+    )
+    retrieval_question = pd.Series(
+        [f"What is {name}?" + (f" Also called: {', '.join(names)}." if names else "")
+         for name, names in zip(title, aliases)],
+        index=raw.index,
+    )
     df = pd.DataFrame({
         "source": "MedlinePlus",
         "title": title,
         "url": raw["url"].fillna("").astype(str),
-        "question": ("What is " + title + "?").apply(clean_text),
+        "question": retrieval_question.apply(clean_text),
         "text": raw["summary"].apply(html_to_text),
     })
     df = df[(df["text"] != "") & (df["title"] != "")]

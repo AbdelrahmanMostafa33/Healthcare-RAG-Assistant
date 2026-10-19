@@ -3,12 +3,12 @@
 This file builds the two provider clients used by the project:
 
 - make_generator_client() -> google-genai Client (Gemini generation)
-- make_judge_client() -> openai.OpenAI client (Groq judging)
+- make_judge_client() -> OpenAI-compatible client for Groq or Cerebras judging
 
 Each client reads a single key from the matching env var:
 
 - GOOGLE_API_KEY
-- GROQ_API_KEY
+- GROQ_API_KEY or CEREBRAS_API_KEY, depending on JUDGE_PROVIDER
 
 Both must contain one key. A comma-separated value is an error.
 
@@ -71,13 +71,21 @@ def make_generator_client() -> genai.Client:
 
 
 def make_judge_client() -> OpenAI:
-    if config.JUDGE_PROVIDER != "groq":
-        raise RuntimeError(f"Unsupported JUDGE_PROVIDER: {config.JUDGE_PROVIDER!r}.")
+    providers = {
+        "groq": ("GROQ_API_KEY", config.GROQ_BASE_URL),
+        "cerebras": ("CEREBRAS_API_KEY", config.CEREBRAS_BASE_URL),
+    }
+    if config.JUDGE_PROVIDER not in providers:
+        supported = ", ".join(sorted(providers))
+        raise RuntimeError(
+            f"Unsupported JUDGE_PROVIDER: {config.JUDGE_PROVIDER!r}. Choose {supported}."
+        )
 
-    key = get_api_key("GROQ_API_KEY")
+    key_name, base_url = providers[config.JUDGE_PROVIDER]
+    key = get_api_key(key_name)
     return OpenAI(
         api_key=key,
-        base_url=config.GROQ_BASE_URL,
+        base_url=base_url,
         max_retries=0,
         timeout=60,
     )

@@ -1,8 +1,10 @@
-"""Retrieval: embed the query, take the 20 closest chunks from FAISS, rerank them, keep the best 5."""
+"""Retrieve the closest chunks, rerank them, and limit repeated context from one source page."""
 import numpy as np
 
 from src import config
 from src.kb import load_encoder, load_index
+
+MAX_CHUNKS_PER_SOURCE = 2
 
 
 class Retriever:
@@ -21,12 +23,22 @@ class Retriever:
                 for score, i in zip(scores[0], ids[0]) if i >= 0]
 
     def rerank(self, query, candidates):
-        """The cross-encoder reads the query and each chunk together; keep the best CONTEXT_K."""
+        """Rerank chunks, then cap each source page so one long page cannot fill the context."""
         if not candidates:
             return []
         scores = self.reranker.predict([(query, c["text"]) for c in candidates])
         ranked = sorted(zip(scores, candidates), key=lambda pair: pair[0], reverse=True)
-        return [{**chunk, "rerank_score": float(score)} for score, chunk in ranked[:config.CONTEXT_K]]
+        selected, source_counts = [], {}
+        for score, chunk in ranked:
+            url = str(chunk.get("url") or "").strip().casefold()
+            source_key = (chunk.get("source"), url) if url else (chunk.get("source"), chunk.get("doc_id"))
+            if source_counts.get(source_key, 0) >= MAX_CHUNKS_PER_SOURCE:
+                continue
+            selected.append({**chunk, "rerank_score": float(score)})
+            source_counts[source_key] = source_counts.get(source_key, 0) + 1
+            if len(selected) == config.CONTEXT_K:
+                break
+        return selected
 
     def retrieve(self, query):
         return self.rerank(query, self.search(query))

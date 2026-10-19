@@ -1,4 +1,4 @@
-"""Bounded retries for transient provider failures from Groq/OpenAI-compatible and Gemini APIs.
+"""Bounded retries for transient provider failures from OpenAI-compatible and Gemini APIs.
 
 Two failure kinds are retried a bounded number of times: rate limits (429) and transient server
 failures (5xx, including the client timeout that the Gemini SDK reports as 504). Hard daily or

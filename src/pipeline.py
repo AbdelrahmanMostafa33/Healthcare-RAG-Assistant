@@ -4,7 +4,7 @@
                   emergency        -> fixed emergency message, no retrieval, no LLM
                   personal advice  -> fixed redirect to a doctor, no retrieval, no LLM
                   harmful request  -> fixed refusal message, no retrieval, no LLM
-             -> retrieve: FAISS top 40 -> rerank -> up to 5, one per source page
+             -> retrieve: FAISS top 40 -> rerank -> up to 5 pages, 2 chunks merged per page
              -> best rerank score below the threshold?  yes -> abstain, no LLM call
                                                          no  -> grounded prompt -> generation (bounded retries for transient 429s)
              -> answer + cited sources + disclaimer

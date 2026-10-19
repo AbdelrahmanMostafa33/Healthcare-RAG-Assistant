@@ -1,10 +1,29 @@
-"""Retrieve the closest chunks, rerank them, and limit repeated context from one source page."""
+"""Retrieve, rerank, and group complementary chunks without repeating copied passages."""
+from difflib import SequenceMatcher
+import re
+
 import numpy as np
 
 from src import config
 from src.kb import load_encoder, load_index
 
-MAX_CHUNKS_PER_SOURCE = 1
+MAX_CHUNKS_PER_SOURCE = 2
+NEAR_DUPLICATE_THRESHOLD = 0.88
+
+
+def _content_tokens(chunk):
+    """Ignore the repeated question header when comparing copied answer passages."""
+    text = str(chunk.get("text") or "")
+    body = text.split("\n", 1)[-1]
+    return re.findall(r"[a-z0-9]+", body.casefold())
+
+
+def _is_near_duplicate(tokens, existing_passages):
+    return bool(tokens) and any(
+        SequenceMatcher(None, tokens, existing, autojunk=False).ratio()
+        >= NEAR_DUPLICATE_THRESHOLD
+        for existing in existing_passages
+    )
 
 
 class Retriever:
@@ -28,17 +47,26 @@ class Retriever:
             return []
         scores = self.reranker.predict([(query, c["text"]) for c in candidates])
         ranked = sorted(zip(scores, candidates), key=lambda pair: pair[0], reverse=True)
-        selected, source_counts = [], {}
+        selected, selected_tokens, source_counts, source_positions = [], [], {}, {}
         for score, chunk in ranked:
             url = str(chunk.get("url") or "").strip().casefold()
             # The URL identifies a page even if two datasets label its publisher differently.
             source_key = url if url else (chunk.get("source"), chunk.get("doc_id"))
             if source_counts.get(source_key, 0) >= MAX_CHUNKS_PER_SOURCE:
                 continue
-            selected.append({**chunk, "rerank_score": float(score)})
+            tokens = _content_tokens(chunk)
+            if _is_near_duplicate(tokens, selected_tokens):
+                continue
+            if source_key in source_positions:
+                # Keep related chunks together so one citation can support a fuller answer.
+                selected[source_positions[source_key]]["text"] += f"\n\n{chunk['text']}"
+            else:
+                if len(selected) == config.CONTEXT_K:
+                    continue
+                source_positions[source_key] = len(selected)
+                selected.append({**chunk, "rerank_score": float(score)})
+            selected_tokens.append(tokens)
             source_counts[source_key] = source_counts.get(source_key, 0) + 1
-            if len(selected) == config.CONTEXT_K:
-                break
         return selected
 
     def retrieve(self, query):

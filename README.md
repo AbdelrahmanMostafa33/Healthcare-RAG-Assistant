@@ -16,7 +16,7 @@ The assistant needs a locally built knowledge index and a calibrated evidence th
 Question
   → shared safety checks
   → BGE-M3 embeddings and FAISS search (top 40 candidates)
-  → BGE reranking (up to 5 passages, one per source page)
+  → BGE reranking (up to 5 source pages, up to 2 related chunks per page)
   → calibrated evidence threshold
   → grounded Gemini answer, or abstention
   → citation ID check and source links

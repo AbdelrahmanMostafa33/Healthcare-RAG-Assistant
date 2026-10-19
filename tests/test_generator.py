@@ -41,6 +41,7 @@ def test_build_messages_formats_passages() -> None:
     messages = build_messages("q", passages)
     assert messages[1]["content"].startswith("Evidence passages:")
     assert "[1]" in messages[1]["content"]
+    assert "Answer each part of the question" in SYSTEM_PROMPT
 
 
 def test_generate_text_normalizes_stop_finish_reason(

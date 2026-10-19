@@ -1,6 +1,7 @@
 """Evaluation helpers for calibration and a small, honest RAG evaluation run."""
 
 from collections import Counter
+import hashlib
 import json
 import re
 import time
@@ -73,6 +74,21 @@ CHECKS = {
 def split_key_facts(key_facts):
     """Return non-empty key facts from the dataset's pipe-separated field."""
     return [fact.strip() for fact in str(key_facts).split(" | ") if fact.strip()]
+
+
+def evaluation_run_fingerprint(frame, run_settings):
+    """Fingerprint the questions and generation setup so stale answers or grades are not reused."""
+    columns = ["id", "question", "type", "expected_behavior", "key_facts"]
+    missing = set(columns) - set(frame.columns)
+    if missing:
+        raise ValueError(f"Evaluation data is missing fingerprint fields: {sorted(missing)}")
+    rows = frame[columns].sort_values("id").astype(object)
+    rows = rows.where(pd.notna(rows), None).to_dict("records")
+    payload = json.dumps(
+        {"questions": rows, "run_settings": run_settings},
+        sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def normalise_label(text):

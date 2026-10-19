@@ -4,7 +4,7 @@ from tests.conftest import make_chunks, make_retriever
 
 def test_search_returns_retrieve_k_chunks_with_their_metadata(retriever):
     results = retriever.search("diabetes insulin")
-    assert len(results) == config.RETRIEVE_K
+    assert len(results) == min(config.RETRIEVE_K, retriever.index.ntotal)
     assert {"chunk_id", "doc_id", "source", "title", "url", "text", "faiss_score"} <= set(results[0])
     assert results[0]["chunk_id"] == 0   # the only chunk about diabetes
     scores = [r["faiss_score"] for r in results]

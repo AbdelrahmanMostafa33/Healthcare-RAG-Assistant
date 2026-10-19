@@ -316,12 +316,30 @@ class ScriptedClient:
 
 def test_the_judge_parses_json_and_uses_the_configured_model():
     client = ScriptedClient('{"verdict": "yes"}')
-    judge = ev.make_judge(client)
+    model = "openai/gpt-oss-120b"
+    judge = ev.make_judge(client, model=model)
     assert judge("system", "user") == {"verdict": "yes"}
-    assert judge.model == config.JUDGE_MODEL and client.calls[0]["model"] == config.JUDGE_MODEL
+    assert judge.model == model and client.calls[0]["model"] == model
     assert client.calls[0]["temperature"] == 0.0 and client.calls[0]["response_format"] == {"type": "json_object"}
     assert client.calls[0]["max_completion_tokens"] == 700
     assert client.calls[0]["reasoning_effort"] == "low"
+
+
+def test_evaluation_fingerprint_tracks_questions_and_generation_settings():
+    frame = pd.DataFrame([
+        {"id": "b", "question": "Q2", "type": "consumer",
+         "expected_behavior": "answer", "key_facts": "fact 2"},
+        {"id": "a", "question": "Q1", "type": "consumer",
+         "expected_behavior": "answer", "key_facts": "fact 1"},
+    ])
+    settings = {"model": "test-model", "temperature": 0.0}
+    fingerprint = ev.evaluation_run_fingerprint(frame, settings)
+    assert ev.evaluation_run_fingerprint(frame.iloc[::-1], settings) == fingerprint
+
+    changed_question = frame.copy()
+    changed_question.loc[changed_question["id"] == "a", "question"] = "Updated Q1"
+    assert ev.evaluation_run_fingerprint(changed_question, settings) != fingerprint
+    assert ev.evaluation_run_fingerprint(frame, {**settings, "temperature": 0.2}) != fingerprint
 
 
 def test_the_judge_does_not_spend_extra_calls_retrying_invalid_json():

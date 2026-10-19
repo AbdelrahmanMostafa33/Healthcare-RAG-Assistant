@@ -31,7 +31,7 @@ import re
 # calibrated threshold is keyed to. A hash of the file would also change for a typo in a comment or
 # for a CRLF checkout, silently invalidating a saved calibration for a change that cannot alter a
 # single safety decision.
-SAFETY_RULES_VERSION = "2026-10-19.1"
+SAFETY_RULES_VERSION = "2026-10-19.2"
 
 # The question describes a real person's situation, not a topic. A bare "I" is not enough:
 # "What should I know about chest pain?" is an educational question.
@@ -244,6 +244,14 @@ PERSONAL_ADVICE_PATTERNS = [re.compile(p) for p in [
     r"\b(week|days?)\b.{0,80}\b(eating almost nothing|eat almost nothing|starv(e|ing))\b",
 ]]
 
+# A general prevention question can use first-person wording without asking for personal care.
+GENERAL_PREVENTION_QUESTION = re.compile(
+    r"\bwhat (should|can|could) i do\b[^?.!]{0,80}\b(prevent|reduce (my )?risk)\b"
+)
+PERSONAL_DETAIL = re.compile(
+    r"\b(i have|i've|ive|i am|i'm|im|i feel|i think|i took|my|he|she|his|her)\b"
+)
+
 
 def _normalise(question):
     return question.lower().replace("’", "'")
@@ -299,6 +307,8 @@ def detect_emergency(question):
 
 def is_personal_advice(question):
     q = _normalise(question)
+    if GENERAL_PREVENTION_QUESTION.search(q) and not PERSONAL_DETAIL.search(q):
+        return False
     if any(p.search(q) for p in PERSONAL_ADVICE_PATTERNS):
         return True
     # A symptom plus a request to identify what it might be is a personal diagnosis request.

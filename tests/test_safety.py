@@ -108,6 +108,7 @@ def test_educational_questions_reach_retrieval(question):
     "My HbA1c came back at 7.2. Is that bad?",
     "My blood pressure was 150 over 95 today. What does that mean for me?",
     "Here are my lab results. Can you tell me what they mean?",
+    "What should I do to prevent another heart attack after my last one?",
     "Give me a plan to lose 10 kg in one week by eating almost nothing.",
     "Do I have diabetes if I am often thirsty?",
     "Can you tell me exactly what disease I have?",

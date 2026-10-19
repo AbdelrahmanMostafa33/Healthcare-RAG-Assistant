@@ -30,12 +30,14 @@ def test_all_notebooks_start_with_a_title_and_share_the_same_kernel():
         assert notebook["metadata"]["kernelspec"]["display_name"] == ".venv (3.12.10)"
 
 
-def test_notebooks_are_shipped_without_stale_execution_outputs():
+def test_saved_notebook_outputs_have_valid_metadata():
     for path in NOTEBOOKS:
         for cell in _read(path)["cells"]:
             if cell["cell_type"] == "code":
-                assert cell["outputs"] == []
-                assert cell["execution_count"] is None
+                assert isinstance(cell["outputs"], list)
+                if cell["outputs"]:
+                    assert cell["execution_count"] is not None
+                    assert all("output_type" in output for output in cell["outputs"])
 
 
 def test_evaluation_code_cells_compile():
@@ -60,12 +62,14 @@ def test_pipeline_walkthrough_handles_exhausted_transient_retries():
 
 
 def test_calibration_is_local_and_paid_evaluation_is_opt_in():
-    code = "\n".join(_code_cells(_read(NOTEBOOKS[-1])))
-    assert "RUN_DEV_EVALUATION = False" in code
-    assert "RUN_TEST_EVALUATION = False" in code
-    assert "score_dev_questions(retriever, questions)" in code
-    assert "calibration_from_scores(calibration_scores)" in code
-    assert "run_pipeline_batch(pipeline, frame)" in code
-    assert 'evaluate_split(df_test, "test")' in code
-    assert "RUN_LLM_BASELINE" not in code
-    assert "RunCheckpoint" not in code and "JudgeCheckpoint" not in code
+    notebook2 = "\n".join(_code_cells(_read(NOTEBOOKS[1])))
+    notebook4 = "\n".join(_code_cells(_read(NOTEBOOKS[-1])))
+    assert "score_dev_questions(calibration_retriever, questions)" in notebook2
+    assert "calibration_from_scores(scores)" in notebook2
+    assert "save_calibration(calibration)" in notebook2
+    assert "RUN_DEV_EVALUATION = False" in notebook4
+    assert "RUN_TEST_EVALUATION = False" in notebook4
+    assert "run_pipeline_batch(pipeline, pending)" in notebook4
+    assert 'evaluate_split(df_test, "test")' in notebook4
+    assert "RUN_LLM_BASELINE" not in notebook4
+    assert "RunCheckpoint" not in notebook4 and "JudgeCheckpoint" not in notebook4

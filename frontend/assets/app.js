@@ -80,7 +80,13 @@ function safeSourceLink(url) {
 }
 
 function sourceSearchLink(source) {
-  const query = [source.source, source.title].filter(Boolean).join(' ');
+  const publisher = String(source.source || '');
+  const officialSites = publisher.includes('NIDDK')
+    ? 'site:niddk.nih.gov'
+    : publisher.includes('NIHSeniorHealth')
+      ? '(site:medlineplus.gov OR site:nia.nih.gov)'
+      : '';
+  const query = [officialSites, source.title].filter(Boolean).join(' ');
   return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 }
 

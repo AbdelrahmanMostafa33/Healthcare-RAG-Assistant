@@ -102,6 +102,14 @@ def prepare_medquad(raw):
         "text": raw["answer"].apply(clean_text).apply(strip_boilerplate),
     })
 
+    # Some old NIH links have verified current equivalents. Keep other original URLs internally so
+    # retrieval can still recognize chunks from the same page; the API hides known retired links.
+    title_key = df["title"].str.casefold().str.replace(r"[^a-z0-9]+", " ", regex=True).str.strip()
+    niddk = df["source"].eq("MedQuAD (NIDDK)")
+    df.loc[niddk & title_key.str.startswith("am i at risk for type 2 diabetes"), "url"] = (
+        "https://www.niddk.nih.gov/health-information/diabetes/overview/symptoms-causes"
+    )
+
     df = df[(df["question"].str.len() > 5) & (df["text"] != "")]
     df = df[~df["question"].str.contains(r"\(are\)\s*\?", regex=True)]   # "What is (are) ?" = empty topic name
     # same question twice: keep the longer answer

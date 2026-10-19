@@ -42,9 +42,9 @@ JUDGE_MODEL = os.getenv("JUDGE_MODEL", _DEFAULT_JUDGE_MODEL).strip()
 GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1").strip()
 CEREBRAS_BASE_URL = os.getenv("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1").strip()
 
-RETRIEVE_K = 20
+RETRIEVE_K = 40
 CONTEXT_K = 5
-RAG_PIPELINE_VERSION = "source-diverse-context-v1"
+RAG_PIPELINE_VERSION = "source-diverse-context-v3"
 MAX_TOKENS = 2048
 
 # The timeout is a ceiling for a busy provider, not a target. A slower generator can still be

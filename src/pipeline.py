@@ -4,7 +4,7 @@
                   emergency        -> fixed emergency message, no retrieval, no LLM
                   personal advice  -> fixed redirect to a doctor, no retrieval, no LLM
                   harmful request  -> fixed refusal message, no retrieval, no LLM
-             -> retrieve: FAISS top 20 -> rerank -> up to 5, at most 2 per source page
+             -> retrieve: FAISS top 40 -> rerank -> up to 5, one per source page
              -> best rerank score below the threshold?  yes -> abstain, no LLM call
                                                          no  -> grounded prompt -> generation (bounded retries for transient 429s)
              -> answer + cited sources + disclaimer
@@ -26,6 +26,17 @@ DISCLAIMER = (
     "diagnosis or treatment. Talk to a doctor or pharmacist about your own situation, "
     "and call your local emergency number if you think it is an emergency."
 )
+
+
+def _public_source_url(source, url):
+    """Hide links known to point to retired NIH pages; the saved passage remains available."""
+    publisher = str(source or "").casefold()
+    page_url = str(url or "").strip()
+    if "nihseniorhealth" in publisher:
+        return ""
+    if "niddk" in publisher and "/pages/index.aspx" in page_url.casefold():
+        return ""
+    return page_url
 
 ABSTAIN_MESSAGE = (
     "I can only answer general health-education questions. Your question may be outside that scope, "
@@ -116,7 +127,8 @@ class RAGPipeline:
             "citation_validation_failed": citation_validation_failed,
             # Only list sources the answer actually cites; n keeps its prompt citation number.
             "sources": [{"n": n, "source": passages[n - 1]["source"], "title": passages[n - 1]["title"],
-                         "url": passages[n - 1]["url"]} for n in cited_numbers],
+                         "url": _public_source_url(passages[n - 1]["source"], passages[n - 1]["url"])}
+                        for n in cited_numbers],
             "passages": passages,
             "retrieved_passages": retrieved,
             "passage_count": len(retrieved),

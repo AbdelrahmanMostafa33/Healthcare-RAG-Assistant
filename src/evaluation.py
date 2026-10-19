@@ -145,12 +145,26 @@ def score_answers(judge, df, answers, previous=None, checkpoint=None):
     previous_facts = previous.get("facts", pd.DataFrame())
     previous_behavior = previous.get("behavior", pd.DataFrame())
     previous_grading = previous.get("grading", pd.DataFrame())
-    current_ids = set(df["id"])
+    current_rows = df.set_index("id")
     completed_ids = set()
-    if not previous_grading.empty and {"id", "status"}.issubset(previous_grading.columns):
-        completed_ids = set(
-            previous_grading.loc[previous_grading["status"] == "ok", "id"]
-        ) & current_ids
+    if (not previous_grading.empty and {"id", "status"}.issubset(previous_grading.columns)
+            and not previous_behavior.empty and {"id", "expected"}.issubset(previous_behavior.columns)):
+        previously_completed = set(previous_grading.loc[previous_grading["status"] == "ok", "id"])
+        behavior_by_id = previous_behavior.drop_duplicates("id").set_index("id")["expected"]
+        facts_by_id = {
+            qid: Counter(normalise_label(fact) for fact in group["fact"].dropna())
+            for qid, group in previous_facts.groupby("id")
+        } if not previous_facts.empty and {"id", "fact"}.issubset(previous_facts.columns) else {}
+        for qid in previously_completed & set(current_rows.index):
+            current = current_rows.loc[qid]
+            if isinstance(current, pd.DataFrame):
+                continue
+            if behavior_by_id.get(qid) != current.expected_behavior:
+                continue
+            expected_facts = (Counter(normalise_label(fact) for fact in split_key_facts(current.key_facts))
+                              if current.expected_behavior == "answer" else Counter())
+            if facts_by_id.get(qid, Counter()) == expected_facts:
+                completed_ids.add(qid)
 
     # Keep only complete rows from the same judge; errors and skipped rows are retried.
     fact_rows = (

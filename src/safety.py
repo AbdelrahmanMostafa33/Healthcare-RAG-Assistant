@@ -31,7 +31,7 @@ import re
 # calibrated threshold is keyed to. A hash of the file would also change for a typo in a comment or
 # for a CRLF checkout, silently invalidating a saved calibration for a change that cannot alter a
 # single safety decision.
-SAFETY_RULES_VERSION = "2026-10-13.1"
+SAFETY_RULES_VERSION = "2026-10-19.1"
 
 # The question describes a real person's situation, not a topic. A bare "I" is not enough:
 # "What should I know about chest pain?" is an educational question.
@@ -220,6 +220,7 @@ _DECISION_VERBS = r"(take|give|stop|skip|double|mix|combine|keep taking|continue
 PERSONAL_ADVICE_PATTERNS = [re.compile(p) for p in [
     # "Can I stop taking insulin?", "Should I take a double dose?"
     rf"\b(should|can|could|may) i {_DECISION_VERBS}\b",
+    r"\bwhat (should|can|could) i do\b",
     rf"\bis it (ok|okay|safe|fine) (for me )?to {_DECISION_VERBS}\b",
     # amounts for a person: "how much can I give my son", "what dose should I take", "5 mg"
     r"\bhow (much|many)\b[^?.!]*\b(should|can|do) i (give|take)\b",
@@ -299,6 +300,14 @@ def detect_emergency(question):
 def is_personal_advice(question):
     q = _normalise(question)
     if any(p.search(q) for p in PERSONAL_ADVICE_PATTERNS):
+        return True
+    # A symptom plus a request to identify what it might be is a personal diagnosis request.
+    personal_diagnosis = re.search(
+        r"\b(what|which)\b[^?]{0,120}\b(could|might|may)\b[^?]{0,40}\b(it|this|that|causing)\b"
+        r"|\bwhat (is|are) (it|wrong)\b|\bis something wrong\b",
+        q,
+    )
+    if PERSONAL.search(q) and personal_diagnosis:
         return True
     # A number/unit alone is not enough to assume someone is asking about a personal dose.
     has_dose_amount = re.search(r"\b\d+(\.\d+)?\s*(mg|mcg|µg|μg|ml)\b", q)

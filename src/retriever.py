@@ -4,7 +4,7 @@ import numpy as np
 from src import config
 from src.kb import load_encoder, load_index
 
-MAX_CHUNKS_PER_SOURCE = 2
+MAX_CHUNKS_PER_SOURCE = 1
 
 
 class Retriever:
@@ -31,7 +31,8 @@ class Retriever:
         selected, source_counts = [], {}
         for score, chunk in ranked:
             url = str(chunk.get("url") or "").strip().casefold()
-            source_key = (chunk.get("source"), url) if url else (chunk.get("source"), chunk.get("doc_id"))
+            # The URL identifies a page even if two datasets label its publisher differently.
+            source_key = url if url else (chunk.get("source"), chunk.get("doc_id"))
             if source_counts.get(source_key, 0) >= MAX_CHUNKS_PER_SOURCE:
                 continue
             selected.append({**chunk, "rerank_score": float(score)})

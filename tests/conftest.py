@@ -45,7 +45,7 @@ class FakeEncoder:
 class FakeReranker:
     """Score = number of distinct query words found in the text."""
 
-    def predict(self, pairs):
+    def predict(self, pairs, batch_size=32, show_progress_bar=None):
         return np.array([float(len(set(words(query)) & set(words(text)))) for query, text in pairs])
 
 

@@ -44,7 +44,7 @@ CEREBRAS_BASE_URL = os.getenv("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1")
 
 RETRIEVE_K = 40
 CONTEXT_K = 5
-RAG_PIPELINE_VERSION = "source-diverse-context-v5"
+RAG_PIPELINE_VERSION = "source-diverse-context-v6"
 MAX_TOKENS = 2048
 
 # The timeout is a ceiling for a busy provider, not a target. A slower generator can still be

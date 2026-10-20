@@ -16,6 +16,7 @@ from src.metrics import (
     abstention_metrics,
     citation_metrics,
     coverage_metrics,
+    latency_component_metrics,
     latency_metrics,
 )
 from src.provider_clients import make_judge_client
@@ -402,6 +403,7 @@ def evaluate_pipeline_results(df, results, judge, previous_grades=None, checkpoi
         "attempted_questions": len(question_ids - skipped_ids),
         "latency_ms": float(np.mean(latency_values)) if latency_values else None,
         "latency": latency_metrics(valid_results),
+        "latency_components": latency_component_metrics(valid_results),
         "coverage": coverage,
         "graded_questions": int((grading["status"] == "ok").sum()),
     }

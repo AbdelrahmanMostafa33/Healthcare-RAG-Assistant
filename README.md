@@ -71,7 +71,7 @@ The local unit suite uses small fixtures and fake providers; it does not downloa
 python -m pytest -q
 ~~~
 
-The evaluation notebook calibrates locally by default. Set `RUN_DEV_EVALUATION = True` to generate development answers with Gemini and grade them with Groq. Keep `RUN_TEST_EVALUATION = False` while iterating; run the held-out test once after the system is fixed. Evaluation CSV and JSON files are saved under **reports/evaluation/** and replaced when that split is run again. If an API run is interrupted, starting it again repeats provider calls for that split.
+The evaluation notebook calibrates locally. Set the development or test switch before running its matching evaluation cell; test evaluation should wait until development changes are finished. A reranker or pipeline-version change invalidates the saved threshold, so recalibrate in Notebook 02 before Notebook 04. Evaluation CSV and JSON files are saved under **reports/evaluation/**. Matching saved answers and completed judge grades are reused when the questions, generation settings, threshold, retrieval policy, judge provider, and judge model still match; failed rows alone are retried.
 
 The evaluation set contains 255 project-authored questions (168 development, 87 test). Labels have not been reviewed by clinicians, related topics can appear in both splits, and there are no labeled relevant passages, so retrieval recall and nDCG are not reported. The automated judge is an imperfect proxy, and provider models can change.
 

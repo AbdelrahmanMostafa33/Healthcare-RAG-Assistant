@@ -129,3 +129,23 @@ def latency_metrics(results):
         "mean_ms": float(np.mean(values)) if values else None,
         "measured_questions": len(values),
     }
+
+
+def latency_component_metrics(results):
+    """Separate retrieval and generation timing so a slow stage is easy to identify."""
+    rows = list(results.values()) if isinstance(results, dict) else list(results)
+    metrics = {}
+    for component in ("retrieval_ms", "generation_ms"):
+        values = []
+        for row in rows:
+            try:
+                value = float(row.get(component))
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(value):
+                values.append(value)
+        metrics[component.removesuffix("_ms")] = {
+            "mean_ms": float(np.mean(values)) if values else None,
+            "measured_questions": len(values),
+        }
+    return metrics

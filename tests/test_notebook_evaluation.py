@@ -61,14 +61,16 @@ def test_pipeline_walkthrough_handles_exhausted_transient_retries():
     )
 
 
-def test_calibration_is_local_and_paid_evaluation_is_opt_in():
+def test_calibration_is_local_and_evaluation_cells_are_gated():
     notebook2 = "\n".join(_code_cells(_read(NOTEBOOKS[1])))
     notebook4 = "\n".join(_code_cells(_read(NOTEBOOKS[-1])))
     assert "score_dev_questions(calibration_retriever, questions)" in notebook2
     assert "calibration_from_scores(scores)" in notebook2
     assert "save_calibration(calibration)" in notebook2
-    assert "RUN_DEV_EVALUATION = False" in notebook4
-    assert "RUN_TEST_EVALUATION = False" in notebook4
+    assert "RUN_DEV_EVALUATION" in notebook4
+    assert "RUN_TEST_EVALUATION" in notebook4
+    assert "if RUN_DEV_EVALUATION:" in notebook4
+    assert "if RUN_TEST_EVALUATION:" in notebook4
     assert "run_pipeline_batch(pipeline, pending)" in notebook4
     assert 'evaluate_split(df_test, "test")' in notebook4
     assert "RUN_LLM_BASELINE" not in notebook4

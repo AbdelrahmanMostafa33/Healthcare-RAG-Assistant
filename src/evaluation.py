@@ -355,6 +355,40 @@ def run_pipeline_batch(pipeline, df):
     return results
 
 
+def retrieval_diagnostic(retriever, frame, threshold):
+    """Return ranked evidence for a question set without generation or judge calls.
+
+    This is intended for development-set error analysis: it records the actual chunks selected
+    by the current retriever, including below-threshold rows, so corpus gaps can be separated
+    from score calibration problems.
+    """
+    rows = []
+    for row in frame.itertuples(index=False):
+        passages = retriever.retrieve(row.question)
+        for rank, passage in enumerate(passages, start=1):
+            score = float(passage["rerank_score"])
+            rows.append({
+                "id": row.id,
+                "split": getattr(row, "split", None),
+                "type": getattr(row, "type", None),
+                "expected_behavior": getattr(row, "expected_behavior", None),
+                "question": row.question,
+                "key_facts": getattr(row, "key_facts", None),
+                "rank": rank,
+                "rerank_score": score,
+                "threshold": float(threshold),
+                "score_margin": score - float(threshold),
+                "source": passage.get("source"),
+                "title": passage.get("title"),
+                "url": passage.get("url"),
+                "text": passage.get("text"),
+            })
+    return pd.DataFrame(rows, columns=[
+        "id", "split", "type", "expected_behavior", "question", "key_facts", "rank",
+        "rerank_score", "threshold", "score_margin", "source", "title", "url", "text",
+    ])
+
+
 def evaluate_pipeline_results(df, results, judge, previous_grades=None, checkpoint=None):
     """Grade completed answers and report errors separately from quality metrics."""
     question_ids = set(df["id"])

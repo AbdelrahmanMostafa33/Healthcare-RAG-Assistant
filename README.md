@@ -47,7 +47,7 @@ Build and calibrate the local retrieval pipeline, then run the walkthrough and e
 1. Run **notebooks/01_data_and_kb.ipynb** to download and clean the source data.
 2. Run **notebooks/02_build_index.ipynb** to build the FAISS index and calibrate its evidence threshold locally. Calibration uses development questions and does not call a provider.
 3. Run **notebooks/03_rag_pipeline.ipynb** for the calibrated walkthrough.
-4. Run **notebooks/04_evaluation.ipynb** when you are ready for provider-based answer generation and judging.
+4. Run **notebooks/04_evaluation.ipynb** when you are ready for provider-based answer generation and judging. Start Jupyter from the activated `.venv` so retrieval uses the installed CUDA-enabled PyTorch build when an NVIDIA GPU is available; the evaluation notebook prints the active retrieval device.
 
 Start the local app:
 
@@ -71,7 +71,7 @@ The local unit suite uses small fixtures and fake providers; it does not downloa
 python -m pytest -q
 ~~~
 
-The evaluation notebook calibrates locally. Set the development or test switch before running its matching evaluation cell; test evaluation should wait until development changes are finished. A reranker or pipeline-version change invalidates the saved threshold, so recalibrate in Notebook 02 before Notebook 04. Evaluation CSV and JSON files are saved under **reports/evaluation/**. Matching saved answers and completed judge grades are reused when the questions, generation settings, threshold, retrieval policy, judge provider, and judge model still match; failed rows alone are retried.
+The evaluation notebook calibrates locally. Development evaluation runs by default; the held-out test switch is off by default and should only be enabled once development changes are finished. A reranker or pipeline-version change invalidates the saved threshold, so recalibrate in Notebook 02 before Notebook 04. Evaluation CSV and JSON files are saved under **reports/evaluation/**. Matching saved answers and completed judge grades are reused when the questions, generation settings, threshold, retrieval policy, judge provider, and judge model still match; failed rows alone are retried.
 
 The evaluation set contains 255 project-authored questions (168 development, 87 test). Labels have not been reviewed by clinicians, related topics can appear in both splits, and there are no labeled relevant passages, so retrieval recall and nDCG are not reported. The automated judge is an imperfect proxy, and provider models can change.
 

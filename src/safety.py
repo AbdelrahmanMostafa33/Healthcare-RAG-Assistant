@@ -10,8 +10,11 @@ Three checks run after normalization (typographic apostrophes are lowered to ASC
    specific person. A static knowledge base cannot answer that, so the answer is a fixed
    redirect to a doctor or pharmacist.
 
-These are deliberately narrow keyword rules, not a classifier. They handle curly and straight apostrophes identically, so phone-typed text reaches the same result as typed text. Generation and the API run the same normalized safety check as the evaluation harness and the notebooks, and the `src/safety.py` file on disk is the single shared module every one of them imports. A question that matches nothing goes
-through retrieval, where the evidence threshold and the prompt rules still apply. A wrong match is
+These are deliberately narrow keyword rules, not a classifier. A separate freshness check in this
+module withholds questions that depend on current or recent facts a static corpus cannot verify.
+The rules handle curly and straight apostrophes identically, so phone-typed text reaches the same
+result. Generation and the API use the same shared module as the evaluation notebooks. Other
+questions go through retrieval, where the evidence threshold and prompt rules still apply. A wrong match is
 costly (an educational question gets a fixed reply), so the rules are split in two tiers:
 
 * Tier 1 names a specific act or desire of the speaker in any inflection - "killing myself",
@@ -31,7 +34,17 @@ import re
 # calibrated threshold is keyed to. A hash of the file would also change for a typo in a comment or
 # for a CRLF checkout, silently invalidating a saved calibration for a change that cannot alter a
 # single safety decision.
-SAFETY_RULES_VERSION = "2026-10-19.2"
+SAFETY_RULES_VERSION = "2026-10-20.1"
+
+LIVE_INFORMATION = re.compile(
+    r"\b(today|this\s+(?:week|month|year)|last\s+(?:week|month|year)|currently|current(?:ly)?"
+    r"|latest|recently|right\s+now|as\s+of\s+now|newly|most\s+recent)\b"
+)
+
+
+def requires_live_information(question):
+    """Whether the question depends on facts a static health corpus cannot keep current."""
+    return bool(LIVE_INFORMATION.search(_normalise(question)))
 
 # The question describes a real person's situation, not a topic. A bare "I" is not enough:
 # "What should I know about chest pain?" is an educational question.

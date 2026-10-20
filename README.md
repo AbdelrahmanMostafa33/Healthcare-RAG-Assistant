@@ -15,6 +15,7 @@ The assistant needs a locally built knowledge index and a calibrated evidence th
 ~~~text
 Question
   → shared safety checks
+  → withhold time-sensitive questions that need live information
   → BGE-M3 embeddings and FAISS search (top 40 candidates)
   → BGE reranking (up to 5 source pages, up to 2 related chunks per page)
   → calibrated evidence threshold
@@ -22,7 +23,7 @@ Question
   → citation ID check and source links
 ~~~
 
-The pipeline lives in **src/** and is shared by the API and evaluation notebooks. It checks emergency, personal-advice, and harmful-request patterns before retrieval. Evidence that falls below the calibrated threshold is not sent to the generator. Answers with citation IDs that do not refer to retrieved passages are withheld.
+The pipeline lives in **src/** and is shared by the API and evaluation notebooks. It checks emergency, personal-advice, and harmful-request patterns before retrieval, and withholds requests for current or recent information because its health sources are a static snapshot. Evidence that falls below the calibrated threshold is not sent to the generator. Answers with citation IDs that do not refer to retrieved passages are withheld.
 
 Calibration is tied to the evaluation questions, index, and versioned safety rules. If one changes, the old threshold is rejected and the pipeline abstains until it is recalibrated.
 

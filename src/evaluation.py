@@ -278,8 +278,9 @@ def score_answers(judge, df, answers, previous=None, checkpoint=None):
     return facts, behavior, grading
 
 
-def choose_threshold(answerable_scores, unanswerable_scores, min_abstention_recall=0.90):
-    """Choose the lowest score threshold meeting the minimum recall on true no-evidence questions."""
+def choose_threshold(answerable_scores, unanswerable_scores, min_abstention_recall=0.90,
+                     forced_unanswerable=None):
+    """Choose the lowest threshold meeting the no-evidence recall floor, including policy abstentions."""
     if not 0.0 <= float(min_abstention_recall) <= 1.0:
         raise ValueError("min_abstention_recall must be between 0 and 1")
     answerable = np.asarray(answerable_scores, dtype=float)
@@ -288,13 +289,17 @@ def choose_threshold(answerable_scores, unanswerable_scores, min_abstention_reca
         raise ValueError("need at least one answerable and one unanswerable score")
     if not np.isfinite(answerable).all() or not np.isfinite(unanswerable).all():
         raise ValueError("scores contain NaN or infinity: drop questions that never reached retrieval first")
+    forced = (np.zeros(len(unanswerable), dtype=bool) if forced_unanswerable is None
+              else np.asarray(forced_unanswerable, dtype=bool))
+    if len(forced) != len(unanswerable):
+        raise ValueError("forced_unanswerable must have one value per unanswerable score")
 
     values = np.unique(np.concatenate([answerable, unanswerable]))
     candidates = [values[0] - 1] + list((values[:-1] + values[1:]) / 2) + [values[-1] + 1]
     scored = []
     for threshold in candidates:
         answered = float((answerable >= threshold).mean())
-        abstained = float((unanswerable < threshold).mean())
+        abstained = float(((unanswerable < threshold) | forced).mean())
         scored.append({
             "threshold": float(threshold),
             "balanced_accuracy": (answered + abstained) / 2,
@@ -353,40 +358,6 @@ def run_pipeline_batch(pipeline, df):
                 "error", error_detail(error), (time.perf_counter() - started) * 1000
             )
     return results
-
-
-def retrieval_diagnostic(retriever, frame, threshold):
-    """Return ranked evidence for a question set without generation or judge calls.
-
-    This is intended for development-set error analysis: it records the actual chunks selected
-    by the current retriever, including below-threshold rows, so corpus gaps can be separated
-    from score calibration problems.
-    """
-    rows = []
-    for row in frame.itertuples(index=False):
-        passages = retriever.retrieve(row.question)
-        for rank, passage in enumerate(passages, start=1):
-            score = float(passage["rerank_score"])
-            rows.append({
-                "id": row.id,
-                "split": getattr(row, "split", None),
-                "type": getattr(row, "type", None),
-                "expected_behavior": getattr(row, "expected_behavior", None),
-                "question": row.question,
-                "key_facts": getattr(row, "key_facts", None),
-                "rank": rank,
-                "rerank_score": score,
-                "threshold": float(threshold),
-                "score_margin": score - float(threshold),
-                "source": passage.get("source"),
-                "title": passage.get("title"),
-                "url": passage.get("url"),
-                "text": passage.get("text"),
-            })
-    return pd.DataFrame(rows, columns=[
-        "id", "split", "type", "expected_behavior", "question", "key_facts", "rank",
-        "rerank_score", "threshold", "score_margin", "source", "title", "url", "text",
-    ])
 
 
 def evaluate_pipeline_results(df, results, judge, previous_grades=None, checkpoint=None):

@@ -89,21 +89,28 @@ def calibration_from_scores(scores: pd.DataFrame, min_abstention_recall=0.90) ->
     answerable = scored.loc[scored["expected_behavior"] == "answer", "best_score"]
     declined = scored.loc[scored["expected_behavior"] == "insufficient_evidence"]
     # Policy redirects are evaluated separately; only true no-evidence questions set this cutoff.
-    no_evidence = declined.loc[declined["type"].isin(TRUE_NO_EVIDENCE_TYPES), "best_score"]
+    no_evidence_rows = declined.loc[declined["type"].isin(TRUE_NO_EVIDENCE_TYPES)]
+    no_evidence = no_evidence_rows["best_score"]
     if no_evidence.empty:
         raise ValueError(
             "No insufficient_evidence rows of type "
             f"{sorted(TRUE_NO_EVIDENCE_TYPES)} were scored, so the threshold cannot be calibrated"
         )
-    result = choose_threshold(answerable, no_evidence, min_abstention_recall=min_abstention_recall)
+    questions = no_evidence_rows.get("question", pd.Series("", index=no_evidence_rows.index))
+    forced_abstentions = questions.map(safety.requires_live_information).to_numpy()
+    result = choose_threshold(
+        answerable, no_evidence, min_abstention_recall=min_abstention_recall,
+        forced_unanswerable=forced_abstentions,
+    )
     metadata = config.calibration_metadata()
     if any(value is None for value in metadata.values()):
         raise RuntimeError("Cannot save calibration: evaluation file or built index manifest is missing")
     return {
         **result,
         **metadata,
-        "rule": (f"lowest threshold keeping abstention recall >= {min_abstention_recall:.2f} "
+        "rule": (f"lowest threshold keeping effective abstention recall >= {min_abstention_recall:.2f} "
                  f"on dev questions the base has no evidence for (types {sorted(TRUE_NO_EVIDENCE_TYPES)}); "
+                 "time-sensitive questions are withheld before retrieval; "
                  "scope/policy questions are reported separately, not calibrated on; "
                  "threshold is frozen before final test evaluation"),
         "negatives_calibrated_on": ["true_no_evidence"],

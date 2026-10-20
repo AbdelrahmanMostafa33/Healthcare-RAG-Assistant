@@ -4,6 +4,7 @@
                   emergency        -> fixed emergency message, no retrieval, no LLM
                   personal advice  -> fixed redirect to a doctor, no retrieval, no LLM
                   harmful request  -> fixed refusal message, no retrieval, no LLM
+             -> withhold time-sensitive questions that need a live source
              -> retrieve: FAISS top 40 -> rerank -> up to 5 pages, 2 chunks merged per page
              -> best rerank score below the threshold?  yes -> abstain, no LLM call
                                                          no  -> grounded prompt -> generation (bounded retries for transient 429s)
@@ -81,6 +82,10 @@ class RAGPipeline:
         if not self.calibrated:
             return self._result(UNCALIBRATED_MESSAGE, start, abstained=True,
                                 abstain_reason=ABSTAIN_UNCALIBRATED)
+
+        if safety.requires_live_information(question):
+            return self._result(ABSTAIN_MESSAGE, start, abstained=True,
+                                abstain_reason=ABSTAIN_INSUFFICIENT_EVIDENCE)
 
         # FAISS finds candidates first; the cross-encoder then ranks the evidence for this question.
         retrieval_started = time.perf_counter()

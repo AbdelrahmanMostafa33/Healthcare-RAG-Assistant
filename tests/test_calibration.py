@@ -31,8 +31,6 @@ def test_calibration_from_dev_scores_emits_build_fingerprints(monkeypatch):
     assert result["eval_sha256"] == "eval-hash"
     assert result["n_unanswerable"] == 2   # only the no-evidence rows, not the medication row
     assert result["scored_by_expected_behavior"] == {"answer": 2, "insufficient_evidence": 3}
-    assert result["answerable_answered_ci95"] == [0.3424, 1.0]
-    assert result["no_evidence_abstained_ci95"] == [0.3424, 1.0]
 
 
 def test_calibration_ignores_scope_and_policy_negatives_that_score_like_answerable_rows():

@@ -46,21 +46,33 @@ def test_citation_metrics_include_fail_closed_rejections():
     assert metrics["citation_validation_rejections"] == 1
 
 
-def test_insufficient_evidence_rubric_exempts_the_standard_abstention_closing():
-    from src.pipeline import ABSTAIN_MESSAGE
-
+def test_insufficient_evidence_rubric_does_not_require_a_fixed_template():
     rubric = ev.CHECKS["insufficient_evidence"]
-    assert "call your local emergency number" in rubric
-    assert "must NOT be treated as giving emergency advice" in rubric
-    assert "If you think this could be an emergency" in ABSTAIN_MESSAGE
+    assert "do not require exact template wording" in rubric.lower()
+    assert "fixed disclaimer/closing" in rubric.lower()
 
 
-def test_coverage_reports_fact_and_question_weighted_values_with_denominators():
-    facts = pd.DataFrame({"id": ["q1", "q1", "q2"], "score": [1.0, 1.0, 0.0]})
-    coverage = mx.coverage_metrics(facts)
-    assert coverage["key_fact_coverage"] == pytest.approx(2 / 3)
-    assert coverage["key_fact_coverage_question_weighted"] == pytest.approx(0.5)
-    assert coverage["facts_graded"] == 3 and coverage["questions_graded"] == 2
+def test_rag_quality_metrics_show_pass_rate_and_denominator_for_each_check():
+    scores = pd.DataFrame({
+        "context_relevance": ["pass", "fail", "not_applicable"],
+        "faithfulness": ["pass", "pass", "not_applicable"],
+        "answer_relevance": ["fail", "pass", "not_applicable"],
+    })
+    metrics = mx.rag_quality_metrics(scores)
+    assert metrics["context_relevance"] == {
+        "pass_rate": 0.5, "passed": 1, "graded": 2,
+    }
+    assert metrics["faithfulness"] == {
+        "pass_rate": 1.0, "passed": 2, "graded": 2,
+    }
+    assert metrics["answer_relevance"] == {
+        "pass_rate": 0.5, "passed": 1, "graded": 2,
+    }
+
+
+def test_rag_checks_use_standard_names_and_no_manual_fact_labels():
+    assert ev.RAG_CHECKS == ("context_relevance", "faithfulness", "answer_relevance", "reference_match")
+    assert "key_facts" not in ev.RAG_SCORE_SYSTEM
 
 
 def test_abstention_does_not_count_safety_or_citation_blocks():
@@ -71,16 +83,18 @@ def test_abstention_does_not_count_safety_or_citation_blocks():
 
 def test_evaluation_keeps_errors_out_of_quality_denominators():
     frame = pd.DataFrame([
-        {"id": "ok", "type": "consumer", "question": "What is flu?", "key_facts": "Virus",
+        {"id": "ok", "type": "consumer", "question": "What is flu?",
          "expected_behavior": "answer"},
-        {"id": "bad", "type": "consumer", "question": "What is measles?", "key_facts": "Virus",
+        {"id": "bad", "type": "consumer", "question": "What is measles?",
          "expected_behavior": "answer"},
-        {"id": "skip", "type": "unanswerable", "question": "What is Zorbo disease?", "key_facts": None,
+        {"id": "skip", "type": "unanswerable", "question": "What is Zorbo disease?",
          "expected_behavior": "insufficient_evidence"},
     ])
     results = {
         "ok": {"answer": "Flu is viral [1].", "sources": [{"n": 1}], "passage_count": 1,
-               "abstained": False, "latency_ms": 500, "status": "ok"},
+               "passages": [{"title": "Flu", "source": "CDC", "text": "Influenza is viral."}],
+               "retrieved_passages": [{"title": "Flu", "source": "CDC", "text": "Influenza is viral."}],
+               "abstained": False, "retrieval_ms": 10, "latency_ms": 500, "status": "ok"},
         "bad": {"answer": "", "sources": [], "abstained": False, "status": "error",
                 "error": "provider unavailable"},
         "skip": {"answer": "", "sources": [], "abstained": False, "status": "skipped",
@@ -91,10 +105,11 @@ def test_evaluation_keeps_errors_out_of_quality_denominators():
         model = "fake-judge"
 
         def __call__(self, system, user, max_tokens=700):
-            payload = json.loads(user)
             return {
-                "key_facts": [{"fact": fact, "verdict": "yes"} for fact in payload["key_facts"]],
-                "behavior": {"verdict": "yes", "reason": "ok"},
+                "context_relevance": {"verdict": "pass", "reason": "relevant"},
+                "faithfulness": {"verdict": "pass", "reason": "grounded"},
+                "answer_relevance": {"verdict": "pass", "reason": "direct"},
+                "behavior": {"verdict": "pass", "reason": "ok"},
             }
 
     scored = ev.evaluate_pipeline_results(frame, results, Judge())
@@ -102,5 +117,5 @@ def test_evaluation_keeps_errors_out_of_quality_denominators():
     assert scored["attempted_questions"] == 2
     assert scored["pipeline_errors"] == 1 and scored["skipped_questions"] == 1
     assert scored["graded_questions"] == 1
-    assert scored["coverage"]["answerable_questions_graded"] == 1
+    assert scored["rag_quality"]["faithfulness"]["graded"] == 1
     assert scored["latency"] == {"mean_ms": 500.0, "measured_questions": 1}

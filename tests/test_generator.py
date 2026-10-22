@@ -7,10 +7,12 @@ from types import SimpleNamespace
 import pytest
 
 from src.generator import (
+    GenerationEmptyResponseError,
     SYSTEM_PROMPT,
     build_messages,
     citation_numbers,
     citations_are_valid,
+    generate,
     generate_text,
 )
 
@@ -112,6 +114,23 @@ def test_generate_text_rejects_empty_answer(
     client = make_generator_client()
     with pytest.raises(RuntimeError, match="empty answer"):
         generate_text(client, "sys", "user")
+
+
+def test_generate_retries_one_malformed_empty_provider_response(monkeypatch):
+    from src import generator
+
+    calls = []
+
+    def fake_generate_once(*args, **kwargs):
+        calls.append((args, kwargs))
+        if len(calls) == 1:
+            raise GenerationEmptyResponseError("malformed empty response")
+        return "grounded answer [1]"
+
+    monkeypatch.setattr(generator, "_generate_once", fake_generate_once)
+    monkeypatch.setattr(generator, "call_with_transient_rate_limit_retry", lambda call, **kwargs: call())
+    assert generate(object(), "question", []) == "grounded answer [1]"
+    assert len(calls) == 2
 
 
 def test_generate_text_rejects_truncated_answer(

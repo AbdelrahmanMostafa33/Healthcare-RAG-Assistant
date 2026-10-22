@@ -21,6 +21,8 @@ INDEX_PATH = ROOT / "data" / "index" / "kb.faiss"
 CHUNKS_PATH = ROOT / "data" / "index" / "chunks.jsonl"
 INDEX_MANIFEST_PATH = ROOT / "data" / "index" / "manifest.json"
 EVAL_PATH = ROOT / "data" / "eval" / "questions.csv"
+HOLDOUT_PATH = ROOT / "data" / "eval" / "final_holdout.csv"
+RETRIEVAL_REFERENCE_PATH = ROOT / "data" / "eval" / "retrieval_reference.csv"
 REPORTS_DIR = ROOT / "reports"
 THRESHOLD_PATH = REPORTS_DIR / "abstention_threshold.json"
 
@@ -44,7 +46,7 @@ CEREBRAS_BASE_URL = os.getenv("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1")
 
 RETRIEVE_K = 40
 CONTEXT_K = 5
-RAG_PIPELINE_VERSION = "source-diverse-context-v7"
+RAG_PIPELINE_VERSION = "source-diverse-context-v8"
 MAX_TOKENS = 2048
 
 # The timeout is a ceiling for a busy provider, not a target. A slower generator can still be

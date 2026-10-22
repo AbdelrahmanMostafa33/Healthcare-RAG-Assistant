@@ -16,14 +16,14 @@ import pandas as pd
 
 from src import config, safety
 from src.evaluation import choose_threshold
-from src.metrics import TRUE_NO_EVIDENCE_TYPES, wilson_interval
+from src.metrics import TRUE_NO_EVIDENCE_TYPES
 
 
 VALID_BEHAVIORS = {"answer", "insufficient_evidence", "emergency", "safety_redirect", "refuse"}
 
 def validate_evaluation_data(questions: pd.DataFrame) -> None:
     """Fail early on malformed labels, missing report fields or exact train/test leakage."""
-    required = {"id", "split", "type", "expected_behavior", "question", "key_facts"}
+    required = {"id", "split", "type", "expected_behavior", "question"}
     missing = required - set(questions.columns)
     if missing:
         raise ValueError(f"Evaluation data is missing columns: {sorted(missing)}")
@@ -40,15 +40,22 @@ def validate_evaluation_data(questions: pd.DataFrame) -> None:
     if normalized_questions.duplicated().any():
         duplicates = normalized_questions[normalized_questions.duplicated(keep=False)].unique().tolist()
         raise ValueError(f"Evaluation questions must be unique across splits; duplicates include: {duplicates[:3]}")
-    if not set(questions["split"].dropna()) <= {"dev", "test"} or questions["split"].isna().any():
-        raise ValueError("Evaluation split values must be 'dev' or 'test'")
+    if not set(questions["split"].dropna()) <= {"dev", "test", "final_holdout"} or questions["split"].isna().any():
+        raise ValueError("Evaluation split values must be 'dev', 'test', or 'final_holdout'")
     unknown = set(questions["expected_behavior"].dropna()) - VALID_BEHAVIORS
     if unknown or questions["expected_behavior"].isna().any():
         raise ValueError(f"Unknown or missing expected_behavior values: {sorted(unknown)}")
-    answerable = questions[questions["expected_behavior"] == "answer"]
-    facts = answerable["key_facts"].astype("string").str.strip()
-    if facts.isna().any() or facts.eq("").any():
-        raise ValueError("Every answerable question must have at least one key fact")
+    if "final_holdout" in set(questions["split"]):
+        reference = questions.loc[questions["split"] == "final_holdout"]
+        required_reference = {"reference_answer", "reference_source_title", "reference_source_url"}
+        missing_reference = required_reference - set(reference.columns)
+        if missing_reference:
+            raise ValueError(f"Final holdout is missing reference fields: {sorted(missing_reference)}")
+        for field in required_reference:
+            if reference[field].isna().any() or reference[field].astype(str).str.strip().eq("").any():
+                raise ValueError(f"Final holdout rows need a non-empty {field}")
+        if not reference["expected_behavior"].eq("answer").all():
+            raise ValueError("Final holdout reference-answer questions must expect an answer")
 
 
 def score_dev_questions(retriever, questions: pd.DataFrame) -> pd.DataFrame:
@@ -116,12 +123,6 @@ def calibration_from_scores(scores: pd.DataFrame, min_abstention_recall=0.90) ->
         "negatives_calibrated_on": ["true_no_evidence"],
         "negatives_excluded": ["policy_scope"],
         "answerable_answered_fraction": result["answerable_answered"],
-        "answerable_answered_ci95": wilson_interval(
-            round(result["answerable_answered"] * result["n_answerable"]), result["n_answerable"]
-        ),
-        "no_evidence_abstained_ci95": wilson_interval(
-            round(result["unanswerable_abstained"] * result["n_unanswerable"]), result["n_unanswerable"]
-        ),
         "scored_by_expected_behavior": scored.groupby("expected_behavior").size().to_dict(),
         "scored_by_type": scored.groupby("type").size().to_dict(),
         "calibrated_on": "dev",

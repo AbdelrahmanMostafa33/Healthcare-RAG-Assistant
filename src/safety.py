@@ -7,8 +7,8 @@ Three checks run after normalization (typographic apostrophes are lowered to ASC
 2. Explicit harmful requests: requests for serious self-harm, poisoning, drug diversion, or
    prescription fraud receive a fixed refusal.
 3. Personal advice: the question asks for a dose, a diagnosis or a treatment decision about one
-   specific person. A static knowledge base cannot answer that, so the answer is a fixed
-   redirect to a doctor or pharmacist.
+   specific person, or briefly reports a symptom as that person's current situation. A static
+   knowledge base cannot assess that, so the answer is a fixed redirect to a doctor or pharmacist.
 
 These are deliberately narrow keyword rules, not a classifier. A separate freshness check in this
 module withholds questions that depend on current or recent facts a static corpus cannot verify.
@@ -34,7 +34,7 @@ import re
 # calibrated threshold is keyed to. A hash of the file would also change for a typo in a comment or
 # for a CRLF checkout, silently invalidating a saved calibration for a change that cannot alter a
 # single safety decision.
-SAFETY_RULES_VERSION = "2026-10-20.1"
+SAFETY_RULES_VERSION = "2026-10-21.1"
 
 LIVE_INFORMATION = re.compile(
     r"\b(today|this\s+(?:week|month|year)|last\s+(?:week|month|year)|currently|current(?:ly)?"
@@ -231,6 +231,10 @@ REDIRECT_MESSAGE = (
 _CHILD = r"(\d+[- ]?(year|yr|month|week)s?[- ]?old|child|son|daughter|baby|toddler|kid)"
 _DECISION_VERBS = r"(take|give|stop|skip|double|mix|combine|keep taking|continue taking)"
 PERSONAL_ADVICE_PATTERNS = [re.compile(p) for p in [
+    # A short symptom report such as "my stomach hurts" implies a current personal situation.
+    r"^\s*my\s+(?:[\w'-]+\s+){0,4}(?:hurt(?:s|ing)?|ache(?:s|d)?|is\s+sore|is\s+swollen|is\s+numb|has\s+(?:a\s+)?rash)\s*[?.!]*$",
+    # Search-style child-fever fragments are too ambiguous to answer with medication or dosage advice.
+    r"^(?:(?:high\s+)?(?:fever|temperature)\s+(?:in\s+)?(?:my\s+)?(?:kid|child|toddler)|(?:my\s+)?(?:kid|child|toddler)\s+(?:with\s+)?(?:a\s+)?(?:high\s+)?(?:fever|temperature))\s*[?.!]*$",
     # "Can I stop taking insulin?", "Should I take a double dose?"
     rf"\b(should|can|could|may) i {_DECISION_VERBS}\b",
     r"\bwhat (should|can|could) i do\b",

@@ -12,20 +12,6 @@ TRUE_NO_EVIDENCE_TYPES = frozenset({"unanswerable", "live_info"})
 POLICY_SCOPE_TYPES = frozenset({"medication", "drug_scope", "ambiguous", "research"})
 
 
-def wilson_interval(successes, total, z=1.96):
-    """Return a 95% Wilson interval, or None when there are no observations."""
-    if total is None or total <= 0:
-        return None
-    successes = min(max(int(successes), 0), int(total))
-    proportion = successes / total
-    denominator = 1 + z * z / total
-    centre = (proportion + z * z / (2 * total)) / denominator
-    margin = z * math.sqrt(
-        proportion * (1 - proportion) / total + z * z / (4 * total * total)
-    ) / denominator
-    return [round(max(0.0, centre - margin), 4), round(min(1.0, centre + margin), 4)]
-
-
 def _retrieval_abstained(result) -> bool:
     """Count only evidence-threshold decisions as abstentions, not safety or citation blocks."""
     reason = result.get("abstain_reason")
@@ -52,14 +38,20 @@ def abstention_metrics(expected, abstained, types=None):
         "abstention_recall": ratio(true_abstentions, int(should_decline.sum())),
         "abstention_precision": ratio(true_abstentions, int(abstained.sum())),
         "over_refusal": ratio(answerable_abstentions, int(should_answer.sum())),
-        "abstention_recall_ci95": wilson_interval(true_abstentions, int(should_decline.sum())),
-        "over_refusal_ci95": wilson_interval(answerable_abstentions, int(should_answer.sum())),
     }
     if types is not None:
         types = np.asarray(types)
         if len(types) != len(expected):
             raise ValueError("types and expected must have the same number of entries")
+        true_no_evidence_rows = should_decline & np.isin(
+            types, sorted(TRUE_NO_EVIDENCE_TYPES)
+        )
         scope_rows = should_decline & np.isin(types, sorted(POLICY_SCOPE_TYPES))
+        metrics["true_no_evidence_abstention_recall"] = ratio(
+            int((abstained & true_no_evidence_rows).sum()),
+            int(true_no_evidence_rows.sum()),
+        )
+        metrics["n_true_no_evidence"] = int(true_no_evidence_rows.sum())
         metrics["policy_scope_abstention"] = ratio(
             int((abstained & scope_rows).sum()), int(scope_rows.sum())
         )
@@ -95,30 +87,23 @@ def citation_metrics(results):
     }
 
 
-def coverage_metrics(facts):
-    """Report key-fact coverage by fact and by question, with both denominators."""
-    if facts is None or len(facts) == 0:
-        return {
-            "key_fact_coverage": None,
-            "key_fact_coverage_question_weighted": None,
-            "facts_graded": 0,
-            "questions_graded": 0,
+def rag_quality_metrics(scores):
+    """Return a plain pass rate and denominator for each question-level RAG check."""
+    result = {}
+    for check in ("context_relevance", "faithfulness", "answer_relevance", "reference_match"):
+        if scores is None or scores.empty or check not in scores:
+            result[check] = {"pass_rate": None, "passed": 0, "graded": 0}
+            continue
+        graded = scores[check].astype("string").str.lower().isin({"pass", "fail"})
+        values = scores.loc[graded, check].astype("string").str.lower()
+        passed = int(values.eq("pass").sum())
+        total = int(len(values))
+        result[check] = {
+            "pass_rate": float(passed / total) if total else None,
+            "passed": passed,
+            "graded": total,
         }
-    graded = facts.dropna(subset=["score"])
-    if graded.empty:
-        return {
-            "key_fact_coverage": None,
-            "key_fact_coverage_question_weighted": None,
-            "facts_graded": 0,
-            "questions_graded": 0,
-        }
-    per_question = graded.groupby("id")["score"].mean()
-    return {
-        "key_fact_coverage": float(graded["score"].mean()),
-        "key_fact_coverage_question_weighted": float(per_question.mean()),
-        "facts_graded": int(len(graded)),
-        "questions_graded": int(per_question.size),
-    }
+    return result
 
 
 def latency_metrics(results):

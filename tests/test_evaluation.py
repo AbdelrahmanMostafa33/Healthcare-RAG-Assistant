@@ -70,23 +70,23 @@ def test_evaluation_dataset_passes_the_shared_data_validator():
 
 def test_evaluation_data_validator_rejects_exact_question_leakage_between_splits():
     duplicated = pd.DataFrame([
-        {"id": "q1", "split": "dev", "type": "consumer", "expected_behavior": "answer", "question": "What is flu?", "key_facts": "fact"},
-        {"id": "q2", "split": "test", "type": "consumer", "expected_behavior": "answer", "question": " what is Flu? ", "key_facts": "fact"},
+        {"id": "q1", "split": "dev", "type": "consumer", "expected_behavior": "answer", "question": "What is flu?"},
+        {"id": "q2", "split": "test", "type": "consumer", "expected_behavior": "answer", "question": " what is Flu? "},
     ])
     with pytest.raises(ValueError, match="unique across splits"):
         validate_evaluation_data(duplicated)
 
 
-def test_evaluation_data_validator_rejects_duplicate_ids_and_missing_answer_key_facts():
-    bad = pd.DataFrame([
-        {"id": "q1", "split": "dev", "type": "consumer", "expected_behavior": "answer", "question": "Q?", "key_facts": "fact"},
-        {"id": "q1", "split": "test", "type": "consumer", "expected_behavior": "answer", "question": "Q2?", "key_facts": None},
+def test_evaluation_data_needs_no_manual_answer_checklists():
+    frame = pd.DataFrame([
+        {"id": "q1", "split": "dev", "type": "consumer", "expected_behavior": "answer", "question": "Q?"},
+        {"id": "q2", "split": "test", "type": "consumer", "expected_behavior": "answer", "question": "Q2?"},
     ])
+    validate_evaluation_data(frame)
+    duplicated = frame.copy()
+    duplicated.loc[1, "id"] = "q1"
     with pytest.raises(ValueError, match="unique"):
-        validate_evaluation_data(bad)
-    bad.loc[1, "id"] = "q2"
-    with pytest.raises(ValueError, match="key fact"):
-        validate_evaluation_data(bad)
+        validate_evaluation_data(duplicated)
 
 # --- abstention metrics ----------------------------------------------------
 
@@ -111,6 +111,8 @@ def test_abstention_metrics_report_the_scope_and_policy_slice_separately():
     types = ["consumer", "unanswerable", "medication"]
     m = mx.abstention_metrics(expected, [False, True, False], types)
     assert m["abstention_recall"] == pytest.approx(0.5)
+    assert m["true_no_evidence_abstention_recall"] == 1.0
+    assert m["n_true_no_evidence"] == 1
     assert m["policy_scope_abstention"] == 0.0 and m["n_policy_scope"] == 1
 
 
@@ -124,178 +126,124 @@ def test_a_citation_rejection_is_not_a_retrieval_abstention():
     assert mx._retrieval_abstained({"abstained": True}) is True
 
 
-def test_wilson_interval_stays_inside_zero_and_one_for_small_samples():
-    assert mx.wilson_interval(16, 16) == [0.8064, 1.0]
-    assert mx.wilson_interval(0, 16) == [0.0, 0.1936]
-    assert mx.wilson_interval(0, 0) is None
-
 # --- judge and scoring -----------------------------------------------------
 
 
-class FakeJudge:
-    """Answers each judge prompt from a canned table, keyed by the system prompt used."""
-    model = "fake-judge"
+def grade(context="pass", faithfulness="pass", relevance="pass", behavior="pass"):
+    return {
+        "context_relevance": {"verdict": context, "reason": "evidence check"},
+        "faithfulness": {"verdict": faithfulness, "reason": "support check"},
+        "answer_relevance": {"verdict": relevance, "reason": "question check"},
+        "behavior": {"verdict": behavior, "reason": "behavior check"},
+    }
 
-    def __init__(self, responses):
-        self.responses, self.calls = responses, []
 
-    def __call__(self, system, user, max_tokens=700):
-        self.calls.append(system)
-        return self.responses[system]
+def result(answer, *, expected=True, abstained=False, retrieval=True):
+    passages = ([{"title": "Flu", "source": "CDC", "text": "Influenza is caused by a virus."}]
+                if expected else [])
+    return {
+        "status": "ok", "answer": answer, "sources": [{"n": 1}] if expected and not abstained else [],
+        "passages": passages if not abstained else [],
+        "retrieved_passages": passages, "passage_count": len(passages),
+        "abstained": abstained, "retrieval_ms": 10.0 if retrieval else None,
+    }
+
 
 QUESTIONS = pd.DataFrame([
-    {"id": "q1", "type": "consumer", "question": "What is flu?", "key_facts": "Caused by a virus | Spreads easily",
-     "expected_behavior": "answer"},
-    {"id": "q2", "type": "unanswerable", "question": "What is Zorbo disease?", "key_facts": None,
-     "expected_behavior": "insufficient_evidence"},
-    {"id": "q3", "type": "medication", "question": "Can I take X?", "key_facts": "Ask a doctor",
-     "expected_behavior": "safety_redirect"},
+    {"id": "q1", "type": "consumer", "question": "What is flu?", "expected_behavior": "answer"},
+    {"id": "q2", "type": "unanswerable", "question": "What is Zorbo disease?", "expected_behavior": "insufficient_evidence"},
+    {"id": "q3", "type": "medication", "question": "Can I take X?", "expected_behavior": "safety_redirect"},
 ])
 
 
-def test_score_answers_grades_facts_and_behavior_with_one_request_per_question():
-    class SequentialJudge:
+def test_score_answers_reports_three_rag_checks_and_behavior():
+    class Judge:
         model = "fake-judge"
 
         def __init__(self):
             self.calls = []
             self.responses = [
-                {"key_facts": [{"fact": "Spreads easily", "verdict": "partial"},
-                                {"fact": "Caused by a virus", "verdict": "yes"}],
-                 "behavior": {"verdict": "yes", "reason": "answered"}},
-                {"key_facts": [],
-                 "behavior": {"verdict": "yes", "reason": "declined unsupported question"}},
-                {"key_facts": [],
-                 "behavior": {"verdict": "yes", "reason": "redirected safely"}},
+                grade(context="pass", faithfulness="pass", relevance="fail", behavior="pass"),
+                grade(context="not_applicable", faithfulness="not_applicable", relevance="not_applicable"),
+                grade(context="not_applicable", faithfulness="not_applicable", relevance="not_applicable"),
             ]
 
         def __call__(self, system, user, max_tokens=700):
-            self.calls.append((system, json.loads(user)))
+            self.calls.append((system, json.loads(user), max_tokens))
             return self.responses.pop(0)
 
-    judge = SequentialJudge()
-    answers = {"q1": "Flu is caused by a virus.", "q2": "I could not verify that.", "q3": "Ask your doctor."}
-    facts, behavior, grading = ev.score_answers(judge, QUESTIONS, answers)
+    outputs = {
+        "q1": result("Flu is caused by a virus [1]."),
+        "q2": result("I could not verify that.", expected=False, abstained=True),
+        "q3": result("Ask your doctor.", expected=False, retrieval=False),
+    }
+    judge = Judge()
+    scores, behavior, grading = ev.score_answers(judge, QUESTIONS, outputs)
     assert len(judge.calls) == len(QUESTIONS)
-    assert all(system == ev.ANSWER_SCORE_SYSTEM for system, _ in judge.calls)
-    assert facts["id"].tolist() == ["q1", "q1"]
-    assert facts["score"].tolist() == [1.0, 0.5]
-    assert facts["judge_model"].unique().tolist() == ["fake-judge"]
-    assert behavior["expected"].tolist() == ["answer", "insufficient_evidence", "safety_redirect"]
+    assert all(system == ev.RAG_SCORE_SYSTEM for system, _, _ in judge.calls)
+    assert all(tokens == 900 for _, _, tokens in judge.calls)
+    assert judge.calls[0][1]["retrieved_passages"][0]["source"] == "CDC"
+    assert scores["context_relevance"].tolist() == ["pass", "not_applicable", "not_applicable"]
+    assert scores["faithfulness"].tolist() == ["pass", "not_applicable", "not_applicable"]
+    assert scores["answer_relevance"].tolist() == ["fail", "not_applicable", "not_applicable"]
     assert behavior["ok"].tolist() == [True, True, True]
     assert grading["status"].tolist() == ["ok", "ok", "ok"]
-    assert judge.calls[2][1]["behavior_check"] == ev.CHECKS["safety_redirect"]
 
 
-def test_malformed_judge_output_is_not_counted_as_an_answer_failure():
+def test_malformed_judge_grade_is_not_counted_as_an_answer_failure():
     class Judge:
         model = "fake-judge"
 
-        def __init__(self):
-            self.calls = 0
-
         def __call__(self, system, user, max_tokens=700):
-            self.calls += 1
-            return {"key_facts": "invalid", "behavior": {"verdict": "maybe"}}
+            return {"context_relevance": "invalid"}
 
-    facts, behavior, grading = ev.score_answers(Judge(), QUESTIONS.head(1), {"q1": "Flu."})
-    assert facts.empty and behavior.empty
+    scores, behavior, grading = ev.score_answers(
+        Judge(), QUESTIONS.head(1), {"q1": result("Flu.")}
+    )
+    assert scores.empty and behavior.empty
     assert grading["status"].tolist() == ["error"]
     assert grading.loc[0, "error"].startswith("ValueError: ")
 
 
-def test_one_ungradeable_row_does_not_discard_every_verdict_after_it():
-    """A malformed grade used to stop the judge loop, blanking the whole report."""
-
+def test_one_ungradeable_row_does_not_discard_later_results():
     class Judge:
         model = "fake-judge"
 
-        def __init__(self):
-            self.calls = 0
+        def __init__(self): self.calls = 0
 
         def __call__(self, system, user, max_tokens=700):
             self.calls += 1
             if self.calls == 1:
-                raise ValueError("judge returned an invalid key-fact verdict")
+                return {"context_relevance": "invalid"}
             payload = json.loads(user)
-            return {
-                "key_facts": [{"fact": fact, "verdict": "yes"} for fact in payload["key_facts"]],
-                "behavior": {"verdict": "yes", "reason": "ok"},
-            }
+            return grade(context="pass" if payload["expected_behavior"] == "answer" else "not_applicable")
 
-    facts, behavior, grading = ev.score_answers(Judge(), QUESTIONS, {"q1": "a", "q2": "b", "q3": "c"})
+    outputs = {qid: result("answer") for qid in QUESTIONS["id"]}
+    scores, behavior, grading = ev.score_answers(Judge(), QUESTIONS, outputs)
     assert grading["status"].tolist() == ["error", "ok", "ok"]
     assert behavior["id"].tolist() == ["q2", "q3"]
     assert grading.loc[0, "error"].startswith("ValueError: ")
 
 
-def test_echoed_key_facts_match_ignoring_case_spacing_and_trailing_punctuation():
-    """The judge echoes fact strings; a stray period must not throw away a valid grade."""
-
-    class Judge:
-        model = "fake-judge"
-
-        def __call__(self, system, user, max_tokens=700):
-            return {
-                "key_facts": [
-                    {"fact": "  Caused By A Virus. ", "verdict": "yes"},
-                    {"fact": "spreads\n  easily", "verdict": "partial"},
-                ],
-                "behavior": {"verdict": "yes", "reason": "answered"},
-            }
-
-    facts, behavior, grading = ev.score_answers(Judge(), QUESTIONS.head(1), {"q1": "Flu."})
-    assert grading["status"].tolist() == ["ok"]
-    assert facts["fact"].tolist() == ["Caused by a virus", "Spreads easily"]
-    assert facts["score"].tolist() == [1.0, 0.5]
-
-
-def test_a_key_fact_that_is_not_the_requested_one_is_still_an_error():
-    """Tolerating punctuation must not tolerate grading a different fact."""
-
-    class Judge:
-        model = "fake-judge"
-
-        def __call__(self, system, user, max_tokens=700):
-            return {
-                "key_facts": [
-                    {"fact": "Caused by a virus", "verdict": "yes"},
-                    {"fact": "Caused by a bacterium", "verdict": "yes"},
-                ],
-                "behavior": {"verdict": "yes", "reason": "answered"},
-            }
-
-    facts, behavior, grading = ev.score_answers(Judge(), QUESTIONS.head(1), {"q1": "Flu."})
-    assert facts.empty and behavior.empty
-    assert grading["status"].tolist() == ["error"]
-
-
-def test_score_answers_preserves_partial_grades_when_judge_quota_is_exhausted():
+def test_score_answers_stops_cleanly_when_judge_quota_is_exhausted():
     from src.retry import ProviderQuotaExceeded
 
     class Judge:
         model = "fake-judge"
-
-        def __init__(self):
-            self.calls = 0
-
+        def __init__(self): self.calls = 0
         def __call__(self, system, user, max_tokens=700):
             self.calls += 1
             if self.calls == 2:
                 raise ProviderQuotaExceeded("private quota detail")
-            payload = json.loads(user)
-            return {
-                "key_facts": [{"fact": fact, "verdict": "yes"} for fact in payload["key_facts"]],
-                "behavior": {"verdict": "yes", "reason": "ok"},
-            }
+            return grade()
 
     judge = Judge()
-    facts, behavior, grading = ev.score_answers(judge, QUESTIONS, {"q1": "a", "q2": "b", "q3": "c"})
+    outputs = {qid: result("answer") for qid in QUESTIONS["id"]}
+    scores, behavior, grading = ev.score_answers(judge, QUESTIONS, outputs)
     assert judge.calls == 2
     assert grading["status"].tolist() == ["ok", "error", "skipped"]
     assert grading.loc[1, "error"] == "provider quota exhausted"
-    assert facts["id"].unique().tolist() == ["q1"]
-    assert behavior["id"].tolist() == ["q1"]
+    assert scores["id"].tolist() == ["q1"]
     assert "private quota detail" not in str(grading.to_dict())
 
 
@@ -325,33 +273,24 @@ def test_the_judge_parses_json_and_uses_the_configured_model():
     assert client.calls[0]["reasoning_effort"] == "low"
 
 
-def test_evaluation_fingerprint_tracks_questions_and_generation_settings():
-    frame = pd.DataFrame([
-        {"id": "b", "question": "Q2", "type": "consumer",
-         "expected_behavior": "answer", "key_facts": "fact 2"},
-        {"id": "a", "question": "Q1", "type": "consumer",
-         "expected_behavior": "answer", "key_facts": "fact 1"},
-    ])
-    settings = {"model": "test-model", "temperature": 0.0}
-    fingerprint = ev.evaluation_run_fingerprint(frame, settings)
-    assert ev.evaluation_run_fingerprint(frame.iloc[::-1], settings) == fingerprint
-
-    changed_question = frame.copy()
-    changed_question.loc[changed_question["id"] == "a", "question"] = "Updated Q1"
-    assert ev.evaluation_run_fingerprint(changed_question, settings) != fingerprint
-    assert ev.evaluation_run_fingerprint(frame, {**settings, "temperature": 0.2}) != fingerprint
+def test_the_judge_retries_invalid_json_once_with_more_output_room():
+    client = ScriptedClient("not json", '{"verdict": "yes"}')
+    assert ev.make_judge(client)("s", "u") == {"verdict": "yes"}
+    assert len(client.calls) == 2
+    assert client.calls[1]["max_completion_tokens"] == 1400
+    assert "previous response was incomplete or invalid" in client.calls[1]["messages"][0]["content"]
 
 
-def test_the_judge_does_not_spend_extra_calls_retrying_invalid_json():
-    client = ScriptedClient("not json")
+def test_the_judge_stops_after_one_invalid_json_repair_attempt():
+    client = ScriptedClient("not json", "still not json")
     with pytest.raises(RuntimeError, match="invalid JSON"):
         ev.make_judge(client)("s", "u")
-    assert len(client.calls) == 1
+    assert len(client.calls) == 2
 
 
 def test_the_judge_invalid_json_error_does_not_echo_model_output():
     with pytest.raises(RuntimeError, match="invalid JSON") as error:
-        ev.make_judge(ScriptedClient("private generated text"))("s", "u")
+        ev.make_judge(ScriptedClient("private generated text", "private generated text"))("s", "u")
     assert "private generated text" not in str(error.value)
 
 
@@ -399,27 +338,28 @@ def test_citation_metrics_accept_non_contiguous_prompt_citation_ids():
 
 def test_pipeline_errors_are_not_graded_as_empty_answers_or_abstentions():
     df = pd.DataFrame([
-        {"id": "bad", "type": "consumer", "question": "What is measles?", "key_facts": "Virus",
-         "expected_behavior": "answer"},
-        {"id": "ok", "type": "consumer", "question": "What is flu?", "key_facts": "Virus",
-         "expected_behavior": "answer"},
+        {"id": "bad", "type": "consumer", "question": "What is measles?", "expected_behavior": "answer"},
+        {"id": "ok", "type": "consumer", "question": "What is flu?", "expected_behavior": "answer"},
     ])
     results = {
-        "ok": {"answer": "Flu is viral [1].", "sources": [{"n": 1}], "abstained": False,
-               "latency_ms": 10, "status": "ok"},
+        "ok": result("Flu is viral [1]."),
         "bad": {"answer": "", "sources": [], "abstained": False, "error": "provider unavailable",
                 "latency_ms": None, "status": "error"},
     }
-    judge = FakeJudge({
-        ev.ANSWER_SCORE_SYSTEM: {"key_facts": [{"fact": "Virus", "verdict": "yes"}],
-                                 "behavior": {"verdict": "yes", "reason": "answered"}},
-    })
+
+    class Judge:
+        model = "fake-judge"
+        def __init__(self): self.calls = []
+        def __call__(self, system, user, max_tokens=700):
+            self.calls.append(system)
+            return grade()
+
+    judge = Judge()
     scored = ev.evaluate_pipeline_results(df, results, judge)
     assert scored["pipeline_errors"] == 1 and scored["graded_questions"] == 1
     assert scored["requested_questions"] == 2 and scored["attempted_questions"] == 2
-    assert scored["graded_questions"] == 1 and scored["grading_errors"] == 0
-    assert scored["ungraded_questions"] == 0
-    assert scored["facts"]["id"].tolist() == ["ok"]
+    assert scored["grading_errors"] == 0 and scored["ungraded_questions"] == 0
+    assert scored["rag_scores"]["id"].tolist() == ["ok"]
     assert scored["behavior"]["id"].tolist() == ["ok"]
     assert scored["abstention"]["over_refusal"] == 0.0
     assert len(judge.calls) == 1
@@ -428,53 +368,36 @@ def test_pipeline_errors_are_not_graded_as_empty_answers_or_abstentions():
 def test_skipped_questions_are_excluded_from_quality_denominators():
     df = QUESTIONS.copy()
     results = {
-        "q1": {"answer": "Flu is viral [1].", "sources": [{"n": 1}], "abstained": False,
-               "latency_ms": 10, "status": "ok"},
+        "q1": result("Flu is viral [1]."),
         "q2": {"answer": "", "sources": [], "abstained": False, "error": "batch stopped",
                "latency_ms": None, "status": "skipped"},
         "q3": {"answer": "", "sources": [], "abstained": False, "error": "batch stopped",
                "latency_ms": None, "status": "skipped"},
     }
-    judge = FakeJudge({
-        ev.ANSWER_SCORE_SYSTEM: {"key_facts": [{"fact": "Caused by a virus", "verdict": "yes"},
-                                                  {"fact": "Spreads easily", "verdict": "yes"}],
-                                 "behavior": {"verdict": "yes", "reason": "ok"}},
-    })
-    scored = ev.evaluate_pipeline_results(df, results, judge)
+    class Judge:
+        model = "fake-judge"
+        def __call__(self, system, user, max_tokens=700): return grade()
+    scored = ev.evaluate_pipeline_results(df, results, Judge())
     assert scored["requested_questions"] == 3
     assert scored["attempted_questions"] == 1
     assert scored["graded_questions"] == 1
-    assert scored["skipped_questions"] == 2
-    assert scored["pipeline_errors"] == 0
-    assert scored["graded_questions"] == 1 and scored["grading_errors"] == 0
-    assert scored["ungraded_questions"] == 0
+    assert scored["skipped_questions"] == 2 and scored["pipeline_errors"] == 0
+    assert scored["grading_errors"] == 0 and scored["ungraded_questions"] == 0
     assert scored["behavior"]["id"].tolist() == ["q1"]
 
 
-def test_partial_judge_coverage_is_separate_from_pipeline_coverage():
+def test_partial_judge_coverage_is_reported_separately_from_pipeline_coverage():
     from src.retry import ProviderQuotaExceeded
 
-    results = {
-        row.id: {"answer": "A response.", "sources": [], "abstained": False,
-                 "latency_ms": 10, "status": "ok"}
-        for row in QUESTIONS.itertuples()
-    }
-
+    results = {row.id: result("Answer") for row in QUESTIONS.itertuples()}
     class Judge:
         model = "fake-judge"
-
-        def __init__(self):
-            self.calls = 0
-
+        def __init__(self): self.calls = 0
         def __call__(self, system, user, max_tokens=700):
             self.calls += 1
             if self.calls == 2:
                 raise ProviderQuotaExceeded("private quota detail")
-            payload = json.loads(user)
-            return {
-                "key_facts": [{"fact": fact, "verdict": "yes"} for fact in payload["key_facts"]],
-                "behavior": {"verdict": "yes", "reason": "ok"},
-            }
+            return grade()
 
     scored = ev.evaluate_pipeline_results(QUESTIONS, results, Judge())
     assert scored["attempted_questions"] == 3 and scored["pipeline_errors"] == 0

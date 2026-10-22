@@ -1,37 +1,31 @@
 # Healthcare RAG Assistant
 
-A small, source-grounded health information demo built to show the parts of a retrieval-augmented generation system: preparing a knowledge base, finding evidence, checking whether the evidence is strong enough, and returning an answer with citations.
+A small retrieval-augmented generation (RAG) assistant that searches health sources, answers from the text it finds, and cites those sources.
 
-> **Education only.** This project is not a clinical tool. It does not diagnose, recommend treatment, or replace a healthcare professional.
+> **Education only.** This is not a medical tool. It does not diagnose or recommend treatment.
 
-## Try the demo
+## Try the app
 
-The app includes a simple web page at **/**, API documentation at **/docs**, and a readiness check at **/health**. The page is served by FastAPI and opens while the local retrieval models load. Ask one of the suggested questions to see an answer, its cited sources, an abstention, or a safety response.
+The web page runs at **/**. The API docs are at **/docs**; the readiness check is at **/health**.
 
-The assistant needs a locally built knowledge index and a calibrated evidence threshold before it can answer from sources. Until it is calibrated, it fails closed and abstains from general questions. Safety responses can still be demonstrated.
+The app needs a local search index and an evidence cutoff before it can answer. If the cutoff is missing or out of date, it abstains.
 
 ## How it works
 
 ~~~text
 Question
-  → shared safety checks
-  → withhold time-sensitive questions that need live information
-  → BGE-M3 embeddings and FAISS search (top 40 candidates)
-  → BGE reranking (up to 5 source pages, up to 2 related chunks per page)
-  → calibrated evidence threshold
-  → grounded Gemini answer, or abstention
-  → citation ID check and source links
+  -> safety checks
+  -> search for 40 text chunks
+  -> rerank and keep up to 5 source pages
+  -> check whether the evidence is strong enough
+  -> answer with citations, or abstain
 ~~~
 
-The pipeline lives in **src/** and is shared by the API and evaluation notebooks. It checks emergency, personal-advice, and harmful-request patterns before retrieval, and withholds requests for current or recent information because its health sources are a static snapshot. Evidence that falls below the calibrated threshold is not sent to the generator. Answers with citation IDs that do not refer to retrieved passages are withheld.
+The API and evaluation use the same pipeline. It checks for emergencies, personal-advice requests, and harmful requests before search. It also withholds questions that need current information. The answer model only receives evidence above the cutoff. Invalid citation IDs cause the answer to be withheld.
 
-Calibration is tied to the evaluation questions, index, and versioned safety rules. If one changes, the old threshold is rejected and the pipeline abstains until it is recalibrated.
+## Set up
 
-The demo uses Google Gemini for answer generation. The evaluation notebook can use Groq for judging answers. The API only needs **GOOGLE_API_KEY**; **GROQ_API_KEY** is only needed for LLM-judged evaluation. Questions and retrieved passages are sent to Google when generating an answer. Evaluation sends answers and grading criteria to Groq.
-
-## Set up and run
-
-Use Python 3.11 or 3.12. The first data and model downloads need network access and several gigabytes of disk space. A GPU is optional; CPU use is supported but slower.
+Use Python 3.11 or 3.12. The first download needs internet access and several gigabytes of disk space. A GPU is optional.
 
 ~~~powershell
 py -3.12 -m venv .venv
@@ -41,24 +35,28 @@ python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ~~~
 
-Add one Google AI Studio key to **.env** as **GOOGLE_API_KEY**. Keep the key private and do not commit **.env**.
+Add a Google AI Studio key to **.env** as **GOOGLE_API_KEY**. Add a Groq or Cerebras key only if you plan to run the LLM-judged evaluation. Keep keys private and never commit **.env**.
 
-Build and calibrate the local retrieval pipeline, then run the walkthrough and evaluation:
+## Build and run
 
-1. Run **notebooks/01_data_and_kb.ipynb** to download and clean the source data.
-2. Run **notebooks/02_build_index.ipynb** to build the FAISS index and calibrate its evidence threshold locally. Calibration uses development questions and does not call a provider.
-3. Run **notebooks/03_rag_pipeline.ipynb** for the calibrated walkthrough.
-4. Run **notebooks/04_evaluation.ipynb** when you are ready for provider-based answer generation and judging. Start Jupyter from the activated `.venv` so retrieval uses the installed CUDA-enabled PyTorch build when an NVIDIA GPU is available; the evaluation notebook prints the active retrieval device.
+Run the notebooks in order:
 
-Start the local app:
+1. **01_data_and_kb.ipynb** downloads and cleans the source material.
+2. **02_build_index.ipynb** builds the search index and sets the evidence cutoff.
+3. **03_rag_pipeline.ipynb** walks through an example question.
+4. **04_evaluation.ipynb** checks retrieval, answers, and safety behavior.
+
+Open Jupyter from the activated virtual environment so it can use the installed packages. A CUDA-enabled PyTorch build can speed up indexing when an NVIDIA GPU is available.
+
+Start the web app:
 
 ~~~powershell
 uvicorn app:app --reload
 ~~~
 
-Open **http://127.0.0.1:8000/**. The page shows whether the assistant is still loading, ready, or needs setup. A missing API key, local index, or model is logged by the server and shown as a setup issue in the page.
+Open **http://127.0.0.1:8000/**. The first load may take time while local search models start.
 
-The query endpoint is **POST /query** with a JSON body such as:
+Example API request:
 
 ~~~json
 {"question":"What are common symptoms of type 2 diabetes?"}
@@ -66,38 +64,44 @@ The query endpoint is **POST /query** with a JSON body such as:
 
 ## Evaluation
 
-The local unit suite uses small fixtures and fake providers; it does not download model weights or make API calls:
+Notebook 02 sets the evidence cutoff using development questions. Notebook 04 checks whether the system finds useful text, follows the expected response behavior, gives answers supported by its sources, and uses valid citation IDs. LLM-judge scores are estimates, not verified answer accuracy.
+
+The current development/test file contains 168 dev and 87 test questions. The test questions have already been reviewed, so treat their results as exploratory. A separate **9-question final holdout** has source-linked reference answers. Run it after freezing system changes. Its reference-match score is also an LLM estimate, not a clinician review.
+
+The final holdout has not been run yet. Previously saved dev/test reports use the earlier evaluation format; Notebook 04 labels them and can show the saved scores. Re-run a split to create a report in the current format. Provider-based runs are opt-in and send questions, retrieved text, and answers to the selected providers.
+
+A separate retrieval check uses 21 questions, each paired with one expected source page. In the October 22, 2026 run, the page ranked first for **20/21** questions and appeared in the top five for **21/21**. This small check is a retrieval diagnostic, not a broad benchmark or answer-accuracy score.
+
+Run the local tests with:
 
 ~~~powershell
 python -m pytest -q
 ~~~
 
-The evaluation notebook calibrates locally. Development evaluation runs by default; the held-out test switch is off by default and should only be enabled once development changes are finished. A reranker or pipeline-version change invalidates the saved threshold, so recalibrate in Notebook 02 before Notebook 04. Evaluation CSV and JSON files are saved under **reports/evaluation/**. Matching saved answers and completed judge grades are reused when the questions, generation settings, threshold, retrieval policy, judge provider, and judge model still match; failed rows alone are retried.
+## Safety and limits
 
-The evaluation set contains 255 project-authored questions (168 development, 87 test). Labels have not been reviewed by clinicians, related topics can appear in both splits, and there are no labeled relevant passages, so retrieval recall and nDCG are not reported. The automated judge is an imperfect proxy, and provider models can change.
+Safety checks use keyword rules, not a medical classifier. In a local probe, they escalated **3/41** urgent questions, refused **1/9** harmful requests, and incorrectly intercepted **5/13** educational questions. These results show known gaps; they do not establish safety.
 
-## Safety and limitations
+A valid citation ID only confirms that the cited passage was retrieved. It does not prove the passage supports the answer. Sources may be incomplete or out of date. Do not use this assistant for urgent symptoms, diagnosis, treatment, medication decisions, or personal health information.
 
-Safety checks are narrow keyword rules, not a medical classifier. The 88-question safety regression set checks known patterns. A separate 63-question set measures wording not used to write those patterns; at the 2026-10-14 snapshot, the rules escalated 3 of 41 crisis, medical, and ingestion probes, withheld 1 of 9 harmful-request probes, and intercepted 5 of 13 educational probes. These results show the rules' limits; they are not evidence of safe clinical performance.
+## Sources and attribution
 
-Citation checks confirm only that a cited passage ID exists. They do not prove that the passage supports every claim. The English health sources may be incomplete or dated, and the assistant can abstain or produce unsupported text. Do not use it for urgent symptoms, diagnosis, treatment, medication decisions, or personal health information.
+- **MedQuAD** is downloaded at the pinned revision in `src/config.py`. It is licensed under [CC BY 4.0](https://github.com/abachaa/MedQuAD/blob/master/LICENSE.txt).
+- **MedlinePlus** health-topic summaries come from its [official XML downloads](https://medlineplus.gov/xml.html). See its [reuse guidance](https://medlineplus.gov/about/using/usingcontent/).
+- **U.S. Preventive Services Task Force (USPSTF)** recommendations cover colorectal, blood-pressure, and breast cancer screening. Their dates and checksums are saved with the source manifest.
 
-## Data and attribution
+Downloaded data, the processed knowledge base, search index, calibration, and evaluation reports are generated locally and are not committed.
 
-- **MedQuAD** is downloaded at the pinned dataset revision in **src/config.py**. The project follows the [MedQuAD attribution and CC BY 4.0 license](https://github.com/abachaa/MedQuAD/blob/master/LICENSE.txt).
-- **MedlinePlus** English health-topic summaries come from its [official XML downloads](https://medlineplus.gov/xml.html). MedlinePlus describes these summaries as public-domain content and requests attribution; see its [reuse guidance](https://medlineplus.gov/about/using/usingcontent/).
-- Raw downloads, the processed knowledge base, model index, calibration, and evaluation results are generated locally and are not committed.
-
-## Project structure
+## Project files
 
 ~~~text
-app.py                 FastAPI API and demo page
-frontend/              Plain HTML, CSS, and JavaScript interface
-src/                   Data, retrieval, safety, generation, and evaluation code
-notebooks/             Data preparation, indexing, pipeline walkthrough, evaluation
-data/eval/              Hand-authored questions and safety probes
-tests/                  Local tests for the API, pipeline, safety, and evaluation
-reports/                Local calibration and evaluation outputs
+app.py          Web app and API
+frontend/       Web page
+src/            Search, safety, answer generation, and evaluation
+notebooks/      Data, index, pipeline, and evaluation walkthroughs
+data/eval/      Evaluation questions and source references
+tests/          Local tests
+reports/        Local calibration and evaluation results
 ~~~
 
-Project code is MIT licensed; see **LICENSE**. Data and model weights keep their own licenses and attribution requirements.
+Project code is MIT licensed; see **LICENSE**. Data and model weights have their own licenses.

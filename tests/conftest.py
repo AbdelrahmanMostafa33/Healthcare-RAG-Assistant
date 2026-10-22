@@ -65,9 +65,7 @@ class FakeClient:
 
 
 class FakeJudge:
-    """Stands in for the Groq judge and answers the one grading contract: key facts plus expected
-    behaviour. Records every call, so a test can prove that a resumed run made no calls at all.
-    """
+    """Stand in for the RAG judge and record calls for resume checks."""
 
     model = "fake-judge"
 
@@ -77,9 +75,22 @@ class FakeJudge:
     def __call__(self, system, user, max_tokens=700):
         self.calls.append("answer")
         payload = json.loads(user)
+        passages = payload.get("retrieved_passages", [])
+        expected_answer = payload.get("expected_behavior") == "answer"
+        retrieval_performed = payload.get("retrieval_performed", False)
+        generated = payload.get("generated_answer", False)
+        if not expected_answer:
+            context_verdict = "not_applicable"
+        elif passages:
+            context_verdict = "pass"
+        else:
+            context_verdict = "fail" if retrieval_performed else "not_applicable"
+        answer_verdict = "pass" if generated else "not_applicable"
         return {
-            "key_facts": [{"fact": fact, "verdict": "yes"} for fact in payload["key_facts"]],
-            "behavior": {"verdict": "yes", "reason": "ok"},
+            "context_relevance": {"verdict": context_verdict, "reason": "fake context check"},
+            "faithfulness": {"verdict": answer_verdict, "reason": "fake faithfulness check"},
+            "answer_relevance": {"verdict": answer_verdict, "reason": "fake relevance check"},
+            "behavior": {"verdict": "pass", "reason": "ok"},
         }
 
 

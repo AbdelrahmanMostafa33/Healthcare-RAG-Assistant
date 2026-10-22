@@ -171,6 +171,36 @@ def prepare_medlineplus(raw):
     return df.drop_duplicates(subset="url").reset_index(drop=True)
 
 
+def prepare_uspstf_pages(pages):
+    """Prepare official screening recommendation pages as ordinary KB documents.
+
+    Only the recommendation statement is retained, excluding site navigation and the much longer
+    evidence review. ``pages`` contains ``title``, ``url`` and downloaded ``html`` values.
+    """
+    rows = []
+    for page in pages:
+        title = clean_text(page.get("title", ""))
+        url = str(page.get("url", "")).strip()
+        source_html = page.get("html", "")
+        if not title or not url or not source_html:
+            raise ValueError("Each USPSTF page needs a title, URL, and downloaded HTML")
+        soup = BeautifulSoup(str(source_html), "html.parser")
+        section = soup.select_one(".recommendation-statement")
+        if section is None:
+            raise ValueError(f"Could not find the recommendation statement in {url}")
+        text = html_to_text(str(section))
+        if not text:
+            raise ValueError(f"The recommendation statement is empty in {url}")
+        rows.append({
+            "source": "USPSTF",
+            "title": title,
+            "url": url,
+            "question": clean_text(f"What does the USPSTF recommend about {title}?"),
+            "text": text,
+        })
+    return pd.DataFrame(rows, columns=["source", "title", "url", "question", "text"])
+
+
 # MedQuAD republishes the MedlinePlus Health Topics, which this project also downloads as the
 # official XML. Both copies then compete in retrieval for the same topic.
 MEDQUAD_MEDLINEPLUS_SOURCE = "MPlusHealthTopics"
@@ -203,9 +233,15 @@ def drop_medlineplus_duplicates(medquad, medlineplus):
     return medquad.loc[~duplicate].reset_index(drop=True)
 
 
-def build_kb(medquad, medlineplus):
-    """One row per health topic, with MedQuAD's MedlinePlus subset deduplicated against the XML."""
-    kb = pd.concat([drop_medlineplus_duplicates(medquad, medlineplus), medlineplus], ignore_index=True)
+def build_kb(medquad, medlineplus, additional_sources=None):
+    """One KB table, with MedQuAD's MedlinePlus subset deduplicated against the XML."""
+    documents = [drop_medlineplus_duplicates(medquad, medlineplus), medlineplus]
+    if additional_sources is not None:
+        missing = set(KB_COLUMNS[1:]) - set(additional_sources.columns)
+        if missing:
+            raise ValueError(f"Additional source rows are missing columns: {sorted(missing)}")
+        documents.append(additional_sources[KB_COLUMNS[1:]])
+    kb = pd.concat(documents, ignore_index=True)
     kb.insert(0, "doc_id", range(len(kb)))
     return kb[KB_COLUMNS]
 

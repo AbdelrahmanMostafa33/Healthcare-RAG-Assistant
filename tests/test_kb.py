@@ -108,6 +108,43 @@ def test_medlineplus_to_kb_table():
     assert list(table.columns) == kb.KB_COLUMNS
 
 
+def test_prepare_uspstf_pages_keeps_the_recommendation_statement_only():
+    pages = [{
+        "title": "Breast Cancer: Screening",
+        "url": "https://example.org/breast-screening",
+        "html": "<nav>Site links</nav><div class='recommendation-statement'>"
+                "<h1>Final Recommendation</h1><p>Screen women aged 40 to 74 every 2 years.</p>"
+                "</div><footer>Site footer</footer>",
+    }]
+    documents = kb.prepare_uspstf_pages(pages)
+    assert len(documents) == 1
+    row = documents.iloc[0]
+    assert row["source"] == "USPSTF"
+    assert row["title"] == "Breast Cancer: Screening"
+    assert "40 to 74" in row["text"] and "every 2 years" in row["text"]
+    assert "Site links" not in row["text"] and "Site footer" not in row["text"]
+
+
+def test_prepare_uspstf_pages_fails_if_the_recommendation_statement_is_missing():
+    with pytest.raises(ValueError, match="recommendation statement"):
+        kb.prepare_uspstf_pages([{
+            "title": "Screening", "url": "https://example.org/screening", "html": "<p>Not a statement</p>",
+        }])
+
+
+def test_build_kb_appends_recommendations_to_the_same_table():
+    medline = kb.prepare_medlineplus(kb.parse_medlineplus_xml(MEDLINEPLUS_XML))
+    recommendations = kb.prepare_uspstf_pages([{
+        "title": "Breast Cancer: Screening",
+        "url": "https://example.org/breast-screening",
+        "html": "<div class='recommendation-statement'>Screening recommendation text.</div>",
+    }])
+    table = kb.build_kb(kb.prepare_medquad(raw_medquad()), medline, recommendations)
+    assert table["source"].tolist().count("USPSTF") == 1
+    assert table["doc_id"].tolist() == list(range(len(table)))
+    assert list(table.columns) == kb.KB_COLUMNS
+
+
 # --- MedQuAD/MedlinePlus deduplication ---
 
 def test_medlineplus_slug_reads_both_url_forms():

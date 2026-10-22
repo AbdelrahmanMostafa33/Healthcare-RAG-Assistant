@@ -65,7 +65,10 @@ def test_rate_limit_classifier_retries_minute_caps_but_not_daily_quota_exhaustio
 
 
 def test_evaluation_dataset_passes_the_shared_data_validator():
-    validate_evaluation_data(pd.read_csv(config.EVAL_PATH))
+    validate_evaluation_data(pd.concat([
+        pd.read_csv(config.DEV_EVAL_PATH),
+        pd.read_csv(config.TEST_EVAL_PATH),
+    ], ignore_index=True))
 
 
 def test_evaluation_data_validator_rejects_exact_question_leakage_between_splits():

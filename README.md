@@ -64,13 +64,12 @@ Example API request:
 
 ## Evaluation
 
-Notebook 02 sets the evidence cutoff using development questions. Notebook 04 checks whether the system finds useful text, follows the expected response behavior, gives answers supported by its sources, and uses valid citation IDs. LLM-judge scores are estimates, not verified answer accuracy.
+Notebook 02 sets the evidence cutoff using development questions. Notebook 04 checks retrieval, answer behavior, source support, and citations. LLM-judge scores are estimates, not verified answer accuracy.
 
-The current development/test file contains 168 dev and 87 test questions. The test questions have already been reviewed, so treat their results as exploratory. A separate **9-question final holdout** has source-linked reference answers. Run it after freezing system changes. Its reference-match score is also an LLM estimate, not a clinician review.
+The questions are split between `data/eval/dev_questions.csv` (168 questions) and `data/eval/test_questions.csv` (87 previously reviewed questions). Use dev while improving the system; use test for exploration only. This setup has no untouched final test set.
 
-The final holdout has not been run yet. Previously saved dev/test reports use the earlier evaluation format; Notebook 04 labels them and can show the saved scores. Re-run a split to create a report in the current format. Provider-based runs are opt-in and send questions, retrieved text, and answers to the selected providers.
-
-A separate retrieval check uses 21 questions, each paired with one expected source page. In the October 22, 2026 run, the page ranked first for **20/21** questions and appeared in the top five for **21/21**. This small check is a retrieval diagnostic, not a broad benchmark or answer-accuracy score.
+LLM-judge runs are off by default. When enabled, questions, retrieved text, and answers are sent to the selected providers. Judge scores are estimates, not verified medical accuracy. Reports are saved in `reports/evaluation/`.
+Safety-rule tests use one file in `tests/fixtures/safety_probes.csv`. It combines examples with known expected actions and different phrasings that check how the rules generalize.
 
 Run the local tests with:
 
@@ -99,8 +98,8 @@ app.py          Web app and API
 frontend/       Web page
 src/            Search, safety, answer generation, and evaluation
 notebooks/      Data, index, pipeline, and evaluation walkthroughs
-data/eval/      Evaluation questions and source references
-tests/          Local tests
+data/eval/      Development and test questions
+tests/          Local tests and their safety examples
 reports/        Local calibration and evaluation results
 ~~~
 

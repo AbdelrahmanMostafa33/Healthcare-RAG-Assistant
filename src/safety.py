@@ -25,7 +25,7 @@ costly (an educational question gets a fixed reply), so the rules are split in t
 
 The patterns are intentionally stem-tolerant, because the earlier phrase list missed common
 inflections such as "I've been thinking about killing myself" and phone-typed apostrophes. Recall and false positives are both
-measured against a held-out probe set (data/eval/safety_probes.csv, tests/test_safety_probes.py);
+measured against a safety-rule probe set (tests/fixtures/safety_probes.csv, tests/test_safety_probes.py);
 the notebook evaluation harness and the FastAPI service import the same `src.safety` module, so a safety fix in this file is reflected in the API, the notebooks, and the evaluation harness at once. `SAFETY_RULES_VERSION` is the calibration fingerprint for these rules: bump it when a pattern or constant changes, and a saved threshold whose version no longer matches is rejected so a deployment never runs on a threshold computed against different rules than the live code. A comment or a line-ending change does not move that version.
  """
 import re

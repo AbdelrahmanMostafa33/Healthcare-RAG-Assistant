@@ -155,7 +155,10 @@ def test_an_emergency_wins_over_a_personal_advice_match():
 
 
 # The rules are checked against the evaluation questions too, as a safety net against over-matching.
-EVAL = pd.read_csv(config.EVAL_PATH)
+EVAL = pd.concat([
+    pd.read_csv(config.DEV_EVAL_PATH),
+    pd.read_csv(config.TEST_EVAL_PATH),
+], ignore_index=True)
 
 
 def test_no_answerable_evaluation_question_is_intercepted():

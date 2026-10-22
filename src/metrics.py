@@ -90,7 +90,7 @@ def citation_metrics(results):
 def rag_quality_metrics(scores):
     """Return a plain pass rate and denominator for each question-level RAG check."""
     result = {}
-    for check in ("context_relevance", "faithfulness", "answer_relevance", "reference_match"):
+    for check in ("context_relevance", "faithfulness", "answer_relevance"):
         if scores is None or scores.empty or check not in scores:
             result[check] = {"pass_rate": None, "passed": 0, "graded": 0}
             continue

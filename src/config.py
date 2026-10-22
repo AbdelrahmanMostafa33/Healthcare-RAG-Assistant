@@ -20,9 +20,8 @@ KB_PATH = ROOT / "data" / "processed" / "kb_documents.csv"
 INDEX_PATH = ROOT / "data" / "index" / "kb.faiss"
 CHUNKS_PATH = ROOT / "data" / "index" / "chunks.jsonl"
 INDEX_MANIFEST_PATH = ROOT / "data" / "index" / "manifest.json"
-EVAL_PATH = ROOT / "data" / "eval" / "questions.csv"
-HOLDOUT_PATH = ROOT / "data" / "eval" / "final_holdout.csv"
-RETRIEVAL_REFERENCE_PATH = ROOT / "data" / "eval" / "retrieval_reference.csv"
+DEV_EVAL_PATH = ROOT / "data" / "eval" / "dev_questions.csv"
+TEST_EVAL_PATH = ROOT / "data" / "eval" / "test_questions.csv"
 REPORTS_DIR = ROOT / "reports"
 THRESHOLD_PATH = REPORTS_DIR / "abstention_threshold.json"
 
@@ -123,7 +122,7 @@ def calibration_metadata() -> dict:
         "reranker_model_revision": RERANKER_MODEL_REVISION,
         "rag_pipeline_version": RAG_PIPELINE_VERSION,
         "model_runtime_versions": model_runtime_versions(),
-        "eval_sha256": sha256_text_file(EVAL_PATH),
+        "eval_sha256": sha256_text_file(DEV_EVAL_PATH),
         "index_manifest_sha256": sha256_text_file(INDEX_MANIFEST_PATH),
         "safety_rules_version": SAFETY_RULES_VERSION,
     }

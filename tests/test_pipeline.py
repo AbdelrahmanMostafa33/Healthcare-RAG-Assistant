@@ -169,9 +169,9 @@ def test_an_educational_question_about_children_still_gets_an_answer(make_pipeli
 
 def test_threshold_is_not_trusted_until_calibration_metadata_matches(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
-    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "DEV_EVAL_PATH", tmp_path / "questions.csv")
     monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
-    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.DEV_EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
     config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
 
     assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
@@ -194,9 +194,9 @@ def test_a_runtime_library_version_change_warns_instead_of_rejecting_the_thresho
     change which model is served - it is only a hint that scores may have drifted.
     """
     monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
-    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "DEV_EVAL_PATH", tmp_path / "questions.csv")
     monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
-    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.DEV_EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
     config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
     config.THRESHOLD_PATH.write_text(
         __import__("json").dumps({"threshold": 3.25, **config.calibration_metadata()}), encoding="utf-8"
@@ -208,9 +208,9 @@ def test_a_runtime_library_version_change_warns_instead_of_rejecting_the_thresho
 
 def test_threshold_is_invalidated_when_the_safety_rules_version_changes(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
-    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "DEV_EVAL_PATH", tmp_path / "questions.csv")
     monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
-    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.DEV_EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
     config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
     config.THRESHOLD_PATH.write_text(
         __import__("json").dumps({"threshold": 3.25, **config.calibration_metadata()}), encoding="utf-8"
@@ -224,9 +224,9 @@ def test_threshold_is_invalidated_when_the_safety_rules_version_changes(tmp_path
 def test_the_safety_fingerprint_is_a_version_not_a_file_hash(tmp_path, monkeypatch):
     """A comment or a line-ending change must not invalidate a calibration."""
     monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
-    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "DEV_EVAL_PATH", tmp_path / "questions.csv")
     monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
-    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.DEV_EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
     config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
     metadata = config.calibration_metadata()
     assert metadata["safety_rules_version"] == config.SAFETY_RULES_VERSION
@@ -236,17 +236,17 @@ def test_the_safety_fingerprint_is_a_version_not_a_file_hash(tmp_path, monkeypat
     )
     # A CRLF copy of the same evaluation file hashes to the same value, so a Windows checkout keeps
     # the calibration while an actual label change still invalidates it.
-    config.EVAL_PATH.write_bytes(b"id,question\r\nq1,example?\r\n")
+    config.DEV_EVAL_PATH.write_bytes(b"id,question\r\nq1,example?\r\n")
     assert config.load_threshold() == (3.25, True)
-    config.EVAL_PATH.write_text("id,question\nq1,changed?\n", encoding="utf-8")
+    config.DEV_EVAL_PATH.write_text("id,question\nq1,changed?\n", encoding="utf-8")
     assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)
 
 
 def test_a_threshold_for_another_reranker_or_changed_eval_data_is_not_used(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "THRESHOLD_PATH", tmp_path / "abstention_threshold.json")
-    monkeypatch.setattr(config, "EVAL_PATH", tmp_path / "questions.csv")
+    monkeypatch.setattr(config, "DEV_EVAL_PATH", tmp_path / "questions.csv")
     monkeypatch.setattr(config, "INDEX_MANIFEST_PATH", tmp_path / "manifest.json")
-    config.EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
+    config.DEV_EVAL_PATH.write_text("id,question\nq1,example?\n", encoding="utf-8")
     config.INDEX_MANIFEST_PATH.write_text("{}", encoding="utf-8")
 
     stale = {"threshold": 3.25, **config.calibration_metadata(), "reranker_model": "some/other-reranker"}
@@ -256,5 +256,5 @@ def test_a_threshold_for_another_reranker_or_changed_eval_data_is_not_used(tmp_p
     valid = {"threshold": 3.25, **config.calibration_metadata()}
     config.THRESHOLD_PATH.write_text(__import__("json").dumps(valid), encoding="utf-8")
     assert config.load_threshold() == (3.25, True)
-    config.EVAL_PATH.write_text("id,question\nq1,changed?\n", encoding="utf-8")
+    config.DEV_EVAL_PATH.write_text("id,question\nq1,changed?\n", encoding="utf-8")
     assert config.load_threshold() == (config.DEFAULT_THRESHOLD, False)

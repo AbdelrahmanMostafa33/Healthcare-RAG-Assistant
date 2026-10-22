@@ -40,22 +40,11 @@ def validate_evaluation_data(questions: pd.DataFrame) -> None:
     if normalized_questions.duplicated().any():
         duplicates = normalized_questions[normalized_questions.duplicated(keep=False)].unique().tolist()
         raise ValueError(f"Evaluation questions must be unique across splits; duplicates include: {duplicates[:3]}")
-    if not set(questions["split"].dropna()) <= {"dev", "test", "final_holdout"} or questions["split"].isna().any():
-        raise ValueError("Evaluation split values must be 'dev', 'test', or 'final_holdout'")
+    if not set(questions["split"].dropna()) <= {"dev", "test"} or questions["split"].isna().any():
+        raise ValueError("Evaluation split values must be 'dev' or 'test'")
     unknown = set(questions["expected_behavior"].dropna()) - VALID_BEHAVIORS
     if unknown or questions["expected_behavior"].isna().any():
         raise ValueError(f"Unknown or missing expected_behavior values: {sorted(unknown)}")
-    if "final_holdout" in set(questions["split"]):
-        reference = questions.loc[questions["split"] == "final_holdout"]
-        required_reference = {"reference_answer", "reference_source_title", "reference_source_url"}
-        missing_reference = required_reference - set(reference.columns)
-        if missing_reference:
-            raise ValueError(f"Final holdout is missing reference fields: {sorted(missing_reference)}")
-        for field in required_reference:
-            if reference[field].isna().any() or reference[field].astype(str).str.strip().eq("").any():
-                raise ValueError(f"Final holdout rows need a non-empty {field}")
-        if not reference["expected_behavior"].eq("answer").all():
-            raise ValueError("Final holdout reference-answer questions must expect an answer")
 
 
 def score_dev_questions(retriever, questions: pd.DataFrame) -> pd.DataFrame:

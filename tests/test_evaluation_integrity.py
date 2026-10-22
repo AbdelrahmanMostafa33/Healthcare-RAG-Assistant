@@ -71,7 +71,7 @@ def test_rag_quality_metrics_show_pass_rate_and_denominator_for_each_check():
 
 
 def test_rag_checks_use_standard_names_and_no_manual_fact_labels():
-    assert ev.RAG_CHECKS == ("context_relevance", "faithfulness", "answer_relevance", "reference_match")
+    assert ev.RAG_CHECKS == ("context_relevance", "faithfulness", "answer_relevance")
     assert "key_facts" not in ev.RAG_SCORE_SYSTEM
 
 

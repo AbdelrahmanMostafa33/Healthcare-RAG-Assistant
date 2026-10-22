@@ -5,6 +5,18 @@ from src import config
 from src.calibration import calibration_from_scores
 
 
+@pytest.fixture
+def calibration_fingerprints(monkeypatch):
+    fingerprints = {
+        "embedding_model": "test/embed",
+        "reranker_model": "test/rerank",
+        "eval_sha256": "eval-hash",
+        "index_manifest_sha256": "index-hash",
+    }
+    monkeypatch.setattr(config, "calibration_metadata", lambda: fingerprints)
+    return fingerprints
+
+
 def _scores():
     return pd.DataFrame([
         {"id": "a1", "split": "dev", "type": "consumer", "expected_behavior": "answer", "best_score": 3.0},
@@ -16,13 +28,7 @@ def _scores():
     ])
 
 
-def test_calibration_from_dev_scores_emits_build_fingerprints(monkeypatch):
-    monkeypatch.setattr(config, "calibration_metadata", lambda: {
-        "embedding_model": "test/embed",
-        "reranker_model": "test/rerank",
-        "eval_sha256": "eval-hash",
-        "index_manifest_sha256": "index-hash",
-    })
+def test_calibration_from_dev_scores_emits_build_fingerprints(calibration_fingerprints):
     result = calibration_from_scores(_scores())
     assert result["threshold"] == 2.0
     assert result["unanswerable_abstained"] == 1.0
@@ -33,7 +39,9 @@ def test_calibration_from_dev_scores_emits_build_fingerprints(monkeypatch):
     assert result["scored_by_expected_behavior"] == {"answer": 2, "insufficient_evidence": 3}
 
 
-def test_calibration_ignores_scope_and_policy_negatives_that_score_like_answerable_rows():
+def test_calibration_ignores_scope_and_policy_negatives_that_score_like_answerable_rows(
+    calibration_fingerprints,
+):
     """A drug question the base cannot answer must not raise the threshold for everything else."""
     scores = _scores()
     scores.loc[scores["id"] == "m1", "best_score"] = 99.0

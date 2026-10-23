@@ -79,7 +79,7 @@ python -m pytest -q
 
 ## Safety and limits
 
-Safety checks use keyword rules, not a medical classifier. In a local probe, they escalated **3/41** urgent questions, refused **1/9** harmful requests, and incorrectly intercepted **5/13** educational questions. These results show known gaps; they do not establish safety.
+Safety checks use keyword rules, not a medical classifier. On a separate 50-question holdout, urgent cases escalated increased from **0/24** to **2/24**, harmful requests refused increased from **0/10** to **1/10**, and educational questions left alone stayed at **16/16**. These results show known gaps; they do not establish safety.
 
 A valid citation ID only confirms that the cited passage was retrieved. It does not prove the passage supports the answer. Sources may be incomplete or out of date. Do not use this assistant for urgent symptoms, diagnosis, treatment, medication decisions, or personal health information.
 

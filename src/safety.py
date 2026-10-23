@@ -34,7 +34,7 @@ import re
 # calibrated threshold is keyed to. A hash of the file would also change for a typo in a comment or
 # for a CRLF checkout, silently invalidating a saved calibration for a change that cannot alter a
 # single safety decision.
-SAFETY_RULES_VERSION = "2026-10-21.1"
+SAFETY_RULES_VERSION = "2026-10-23.4"
 
 LIVE_INFORMATION = re.compile(
     r"\b(today|this\s+(?:week|month|year)|last\s+(?:week|month|year)|currently|current(?:ly)?"
@@ -78,6 +78,8 @@ CRISIS_ALWAYS = [re.compile(p) for p in [
 CRISIS_WITH_MARKER = [re.compile(p) for p in [
     r"\bsuicid\w*",
     r"\bself[-\s]?harm\w*",
+    r"\bfeel(?:ing)?\s+like\s+ending\s+it\s+all\b",
+    r"\b(hopeless|no\s+point\s+anymore)\b",
     r"\b(want|wants|wanna|wish|wishes|thinking|think|thought|thoughts|plan|planning)\b[^?.!]{0,30}"
     r"\b(die|dying|dead|death|suicid\w*|kill\w*|end(ing)?\s+it(\s+all)?|ending\s+(my|his|her|their)\s+life)\b",
 ]]
@@ -106,6 +108,9 @@ INGESTION_PATTERNS = [re.compile(p) for p in [
 # Block explicit requests for actionable harm, drug diversion, or prescription fraud before
 # retrieval or generation. These narrow rules target intent, not broad educational topic words.
 HARMFUL_REQUEST_PATTERNS = [re.compile(p) for p in [
+    # A request for a lethal medicine dose is actionable even when phrased as a fact question.
+    r"\b(lethal|fatal)\s+(dose|amount)\b[^?.!]{0,40}\b(paracetamol|acetaminophen|ibuprofen|aspirin"
+    r"|insulin|opioids?|sleeping\s+(pills?|tablets?))\b",
     r"\bhow\s+(many|much)\b.{0,80}\b(pills?|tablets?|capsules?|medicine|medication|dose|dosage"
     r"|painkillers?|paracetamol|acetaminophen|ibuprofen|aspirin|insulin|opioids?|antidepressants?"
     r"|sleeping\s+pills?|drugs?)\b.{0,60}\b(kill|die|fatal|lethal|overdose|death)\b",
@@ -147,6 +152,8 @@ ACUTE_CUES = {
     "bleeding a lot": True, "coughing up blood": True, "vomiting blood": True, "having a seizure": True,
     "having a fit": True, "convulsion": True, "unconscious": True, "unresponsive": True,
     "passed out": True, "won't wake": True, "wont wake": True, "no pulse": True,
+    "lips are blue": True, "lips look blue": True,
+    "lips have turned blue": True, "blue lips": True,
     "worst headache": True, "thunderclap": True, "my throat is closing": True, "my chest hurts": True,
     "my chest is tight": True, "crushing chest pain": True,
     "can not breathe": False, "stops breathing": False, "was unresponsive": False, "anaphylaxis": False,
@@ -160,6 +167,13 @@ MEDICAL_PHRASES = tuple(ACUTE_CUES)
 ACUTE_CUES_ONLY = tuple(cue for cue, acute in ACUTE_CUES.items() if acute)
 
 MEDICAL_PATTERNS = [
+    # Severe chest pain with numbness or tingling in an arm can signal a heart attack.
+    re.compile(r"\b(crushing|squeezing|heavy)\b[^?.!]{0,50}\b(pain|ache|pressure)\b[^?.!]{0,50}\b(chest|breastbone)\b"),
+    re.compile(r"\b(chest|breastbone)\b[^?.!]{0,80}\b(left|right)\s+(arm|hand)\b[^?.!]{0,25}\b(numb|tingl|weak)\w*\b"),
+    # Treatment questions are ordinary; personal safety cues like "to me" remain urgent.
+    re.compile(r"\b(?:not responding|isn't responding|isnt responding|won't respond|wont respond)\b"
+               r"(?!\s+to\b(?!\s+(?:me|us|anyone|anything|touch|pain|cpr|compressions|chest\s+compressions"
+               r"|shak\w+|stimulation|my\s+voice|his\s+name|her\s+name|their\s+name|my\s+questions)\b))"),
     # swallowed something dangerous
     re.compile(r"swallowed\b.*\b(pills?|tablets?|capsules?|medicine|medication|batter(y|ies)|bleach|poison|chemicals?|detergent)\b"),
     # a baby with a fever

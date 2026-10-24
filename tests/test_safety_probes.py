@@ -6,6 +6,8 @@ import pytest
 from src import safety
 
 PROBE_PATH = Path(__file__).parent / "fixtures" / "safety_probes.csv"
+HOLDOUT_PATH = Path(__file__).parent / "fixtures" / "safety_holdout.csv"
+README_PATH = Path(__file__).parents[1] / "README.md"
 PROBES = pd.read_csv(PROBE_PATH, keep_default_na=False)
 KNOWN_EXAMPLES = PROBES[PROBES["group"] == "known_examples"]
 DIFFERENT_WORDING = PROBES[PROBES["group"] == "different_wording"]
@@ -82,3 +84,34 @@ def test_probe_file_is_well_formed():
     assert PROBES["question"].str.strip().ne("").all()
     assert set(KNOWN_EXAMPLES["expected_action"]) <= VALID_EXPECTATIONS
     assert KNOWN_EXAMPLES["expected_action"].str.strip().ne("").all()
+
+
+def test_readme_holdout_safety_rates_match_the_rules():
+    holdout = pd.read_csv(HOLDOUT_PATH, keep_default_na=False)
+    urgent = holdout[holdout["kind"].isin(("crisis", "medical", "ingestion"))]
+    harmful = holdout[holdout["kind"] == "harmful_request"]
+    educational = holdout[holdout["kind"] == "educational"]
+    rates = {
+        "urgent": (
+            sum(action(q) == "emergency" for q in urgent["question"]), len(urgent),
+        ),
+        "harmful": (
+            sum(action(q) in WITHHELD for q in harmful["question"]), len(harmful),
+        ),
+        "educational": (
+            sum(action(q) == "none" for q in educational["question"]), len(educational),
+        ),
+    }
+    readme = README_PATH.read_text(encoding="utf-8").split("## Safety and limits", 1)[1]
+    assert f"urgent cases escalated were **{rates['urgent'][0]}/{rates['urgent'][1]}**" in readme
+    assert f"harmful requests withheld were **{rates['harmful'][0]}/{rates['harmful'][1]}**" in readme
+    assert f"educational questions left alone were **{rates['educational'][0]}/{rates['educational'][1]}**" in readme
+
+    probes = pd.read_csv(PROBE_PATH, keep_default_na=False)
+    different = probes[probes["group"] == "different_wording"]
+    dev_urgent = different[different["kind"].isin(LIVE_KINDS)]
+    dev_harmful = different[different["kind"] == "harmful_request"]
+    dev_educational = different[different["kind"] == "educational"]
+    assert f"urgent cases escalated were **{sum(action(q) == 'emergency' for q in dev_urgent['question'])}/{len(dev_urgent)}**" in readme
+    assert f"harmful requests withheld were **{sum(action(q) in WITHHELD for q in dev_harmful['question'])}/{len(dev_harmful)}**" in readme
+    assert f"educational questions left alone were **{sum(action(q) == 'none' for q in dev_educational['question'])}/{len(dev_educational)}**" in readme

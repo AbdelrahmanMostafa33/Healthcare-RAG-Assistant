@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
-from openai import RateLimitError
+from google.genai.errors import APIError as GeminiAPIError
+from openai import APIError as OpenAIAPIError, RateLimitError
 
 from src import config
 from src.metrics import (
@@ -21,6 +22,7 @@ from src.provider_clients import make_judge_client
 from src.retry import (
     ProviderQuotaExceeded,
     ProviderRateLimitRejected,
+    ProviderTransientFailure,
     call_with_transient_rate_limit_retry,
     provider_error_message,
     status_code,
@@ -294,19 +296,34 @@ def _batch_status(status, error, latency_ms=None):
     }
 
 
+def _is_provider_error(error):
+    """Recognize provider SDK failures, including HTTP errors without a retry wrapper."""
+    provider_types = (
+        GeminiAPIError, OpenAIAPIError, ProviderRateLimitRejected,
+        ProviderTransientFailure, RateLimitError,
+    )
+    return isinstance(error, provider_types) or status_code(error) is not None
+
+
 def run_pipeline_batch(pipeline, df):
-    """Run the questions in order; stop on a provider quota and keep other failures per row."""
+    """Run questions in order and stop after three consecutive provider failures."""
     results = {}
-    stopped = False
-    for row in df.itertuples(index=False):
-        if stopped:
-            results[row.id] = _batch_status("skipped", "batch stopped after provider limit")
+    consecutive_provider_errors = 0
+    stopped_reason = None
+    total = len(df)
+    for index, row in enumerate(df.itertuples(index=False), start=1):
+        progress = f"[{index}/{total}] {row.id}"
+        if stopped_reason:
+            print(f"{progress}: skipped", flush=True)
+            results[row.id] = _batch_status("skipped", stopped_reason)
             continue
+        print(f"{progress}: running", flush=True)
         started = time.perf_counter()
         try:
             result = pipeline.answer(row.question)
             result["status"] = "ok"
             results[row.id] = result
+            consecutive_provider_errors = 0
         except (ProviderQuotaExceeded, ProviderRateLimitRejected, RateLimitError) as error:
             if isinstance(error, ProviderQuotaExceeded):
                 message = "provider quota exhausted"
@@ -317,12 +334,22 @@ def run_pipeline_batch(pipeline, df):
             results[row.id] = _batch_status(
                 "error", message, (time.perf_counter() - started) * 1000
             )
-            # Avoid more paid calls after the provider reports a quota or rate-limit stop.
-            stopped = True
+            if isinstance(error, ProviderQuotaExceeded):
+                stopped_reason = "batch stopped after provider quota"
+            else:
+                consecutive_provider_errors += 1
+                if consecutive_provider_errors >= 3:
+                    stopped_reason = "batch stopped after 3 consecutive provider errors"
         except Exception as error:
             results[row.id] = _batch_status(
                 "error", error_detail(error), (time.perf_counter() - started) * 1000
             )
+            if _is_provider_error(error):
+                consecutive_provider_errors += 1
+                if consecutive_provider_errors >= 3:
+                    stopped_reason = "batch stopped after 3 consecutive provider errors"
+            else:
+                consecutive_provider_errors = 0
     return results
 
 
@@ -378,7 +405,7 @@ def run_evaluation_split(questions, split, retriever, threshold, calibrated):
     from src.calibration import validate_evaluation_data
     from src.generator import make_generator_client
     from src.pipeline import RAGPipeline
-    from src.provider_clients import make_judge_client
+    from src.provider_clients import make_judge_client, make_safety_client
 
     validate_evaluation_data(questions)
     if split not in {"dev", "test"}:
@@ -387,7 +414,9 @@ def run_evaluation_split(questions, split, retriever, threshold, calibrated):
     if frame.empty:
         raise ValueError(f"No questions found for split={split!r}")
 
-    pipeline = RAGPipeline(retriever, make_generator_client(), threshold, calibrated)
+    pipeline = RAGPipeline(
+        retriever, make_generator_client(), threshold, calibrated, make_safety_client()
+    )
     judge = make_judge(make_judge_client())
     results = run_pipeline_batch(pipeline, frame)
     evaluation = evaluate_pipeline_results(frame, results, judge)

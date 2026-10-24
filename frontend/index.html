@@ -8,7 +8,7 @@
     <title>Healthcare RAG Assistant</title>
     <link rel="icon" type="image/png" href="/assets/healthcare-logo.png">
     <link rel="stylesheet" href="/assets/styles.css?v=11">
-    <script src="/assets/app.js?v=4" defer></script>
+    <script src="/assets/app.js?v=6" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#demo">Skip to the live demo</a>
@@ -92,7 +92,7 @@
 
       <section class="notice" aria-label="Important health information notice">
         <span class="notice-mark" aria-hidden="true">!</span>
-        <div><strong>This is not a clinical tool.</strong><p>Safety checks are simple keyword rules. In the current unseen-phrasing probe, they escalated 3 of 41 crisis, medical, and ingestion examples, so they miss many rephrasings. Do not use this demo for triage, diagnosis, treatment, urgent care, or personal health decisions. If you may be experiencing an emergency, contact local emergency services.</p></div>
+        <div><strong>This is not a clinical tool.</strong><p>Every question is checked by local safety rules first. If those rules do not handle it, the question is sent to Gemini for a safety check; questions that continue may also be sent to Gemini for an answer. Safety checks can miss or misclassify questions. See <a href="https://github.com/AbdelrahmanMostafa33/Healthcare-RAG-Assistant/blob/main/README.md#safety-and-limits" target="_blank" rel="noopener noreferrer">Safety and limits in the README</a> for measured results. Do not use this demo for triage, diagnosis, treatment, urgent care, or personal health decisions. If you may be experiencing an emergency, contact local emergency services.</p></div>
       </section>
     </main>
 

@@ -1,9 +1,12 @@
+import time
+
 import httpx
 import pytest
 from google.genai.errors import ClientError, ServerError
 from openai import RateLimitError
 
 from src import retry
+from src.deadline import DeadlineExceeded
 
 
 def rate_limit(message):
@@ -19,6 +22,21 @@ def server_error(code, message="This model is currently experiencing high demand
 def test_daily_token_quota_is_not_retried():
     error = rate_limit("Limit reached: tokens per day quota exceeded")
     assert retry.is_hard_quota_exhaustion(error)
+
+
+def test_default_budget_retries_twice_then_raises(monkeypatch):
+    monkeypatch.setattr(retry.time, "sleep", lambda _: None)
+    calls = []
+    error = rate_limit("Rate limit reached for requests per minute. Please try again in 0s")
+
+    def call():
+        calls.append(1)
+        raise error
+
+    with pytest.raises(RateLimitError):
+        retry.call_with_transient_rate_limit_retry(call)
+
+    assert len(calls) == 3
 
 
 def test_daily_request_limit_is_not_retried(monkeypatch):
@@ -220,3 +238,38 @@ def test_transient_retry_budget_is_bounded(monkeypatch):
 def test_negative_retry_budget_is_rejected():
     with pytest.raises(ValueError, match="non-negative"):
         retry.call_with_transient_rate_limit_retry(lambda: None, max_transient_retries=-1)
+
+
+def test_an_expired_deadline_stops_before_the_call():
+    calls = []
+
+    with pytest.raises(DeadlineExceeded):
+        retry.call_with_transient_rate_limit_retry(
+            lambda: calls.append(1), deadline=time.monotonic() - 1
+        )
+
+    assert calls == []
+
+
+def test_a_deadline_caps_the_retry_sleep_then_stops(monkeypatch):
+    clock = [0.0]
+    waits = []
+    calls = []
+    error = rate_limit("Rate limit reached for requests per minute. Please try again in 30s")
+
+    def fake_sleep(seconds):
+        waits.append(seconds)
+        clock[0] += seconds
+
+    monkeypatch.setattr(retry.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(retry.time, "sleep", fake_sleep)
+
+    def call():
+        calls.append(1)
+        raise error
+
+    with pytest.raises(DeadlineExceeded):
+        retry.call_with_transient_rate_limit_retry(call, max_transient_retries=2, deadline=5.0)
+
+    assert calls == [1]
+    assert waits == [5.0]

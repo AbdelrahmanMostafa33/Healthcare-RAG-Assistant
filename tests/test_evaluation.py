@@ -460,6 +460,40 @@ def test_run_pipeline_batch_records_a_provider_api_error_and_keeps_going():
     )
 
 
+def test_run_pipeline_batch_stops_after_three_consecutive_provider_errors(capsys):
+    from google.genai.errors import ServerError
+
+    class Pipeline:
+        def __init__(self):
+            self.questions = []
+
+        def answer(self, question):
+            self.questions.append(question)
+            if question == "two":
+                raise ValueError("local parse error")
+            if question in {"one", "three", "four", "five"}:
+                raise ServerError(503, {"error": {"code": 503, "message": "busy"}})
+            return {"answer": "ok", "sources": [], "latency_ms": 1}
+
+    frame = pd.DataFrame({
+        "id": ["q1", "q2", "q3", "q4", "q5", "q6"],
+        "question": ["one", "two", "three", "four", "five", "six"],
+    })
+    pipeline = Pipeline()
+
+    results = ev.run_pipeline_batch(pipeline, frame)
+
+    assert pipeline.questions == ["one", "two", "three", "four", "five"]
+    assert [results[qid]["status"] for qid in frame["id"]] == [
+        "error", "error", "error", "error", "error", "skipped",
+    ]
+    assert results["q6"]["error"] == "batch stopped after 3 consecutive provider errors"
+    progress_lines = capsys.readouterr().out.strip().splitlines()
+    assert len(progress_lines) == len(frame)
+    assert all(f"[{index}/{len(frame)}] q{index}" in line
+               for index, line in enumerate(progress_lines, start=1))
+
+
 def test_run_pipeline_batch_records_a_non_provider_failure_without_stopping():
     class Pipeline:
         def answer(self, question):

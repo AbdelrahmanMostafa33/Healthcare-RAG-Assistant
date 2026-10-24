@@ -4,6 +4,7 @@ import re
 from google.genai import types
 
 from src import config
+from src.deadline import http_timeout_ms
 from src.provider_clients import make_generator_client
 from src.retry import call_with_transient_rate_limit_retry
 
@@ -93,15 +94,16 @@ def citations_are_valid(answer: str, passages: list[dict]) -> bool:
     return bool(citation_numbers(answer, len(passages)))
 
 
-def generate(client, question: str, passages: list[dict]) -> str:
+def generate(client, question: str, passages: list[dict], deadline=None) -> str:
     """Generate one grounded answer, retrying one malformed empty response and transient errors.
 
     Transient generator 429s are retried a bounded number of times. Hard daily or account quota
-    exhaustion is raised immediately instead of being retried as a transient limit.
+    exhaustion is raised immediately instead of being retried as a transient limit. A deadline
+    stops retries and caps the provider request timeout at the time left.
     """
     try:
         return _generate_with_empty_response_retry(
-            lambda: _generate_once(client, question, passages)
+            lambda: _generate_once(client, question, passages), deadline
         )
     except GenerationTruncatedError:
         # One compact retry recovers a useful answer without repeating successful rows.
@@ -109,15 +111,18 @@ def generate(client, question: str, passages: list[dict]) -> str:
             lambda: _generate_once(
                 client, question, passages, compact_retry=True,
                 max_output_tokens=min(config.MAX_TOKENS, TRUNCATION_RETRY_MAX_TOKENS),
-            )
+            ),
+            deadline,
         )
 
 
-def _generate_with_empty_response_retry(call):
+def _generate_with_empty_response_retry(call, deadline=None):
     """Retry a malformed/empty model response once; provider retries remain separately bounded."""
     for attempt in range(EMPTY_RESPONSE_RETRIES + 1):
         try:
-            return call_with_transient_rate_limit_retry(call, max_transient_retries=5)
+            return call_with_transient_rate_limit_retry(
+                call, max_transient_retries=2, deadline=deadline
+            )
         except GenerationEmptyResponseError:
             if attempt == EMPTY_RESPONSE_RETRIES:
                 raise
@@ -125,12 +130,13 @@ def _generate_with_empty_response_retry(call):
 
 def generate_text(
     client, system_instruction: str, user_content: str,
-    max_output_tokens: int | None = None,
+    max_output_tokens: int | None = None, deadline=None,
 ) -> tuple[str, str | None]:
     """Generate plain text with the configured model, returning text and a normalized finish reason."""
     if config.GENERATOR_PROVIDER != "gemini":
         raise RuntimeError(f"Unsupported GENERATOR_PROVIDER: {config.GENERATOR_PROVIDER!r}.")
 
+    timeout_ms = http_timeout_ms(deadline, config.GENERATOR_TIMEOUT_MS)
     response = client.models.generate_content(
         model=config.GENERATOR_MODEL,
         contents=user_content,
@@ -141,6 +147,9 @@ def generate_text(
             ),
             temperature=config.GENERATOR_TEMPERATURE,
             thinking_config=types.ThinkingConfig(thinking_level=config.GEMINI_THINKING_LEVEL),
+            http_options=(
+                types.HttpOptions(timeout=timeout_ms) if timeout_ms is not None else None
+            ),
         ),
     )
     answer = (response.text or "").strip()

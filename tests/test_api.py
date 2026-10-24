@@ -1,11 +1,22 @@
-"""API handler tests that do not start a local socket or load model weights."""
+"""API handler tests that do not start a local socket or load model weights.
+
+Handlers are called directly rather than through TestClient, because the app's lifespan loads
+local model weights and the search index, which none of these tests need. A handler's status code
+is read from the Response it receives, and its response model is validated here, as FastAPI does.
+"""
+import asyncio
+import time
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from pydantic import ValidationError
 
-from app import QueryRequest, QueryResponse, app, health, query
+from app import (
+    QUERY_TIMEOUT_DETAIL, QUERY_TIMEOUT_SECONDS, HealthResponse, QueryRequest, QueryResponse, app,
+    health, query,
+)
+from src.deadline import DeadlineExceeded
 from src.pipeline import ABSTAIN_MESSAGE, DISCLAIMER
 from src.safety import REDIRECT_MESSAGE, REFUSAL_MESSAGE
 
@@ -19,9 +30,14 @@ class FakePipeline:
     def __init__(self, abstain=False, error=None, emergency=False, redirect=False, refuse=False):
         self.abstain, self.error, self.emergency, self.redirect, self.refuse = abstain, error, emergency, redirect, refuse
         self.questions = []
+        self.deadlines = []
+        self.delay = 0
 
-    def answer(self, question):
+    def answer(self, question, deadline=None):
         self.questions.append(question)
+        self.deadlines.append(deadline)
+        if self.delay:
+            time.sleep(self.delay)
         if self.error:
             raise self.error
         flags = {"abstained": False, "emergency": False, "redirected": False, "refused": False}
@@ -46,8 +62,16 @@ def pipeline():
     return instance
 
 
-def request_for(pipeline):
-    return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(pipeline=pipeline)))
+def request_for(pipeline, startup_error=False):
+    state = SimpleNamespace(pipeline=pipeline, startup_error=startup_error)
+    return SimpleNamespace(app=SimpleNamespace(state=state))
+
+
+def get_health(pipeline, startup_error=False):
+    """Call the handler the way Starlette does, keeping the status code it sets."""
+    response = Response()
+    body = HealthResponse.model_validate(health(request_for(pipeline, startup_error), response))
+    return response.status_code, body.model_dump()
 
 
 def post_query(pipeline, payload):
@@ -56,7 +80,7 @@ def post_query(pipeline, payload):
     except ValidationError:
         return 422, None
     try:
-        result = query(body, request_for(pipeline))
+        result = asyncio.run(query(body, request_for(pipeline)))
     except HTTPException as error:
         return error.status_code, error.detail
     # FastAPI applies this response model after the handler; validate it here without a socket.
@@ -111,16 +135,61 @@ def test_a_pipeline_failure_returns_502_without_leaking_details(pipeline):
     assert status == 502 and "secret" not in detail
 
 
+def test_query_returns_504_when_its_overall_budget_expires(pipeline, monkeypatch):
+    monkeypatch.setattr("app.QUERY_TIMEOUT_SECONDS", 0.01)
+    pipeline.delay = 0.05
+
+    status, detail = post_query(pipeline, {"question": "What causes a fever?"})
+
+    assert status == 504
+    assert "took too long" in detail
+
+
+def test_query_passes_the_remaining_budget_as_a_deadline(pipeline):
+    post_query(pipeline, {"question": "What causes a fever?"})
+
+    assert pipeline.deadlines and pipeline.deadlines[0] is not None
+    assert 0 < pipeline.deadlines[0] - time.monotonic() <= QUERY_TIMEOUT_SECONDS
+
+
+def test_a_deadline_raised_by_the_pipeline_returns_504(pipeline):
+    pipeline.error = DeadlineExceeded("request deadline passed")
+
+    status, detail = post_query(pipeline, {"question": "What causes a fever?"})
+
+    assert status == 504
+    assert detail == QUERY_TIMEOUT_DETAIL
+
+
 def test_health_reports_the_threshold_and_whether_it_is_calibrated(pipeline):
-    assert health(request_for(pipeline)) == {"status": "ok", "abstain_threshold": 1.5, "threshold_calibrated": True}
+    assert get_health(pipeline) == (
+        200,
+        {"status": "ok", "abstain_threshold": 1.5, "threshold_calibrated": True},
+    )
 
 
 def test_health_marks_an_uncalibrated_service_as_degraded(pipeline):
     pipeline.calibrated = False
-    assert health(request_for(pipeline))["status"] == "degraded"
+    assert get_health(pipeline)[1]["status"] == "degraded"
+
+
+@pytest.mark.parametrize(
+    ("startup_error", "status"),
+    [(False, "loading"), (True, "error")],
+)
+def test_health_returns_503_with_a_status_word_while_loading_or_failed(startup_error, status):
+    code, body = get_health(None, startup_error=startup_error)
+
+    assert code == 503
+    # The page keys off this word, so it must not depend on any message wording.
+    assert body["status"] == status
+    assert body["abstain_threshold"] is None and body["threshold_calibrated"] is False
 
 
 def test_openapi_exposes_the_query_route_and_response_contract():
     schema = app.openapi()
     assert "/query" in schema["paths"] and "/health" in schema["paths"]
     assert "QueryResponse" in schema["components"]["schemas"]
+    assert schema["paths"]["/health"]["get"]["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]["$ref"].endswith("/HealthResponse")

@@ -13,6 +13,8 @@ import time
 
 from openai import RateLimitError
 
+from src.deadline import DeadlineExceeded, check_deadline, remaining_seconds
+
 
 MAX_RETRY_DELAY_SECONDS = 30.0
 INITIAL_RETRY_DELAY_SECONDS = 2.0
@@ -173,19 +175,21 @@ def _retry_wait(error: Exception, retries: int) -> float:
     return min(wait, MAX_RETRY_AFTER_SECONDS)
 
 
-def call_with_transient_rate_limit_retry(call, max_transient_retries: int = 5):
+def call_with_transient_rate_limit_retry(call, max_transient_retries: int = 2, deadline=None):
     """Call a no-argument operation, retrying transient 429s and 5xx replies a bounded number of times.
 
     The project client disables SDK retries so this helper owns the retry budget. Hard daily
     quota errors are raised immediately; transient rate limits and server failures receive
     bounded backoff. Exhausting the budget on a 5xx raises ProviderTransientFailure, which batch
-    callers treat as one failed row rather than the end of the run.
+    callers treat as one failed row rather than the end of the run. A deadline stops the loop and
+    caps each backoff sleep, so a timed-out request does not keep its worker thread alive.
     """
     if not isinstance(max_transient_retries, int) or max_transient_retries < 0:
         raise ValueError("max_transient_retries must be a non-negative integer")
 
     retries = 0
     while True:
+        check_deadline(deadline)
         try:
             return call()
         except Exception as error:
@@ -206,7 +210,13 @@ def call_with_transient_rate_limit_retry(call, max_transient_retries: int = 5):
                 raise ProviderTransientFailure(
                     f"Provider stayed unavailable after {retries} transient retries."
                 ) from error
-            time.sleep(_retry_wait(error, retries))
+            wait = _retry_wait(error, retries)
+            left = remaining_seconds(deadline)
+            if left is not None:
+                if left <= 0:
+                    raise DeadlineExceeded("The request deadline passed.") from error
+                wait = min(wait, left)
+            time.sleep(wait)
             retries += 1
 
 

@@ -26,14 +26,13 @@ function setServiceStatus(status, message) {
 async function refreshServiceStatus() {
   try {
     const result = await fetch('/health', { cache: 'no-store' });
-    if (!result.ok) throw new Error('The service status could not be loaded.');
-    const health = await result.json();
-
+    const health = await result.json().catch(() => ({}));
+    // Key off the status word, not the human-readable message, so wording can change freely.
     if (health.status === 'loading') {
       setServiceStatus('waiting', 'Loading local models');
       return;
     }
-    if (health.status === 'error') {
+    if (health.status === 'error' || !result.ok) {
       setServiceStatus('failed', 'Setup needs attention');
       return;
     }
@@ -65,6 +64,7 @@ function responseKind(result) {
   if (result.abstained) {
     if (result.abstain_reason === 'uncalibrated') return 'ABSTAINED · NOT CALIBRATED';
     if (result.abstain_reason === 'citation_validation_failed') return 'ANSWER WITHHELD · CITATION CHECK';
+    if (result.abstain_reason === 'safety_check_unavailable') return 'ANSWER WITHHELD · SAFETY CHECK UNAVAILABLE';
     return 'OUT OF SCOPE OR NOT IN SOURCES';
   }
   return 'ANSWER WITH SOURCES';
@@ -238,24 +238,35 @@ form.addEventListener('submit', async (event) => {
   sources.hidden = true;
   disclaimer.hidden = true;
 
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
   try {
     const result = await fetch('/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question }),
+      signal: controller.signal,
     });
+    window.clearTimeout(timeoutId);
     const data = await result.json().catch(() => ({}));
     if (!result.ok) {
       const detail = typeof data.detail === 'string' ? data.detail : 'The request could not be completed.';
-      throw new Error(detail);
+      const failure = new Error(detail);
+      failure.status = result.status;
+      throw failure;
     }
     renderAnswer(data);
   } catch (error) {
-    showMessage(error.message || 'The request could not be completed. Please try again.', 'error');
-    if (error.message?.toLowerCase().includes('still loading')) {
+    const message = error.name === 'AbortError'
+      ? 'This request took longer than 60 seconds. Please try again.'
+      : error.message || 'The request could not be completed. Please try again.';
+    showMessage(message, 'error');
+    // 503 means the service was not ready to answer; re-check readiness rather than parse text.
+    if (error.status === 503) {
       await refreshServiceStatus();
     }
   } finally {
+    window.clearTimeout(timeoutId);
     requestPending = false;
     response.setAttribute('aria-busy', 'false');
     submitButton.querySelector('span:first-child').textContent = 'Ask the assistant';

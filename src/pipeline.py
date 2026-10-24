@@ -1,9 +1,9 @@
 """The one pipeline that the notebooks, the evaluation and the API all use.
 
-    question -> safety check (src/safety.py)
-                  emergency        -> fixed emergency message, no retrieval, no LLM
-                  personal advice  -> fixed redirect to a doctor, no retrieval, no LLM
-                  harmful request  -> fixed refusal message, no retrieval, no LLM
+    question -> safety rules (src/safety.py)
+             -> short Gemini safety check for questions not handled by rules
+                  emergency/crisis -> fixed message, no retrieval or answer generation
+                  redirect/refuse  -> fixed message, no retrieval or answer generation
              -> withhold time-sensitive questions that need a live source
              -> retrieve: FAISS top 40 -> rerank -> up to 5 pages, 2 chunks merged per page
              -> best rerank score below the threshold?  yes -> abstain, no LLM call
@@ -13,14 +13,19 @@
 import time
 
 from src import config, safety
+from src.deadline import check_deadline
 from src.generator import citation_numbers, citations_are_valid, generate, make_generator_client
+from src.provider_clients import make_safety_client
 from src.retriever import load_retriever
+from src.safety_check import SafetyCheckError, classify_for_safety
 
-# Why an answer was withheld. Only INSUFFICIENT_EVIDENCE is a retrieval decision; the other two are
-# not statements about the sources, and counting them as abstentions distorts abstention metrics.
+
+# Why an answer was withheld. Only INSUFFICIENT_EVIDENCE is a retrieval decision; other reasons do
+# not describe the sources, and counting them as retrieval abstentions distorts those metrics.
 ABSTAIN_INSUFFICIENT_EVIDENCE = "insufficient_evidence"
 ABSTAIN_CITATION_VALIDATION_FAILED = "citation_validation_failed"
 ABSTAIN_UNCALIBRATED = "uncalibrated"
+ABSTAIN_SAFETY_CHECK_UNAVAILABLE = "safety_check_unavailable"
 
 DISCLAIMER = (
     "This is general health information for education only. It is not medical advice, "
@@ -52,23 +57,29 @@ UNCALIBRATED_MESSAGE = (
 CITATION_CHECK_MESSAGE = (
     "I couldn't verify the sources for my answer, so I withheld it. Please try again later."
 )
+SAFETY_CHECK_UNAVAILABLE_MESSAGE = (
+    "I couldn't complete the safety check. If this may be an emergency, call your local "
+    "emergency number now or go to the nearest emergency department."
+)
 
 
 class RAGPipeline:
-    def __init__(self, retriever, client, threshold, calibrated):
+    def __init__(self, retriever, client, threshold, calibrated, safety_client):
         self.retriever = retriever
         self.client = client
+        self.safety_client = safety_client
         self.threshold = threshold
         self.calibrated = calibrated   # False while the placeholder threshold from config is in use
 
-    def answer(self, question):
+    def answer(self, question, deadline=None):
         question = question.strip()
         if not question:
             raise ValueError("question must not be empty")
 
         start = time.perf_counter()
+        check_deadline(deadline)
 
-        # Emergencies and personal-advice questions never reach retrieval or the LLM.
+        # Keep existing rules first; only unmatched questions reach the short safety model.
         early = safety.check(question)
         if early:
             kind, message = early
@@ -77,6 +88,25 @@ class RAGPipeline:
                 refused=kind == "refuse",
             )
 
+        check_deadline(deadline)
+        try:
+            classification = classify_for_safety(self.safety_client, question, deadline=deadline)
+        except SafetyCheckError:
+            return self._result(
+                SAFETY_CHECK_UNAVAILABLE_MESSAGE, start, abstained=True,
+                abstain_reason=ABSTAIN_SAFETY_CHECK_UNAVAILABLE,
+            )
+
+        action = classification["action"]
+        if action in {"emergency_medical", "crisis"}:
+            kind = "medical" if action == "emergency_medical" else "crisis"
+            return self._result(safety.EMERGENCY_RESPONSES[kind], start, emergency=True)
+        if action == "refuse":
+            return self._result(safety.REFUSAL_MESSAGE, start, refused=True)
+        if action == "redirect":
+            return self._result(safety.REDIRECT_MESSAGE, start, redirected=True)
+
+        check_deadline(deadline)
         # A placeholder threshold is not a usable evidence policy. Fail closed until a dev-set
         # threshold is calibrated for this exact model/index/evaluation-data combination.
         if not self.calibrated:
@@ -88,6 +118,7 @@ class RAGPipeline:
                                 abstain_reason=ABSTAIN_INSUFFICIENT_EVIDENCE)
 
         # FAISS finds candidates first; the cross-encoder then ranks the evidence for this question.
+        check_deadline(deadline)
         retrieval_started = time.perf_counter()
         passages = self.retriever.retrieve(question)
         retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
@@ -98,9 +129,11 @@ class RAGPipeline:
                                 abstain_reason=ABSTAIN_INSUFFICIENT_EVIDENCE,
                                 retrieval_ms=retrieval_ms, retrieved_passages=passages)
 
+        check_deadline(deadline)
         generation_started = time.perf_counter()
-        answer = generate(self.client, question, passages)
+        answer = generate(self.client, question, passages, deadline=deadline)
         generation_ms = (time.perf_counter() - generation_started) * 1000
+        check_deadline(deadline)
         if not citations_are_valid(answer, passages):
             # Do not expose an answer with missing or impossible source references.
             return self._result(CITATION_CHECK_MESSAGE, start, abstained=True, top_score=top_score,
@@ -158,6 +191,7 @@ def format_result(result):
 
 
 def load_pipeline():
-    client = make_generator_client()   # before the slow model loading, so a missing API key fails fast
+    generator_client = make_generator_client()   # before the slow model loading, so a missing API key fails fast
+    safety_client = make_safety_client()
     threshold, calibrated = config.load_threshold()
-    return RAGPipeline(load_retriever(), client, threshold, calibrated)
+    return RAGPipeline(load_retriever(), generator_client, threshold, calibrated, safety_client)

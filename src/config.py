@@ -48,12 +48,10 @@ CONTEXT_K = 5
 RAG_PIPELINE_VERSION = "source-diverse-context-v8"
 MAX_TOKENS = 2048
 
-# The timeout is a ceiling for a busy provider, not a target. A slower generator can still be
-# selected with GENERATOR_MODEL: gemini-3.8-flash was measured at 58-131 s per call, and an earlier
-# 60 s client timeout turned that ordinary queuing into a 504 that looked like a provider failure.
-# The default gemini-3.5-flash-lite answered a five-passage prompt in about a second, so the
-# generous ceiling costs it nothing.
-GENERATOR_TIMEOUT_MS = int(os.getenv("GENERATOR_TIMEOUT_MS", "240000"))
+# Raise GENERATOR_TIMEOUT_MS in .env for a slower model. The /query endpoint still has a 60-second cap.
+GENERATOR_TIMEOUT_MS = int(os.getenv("GENERATOR_TIMEOUT_MS", "30000"))
+# Upper bound for the short safety check; a request deadline can shorten it further.
+SAFETY_TIMEOUT_MS = 15_000
 
 
 def _env_float(name: str, default: float) -> float:

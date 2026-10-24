@@ -1,10 +1,14 @@
+import time
+
 import pytest
 
 from src import config
+from src.deadline import DeadlineExceeded
 from src.pipeline import (
     ABSTAIN_CITATION_VALIDATION_FAILED,
     ABSTAIN_INSUFFICIENT_EVIDENCE,
     ABSTAIN_MESSAGE,
+    ABSTAIN_SAFETY_CHECK_UNAVAILABLE,
     ABSTAIN_UNCALIBRATED,
     DISCLAIMER,
     RAGPipeline,
@@ -35,9 +39,20 @@ def test_answers_when_the_best_score_reaches_the_threshold(make_pipeline):
     assert result["disclaimer"] == DISCLAIMER
 
 
+def test_valid_citation_keeps_answer_with_an_additional_invalid_id(make_pipeline):
+    answer = "Fact [1]. Claim [9]."
+    pipeline, _ = make_pipeline(answer=answer)
+
+    result = pipeline.answer("diabetes insulin")
+
+    assert result["abstained"] is False
+    assert result["answer"] == answer
+    assert [source["n"] for source in result["sources"]] == [1]
+
+
 def test_a_score_equal_to_the_threshold_counts_as_enough_evidence(retriever):
     best = retriever.retrieve("diabetes insulin")[0]["rerank_score"]
-    pipeline = RAGPipeline(retriever, FakeClient(), threshold=best, calibrated=True)
+    pipeline = RAGPipeline(retriever, FakeClient(), threshold=best, calibrated=True, safety_client=FakeClient())
     assert pipeline.answer("diabetes insulin")["abstained"] is False
 
 
@@ -92,9 +107,10 @@ def test_abstain_reason_separates_the_threshold_from_the_citation_check(make_pip
 
 
 def test_an_uncalibrated_pipeline_reports_that_reason(retriever):
-    pipeline = RAGPipeline(retriever, FakeClient(), threshold=0.0, calibrated=False)
+    pipeline = RAGPipeline(retriever, FakeClient(), threshold=0.0, calibrated=False, safety_client=FakeClient())
     result = pipeline.answer("diabetes insulin")
     assert result["abstained"] is True and result["abstain_reason"] == ABSTAIN_UNCALIBRATED
+    assert pipeline.safety_client.safety_calls
 
 
 def test_an_emergency_has_no_abstain_reason(make_pipeline):
@@ -108,7 +124,9 @@ def test_no_retrieved_passages_means_abstain():
             return []
 
     client = FakeClient()
-    result = RAGPipeline(NothingFound(), client, threshold=-100.0, calibrated=True).answer("anything")
+    result = RAGPipeline(
+        NothingFound(), client, threshold=-100.0, calibrated=True, safety_client=FakeClient()
+    ).answer("anything")
     assert result["abstained"] is True and client.calls == []
 
 
@@ -165,6 +183,112 @@ def test_an_educational_question_about_children_still_gets_an_answer(make_pipeli
     pipeline, client = make_pipeline()
     result = pipeline.answer("diabetes insulin in children")
     assert result["redirected"] is False and len(client.calls) == 1
+
+
+def test_an_expired_deadline_stops_before_safety_check(retriever):
+    safety_client = FakeClient()
+    pipeline = RAGPipeline(
+        retriever, FakeClient(), threshold=0.0, calibrated=True, safety_client=safety_client
+    )
+    with pytest.raises(DeadlineExceeded):
+        pipeline.answer("diabetes insulin", deadline=time.monotonic() - 1)
+    assert safety_client.safety_calls == []
+
+
+def test_a_deadline_that_expires_during_retrieval_skips_generation():
+    class SlowRetriever:
+        def retrieve(self, question):
+            time.sleep(0.02)
+            return [{
+                "source": "MedlinePlus", "title": "Diabetes", "url": "https://example.org/",
+                "text": "Diabetes affects blood sugar [1].", "rerank_score": 1.0,
+            }]
+
+    generation_client = FakeClient()
+    pipeline = RAGPipeline(
+        SlowRetriever(), generation_client, threshold=0.0, calibrated=True,
+        safety_client=FakeClient(),
+    )
+
+    with pytest.raises(DeadlineExceeded):
+        pipeline.answer("diabetes insulin", deadline=time.monotonic() + 0.01)
+
+    assert generation_client.calls == []
+
+
+def test_regex_handled_emergency_does_not_call_safety_check(make_pipeline):
+    pipeline, generation_client = make_pipeline()
+
+    result = pipeline.answer("I have crushing chest pain right now")
+
+    assert result["emergency"] is True
+    assert pipeline.safety_client.safety_calls == []
+    assert generation_client.calls == []
+
+
+def test_safety_check_emergency_runs_before_uncalibrated_abstention(retriever):
+    safety_client = FakeClient(safety_answer='{"action":"crisis"}')
+    pipeline = RAGPipeline(
+        retriever, FakeClient(), threshold=0.0, calibrated=False, safety_client=safety_client
+    )
+
+    result = pipeline.answer("i dont want to be here anymore")
+
+    assert result["emergency"] is True and result["abstained"] is False
+    assert "16328" in result["answer"]
+    assert safety_client.safety_calls
+
+
+@pytest.mark.parametrize(
+    ("safety_answer", "flag", "expected_text"),
+    [
+        ('{"action":"emergency_medical"}', "emergency", "123"),
+        ('{"action":"crisis"}', "emergency", "16328"),
+        ('{"action":"refuse"}', "refused", "self-harm"),
+        ('{"action":"redirect"}', "redirected", "doctor or pharmacist"),
+    ],
+)
+def test_safety_check_actions_use_the_fixed_messages(make_pipeline, safety_answer, flag, expected_text):
+    pipeline, generation_client = make_pipeline()
+    pipeline.safety_client.safety_answer = safety_answer
+
+    result = pipeline.answer("a question the rules do not handle")
+
+    assert result[flag] is True
+    assert expected_text in result["answer"]
+    assert result["sources"] == [] and generation_client.calls == []
+
+
+@pytest.mark.parametrize("safety_answer", ["not json", '{"action":"unknown"}'])
+def test_safety_check_failure_abstains_and_tells_user_to_call_emergency_services(make_pipeline, safety_answer):
+    pipeline, generation_client = make_pipeline()
+    pipeline.safety_client.safety_answer = safety_answer
+
+    result = pipeline.answer("a question the rules do not handle")
+
+    assert result["abstained"] is True
+    assert result["abstain_reason"] == ABSTAIN_SAFETY_CHECK_UNAVAILABLE
+    assert "local emergency number" in result["answer"]
+    assert generation_client.calls == []
+    assert len(pipeline.safety_client.safety_calls) == 2
+
+
+def test_safety_check_timeout_fails_closed(make_pipeline):
+    pipeline, generation_client = make_pipeline()
+
+    def timeout(**kwargs):
+        pipeline.safety_client.safety_calls.append(kwargs)
+        raise TimeoutError("provider timeout")
+
+    pipeline.safety_client.models.generate_content = timeout
+
+    result = pipeline.answer("a question the rules do not handle")
+
+    assert result["abstained"] is True
+    assert result["abstain_reason"] == ABSTAIN_SAFETY_CHECK_UNAVAILABLE
+    assert "local emergency number" in result["answer"]
+    assert len(pipeline.safety_client.safety_calls) == 2
+    assert generation_client.calls == []
 
 
 def test_threshold_is_not_trusted_until_calibration_metadata_matches(tmp_path, monkeypatch):

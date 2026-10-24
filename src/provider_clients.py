@@ -3,6 +3,7 @@
 This file builds the two provider clients used by the project:
 
 - make_generator_client() -> google-genai Client (Gemini generation)
+- make_safety_client() -> separate google-genai Client (short safety checks)
 - make_judge_client() -> OpenAI-compatible client for Groq or Cerebras judging
 
 Each client reads a single key from the matching env var:
@@ -12,9 +13,7 @@ Each client reads a single key from the matching env var:
 
 Both must contain one key. A comma-separated value is an error.
 
-On this machine the Gemini generateContent endpoint only accepts the API key when it is
-sent as the `x-goog-api-key` header, not as a Bearer credential. The generator client
-sets that header explicitly so the call is not rejected with 401 CREDENTIALS_MISSING.
+The Gemini SDK sends the API key as the `x-goog-api-key` header.
 """
 
 from __future__ import annotations
@@ -40,20 +39,6 @@ def get_api_key(env_name: str) -> str:
     return value
 
 
-def _patch_gemini_api_key(client: genai.Client) -> None:
-    # On this machine the generateContent endpoint only accepts the key in this header, not as a
-    # Bearer credential; without it the call is rejected with 401 CREDENTIALS_MISSING.
-    try:
-        client._httpx_client.headers["x-goog-api-key"] = client.api_key
-    except Exception:
-        try:
-            transport = getattr(client, "_transport", None)
-            if transport is not None and hasattr(transport, "headers"):
-                transport.headers["x-goog-api-key"] = client.api_key
-        except Exception:
-            pass
-
-
 def make_generator_client() -> genai.Client:
     if config.GENERATOR_PROVIDER != "gemini":
         raise RuntimeError(f"Unsupported GENERATOR_PROVIDER: {config.GENERATOR_PROVIDER!r}.")
@@ -66,8 +51,22 @@ def make_generator_client() -> genai.Client:
             retry_options=types.HttpRetryOptions(attempts=1),
         ),
     )
-    _patch_gemini_api_key(client)
     return client
+
+
+def make_safety_client() -> genai.Client:
+    """Build a separate Gemini client with a short timeout and no SDK retries."""
+    if config.GENERATOR_PROVIDER != "gemini":
+        raise RuntimeError(f"Unsupported GENERATOR_PROVIDER: {config.GENERATOR_PROVIDER!r}.")
+
+    key = get_api_key("GOOGLE_API_KEY")
+    return genai.Client(
+        api_key=key,
+        http_options=types.HttpOptions(
+            timeout=config.SAFETY_TIMEOUT_MS,
+            retry_options=types.HttpRetryOptions(attempts=1),
+        ),
+    )
 
 
 def make_judge_client() -> OpenAI:

@@ -50,15 +50,24 @@ class FakeReranker:
 
 
 class FakeClient:
-    """Stands in for the Gemini generation client and records every call."""
+    """Stands in for Gemini; keep safety-check calls separate from answer generation."""
 
-    def __init__(self, answer="Diabetes affects blood sugar [1].", finish_reason="stop"):
+    def __init__(self, answer="Diabetes affects blood sugar [1].", finish_reason="stop",
+                 safety_answer='{"action":"none"}'):
         self.answer = answer
         self.finish_reason = finish_reason
+        self.safety_answer = safety_answer
         self.calls = []
+        self.safety_calls = []
         self.models = types.SimpleNamespace(generate_content=self.generate_content)
 
     def generate_content(self, **kwargs):
+        call_config = kwargs.get("config")
+        response_type = (call_config.get("response_mime_type") if isinstance(call_config, dict)
+                         else getattr(call_config, "response_mime_type", None))
+        if response_type == "application/json":
+            self.safety_calls.append(kwargs)
+            return types.SimpleNamespace(text=self.safety_answer, candidates=[])
         self.calls.append(kwargs)
         candidate = types.SimpleNamespace(finish_reason=self.finish_reason)
         return types.SimpleNamespace(text=self.answer, candidates=[candidate])
@@ -122,5 +131,6 @@ def retriever():
 def make_pipeline(retriever):
     def make(threshold=0.0, answer="Diabetes affects blood sugar [1]."):
         client = FakeClient(answer)
-        return RAGPipeline(retriever, client, threshold, calibrated=True), client
+        safety_client = FakeClient()
+        return RAGPipeline(retriever, client, threshold, calibrated=True, safety_client=safety_client), client
     return make

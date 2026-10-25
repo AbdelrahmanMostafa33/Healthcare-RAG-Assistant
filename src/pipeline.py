@@ -14,15 +14,17 @@ import time
 
 from src import config, safety
 from src.deadline import check_deadline
-from src.generator import citation_numbers, citations_are_valid, generate, make_generator_client
-from src.provider_clients import make_safety_client
+from src.generator import generate, parse_citations
+from src.provider_clients import make_generator_client, make_safety_client
 from src.retriever import load_retriever
 from src.safety_check import SafetyCheckError, classify_for_safety
 
 
-# Why an answer was withheld. Only INSUFFICIENT_EVIDENCE is a retrieval decision; other reasons do
-# not describe the sources, and counting them as retrieval abstentions distorts those metrics.
+# Why an answer was withheld. Only INSUFFICIENT_EVIDENCE is a retrieval decision; LIVE_INFORMATION
+# is a freshness policy that runs before retrieval, and the others describe a failure or a check
+# that never reached an evidence decision. Keeping them separate keeps the metrics honest.
 ABSTAIN_INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+ABSTAIN_LIVE_INFORMATION = "live_information"
 ABSTAIN_CITATION_VALIDATION_FAILED = "citation_validation_failed"
 ABSTAIN_UNCALIBRATED = "uncalibrated"
 ABSTAIN_SAFETY_CHECK_UNAVAILABLE = "safety_check_unavailable"
@@ -115,7 +117,7 @@ class RAGPipeline:
 
         if safety.requires_live_information(question):
             return self._result(ABSTAIN_MESSAGE, start, abstained=True,
-                                abstain_reason=ABSTAIN_INSUFFICIENT_EVIDENCE)
+                                abstain_reason=ABSTAIN_LIVE_INFORMATION)
 
         # FAISS finds candidates first; the cross-encoder then ranks the evidence for this question.
         check_deadline(deadline)
@@ -134,22 +136,26 @@ class RAGPipeline:
         answer = generate(self.client, question, passages, deadline=deadline)
         generation_ms = (time.perf_counter() - generation_started) * 1000
         check_deadline(deadline)
-        if not citations_are_valid(answer, passages):
-            # Do not expose an answer with missing or impossible source references.
+        # Reject the whole answer when any citation is impossible, so an invalid source number can
+        # never be displayed next to valid ones. Structural only: a valid ID proves the passage was
+        # supplied, not that it supports the claim.
+        citations = parse_citations(answer, len(passages))
+        if citations["invalid"] or not citations["cited"]:
             return self._result(CITATION_CHECK_MESSAGE, start, abstained=True, top_score=top_score,
                                 citation_validation_failed=True,
                                 abstain_reason=ABSTAIN_CITATION_VALIDATION_FAILED,
+                                invalid_citations=citations["invalid"],
                                 retrieval_ms=retrieval_ms, generation_ms=generation_ms,
                                 retrieved_passages=passages)
         return self._result(answer, start, passages=passages,
-                            cited_numbers=citation_numbers(answer, len(passages)), top_score=top_score,
+                            cited_numbers=citations["cited"], top_score=top_score,
                             retrieval_ms=retrieval_ms, generation_ms=generation_ms)
 
     @staticmethod
     def _result(answer, start, abstained=False, emergency=False, redirected=False, refused=False,
                 passages=(), top_score=None, citation_validation_failed=False, cited_numbers=None,
                 abstain_reason=None, retrieval_ms=None, generation_ms=None,
-                retrieved_passages=None):
+                retrieved_passages=None, invalid_citations=()):
         passages = list(passages)
         # Retrieved passages are kept separately from the passages a generated answer cites, so an
         # abstention or a rejected answer still records the evidence it actually retrieved.
@@ -163,6 +169,7 @@ class RAGPipeline:
             "redirected": redirected,   # personal-advice question, handled by the redirect message
             "refused": refused,         # harmful requests are refused before retrieval or generation
             "citation_validation_failed": citation_validation_failed,
+            "invalid_citations": list(invalid_citations),   # debug/evaluation only, never shown
             # Only list sources the answer actually cites; n keeps its prompt citation number.
             "sources": [{"n": n, "source": passages[n - 1]["source"], "title": passages[n - 1]["title"],
                          "url": _public_source_url(passages[n - 1]["source"], passages[n - 1]["url"])}

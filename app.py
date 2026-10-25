@@ -109,7 +109,8 @@ def health(request: Request, response: Response):
         return HealthResponse(status="loading")
     return HealthResponse(
         status="ok" if pipeline.calibrated else "degraded",
-        abstain_threshold=pipeline.threshold,
+        # An uncalibrated threshold is a placeholder, so do not report it as a real cutoff.
+        abstain_threshold=pipeline.threshold if pipeline.calibrated else None,
         threshold_calibrated=pipeline.calibrated,
     )
 

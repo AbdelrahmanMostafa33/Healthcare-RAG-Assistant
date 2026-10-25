@@ -52,9 +52,14 @@ def build_messages(question: str, passages: list[dict], compact_retry: bool = Fa
 
 
 # A bracketed group may hold a list or a range: [1], [1, 2] and [1-3] all name supplied passages.
+# Only brackets that contain numbers, commas, semicolons or dashes are considered at all, so
+# ordinary bracketed prose such as "[see above]" is never treated as a citation.
 CITATION_GROUP = re.compile(r"\[([\d\s,;–—-]+)\]")
 # A span wider than this is not a citation, and expanding it would allocate a long list of integers.
 MAX_CITATION_SPAN = 100
+# "[2024]" in running text is a year, not a reference to a passage. A real citation can never be
+# this large because the prompt holds a handful of passages.
+YEAR_RANGE = range(1900, 2100)
 
 
 def _citation_group_numbers(group: str) -> list[int]:
@@ -71,27 +76,47 @@ def _citation_group_numbers(group: str) -> list[int]:
     return numbers
 
 
+def parse_citations(answer: str, passage_count: int) -> dict[str, list]:
+    """Split an answer's bracketed numbers into real references and impossible ones.
+
+    Returns ``cited`` (unique in-range IDs, in first-use order) and ``invalid`` (the raw bracketed
+    groups that point at a passage the prompt did not contain). A group made only of years is not a
+    citation at all, so "In 2024 [2024] this changed" stays plain text while "[99]" is reported as
+    an impossible reference. Structural only: it never proves that a passage supports a claim.
+    """
+    cited, invalid = [], []
+    for group in CITATION_GROUP.findall(answer or ""):
+        numbers = _citation_group_numbers(group)
+        if not numbers or all(number in YEAR_RANGE for number in numbers):
+            continue
+        if any(not 1 <= number <= passage_count for number in numbers):
+            invalid.append(f"[{group.strip()}]")
+            continue
+        cited.extend(number for number in numbers if number not in cited)
+    return {"cited": cited, "invalid": invalid}
+
+
 def citation_numbers(answer: str, passage_count: int | None = None) -> list[int]:
     """Return unique citation IDs in first-use order.
 
-    With ``passage_count``, a bracketed number outside 1..passage_count is not a reference to the
-    supplied evidence - a year such as "[2024]", a footnote marker - so it is dropped instead of
-    being reported as a citation of a passage that was never in the prompt.
+    With ``passage_count``, only references to a passage that was actually in the prompt are
+    returned, so a year such as "[2024]" is not reported as a citation.
     """
-    parsed = [number for group in CITATION_GROUP.findall(answer or "")
-              for number in _citation_group_numbers(group)]
-    unique = list(dict.fromkeys(parsed))
     if passage_count is None:
-        return unique
-    return [number for number in unique if 1 <= number <= passage_count]
+        parsed = [number for group in CITATION_GROUP.findall(answer or "")
+                  for number in _citation_group_numbers(group)]
+        return list(dict.fromkeys(parsed))
+    return parse_citations(answer, passage_count)["cited"]
 
 
 def citations_are_valid(answer: str, passages: list[dict]) -> bool:
-    """Require at least one citation that names a passage actually supplied in the prompt.
+    """Require at least one real evidence citation and no impossible reference.
 
-    This is a low-cost structural check, not proof that a cited passage truly entails a claim.
+    An answer that cites [1] but also [99] is rejected: displaying it unchanged would attach a
+    source number that resolves to nothing. This is a structural check, not proof of support.
     """
-    return bool(citation_numbers(answer, len(passages)))
+    parsed = parse_citations(answer, len(passages))
+    return bool(parsed["cited"]) and not parsed["invalid"]
 
 
 def generate(client, question: str, passages: list[dict], deadline=None) -> str:
@@ -103,14 +128,16 @@ def generate(client, question: str, passages: list[dict], deadline=None) -> str:
     """
     try:
         return _generate_with_empty_response_retry(
-            lambda: _generate_once(client, question, passages), deadline
+            lambda: _generate_once(client, question, passages, deadline=deadline), deadline
         )
     except GenerationTruncatedError:
-        # One compact retry recovers a useful answer without repeating successful rows.
+        # One compact retry recovers a useful answer without repeating successful rows. It keeps
+        # the same absolute deadline, so the recovery never outlives the request budget.
         return _generate_with_empty_response_retry(
             lambda: _generate_once(
                 client, question, passages, compact_retry=True,
                 max_output_tokens=min(config.MAX_TOKENS, TRUNCATION_RETRY_MAX_TOKENS),
+                deadline=deadline,
             ),
             deadline,
         )
@@ -174,12 +201,16 @@ def _normalize_finish_reason(reason) -> str | None:
 
 def _generate_once(
     client, question: str, passages: list[dict], compact_retry: bool = False,
-    max_output_tokens: int | None = None,
+    max_output_tokens: int | None = None, deadline=None,
 ) -> str:
-    """One-shot grounded call, separated so the retry wrapper retries only the provider request."""
+    """One-shot grounded call, separated so the retry wrapper retries only the provider request.
+
+    ``deadline`` is forwarded to every provider request, which caps its HTTP timeout at the time
+    left in the request budget.
+    """
     messages = build_messages(question, passages, compact_retry=compact_retry)
     answer, _ = generate_text(
         client, messages[0]["content"], messages[1]["content"],
-        max_output_tokens=max_output_tokens,
+        max_output_tokens=max_output_tokens, deadline=deadline,
     )
     return answer

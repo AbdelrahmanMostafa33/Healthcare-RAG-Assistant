@@ -65,6 +65,7 @@ function responseKind(result) {
     if (result.abstain_reason === 'uncalibrated') return 'ABSTAINED · NOT CALIBRATED';
     if (result.abstain_reason === 'citation_validation_failed') return 'ANSWER WITHHELD · CITATION CHECK';
     if (result.abstain_reason === 'safety_check_unavailable') return 'ANSWER WITHHELD · SAFETY CHECK UNAVAILABLE';
+    if (result.abstain_reason === 'live_information') return 'WITHHELD · NEEDS CURRENT SOURCES';
     return 'OUT OF SCOPE OR NOT IN SOURCES';
   }
   return 'ANSWER WITH SOURCES';

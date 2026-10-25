@@ -91,42 +91,82 @@ def test_evaluation_data_needs_no_manual_answer_checklists():
     with pytest.raises(ValueError, match="unique"):
         validate_evaluation_data(duplicated)
 
-# --- abstention metrics ----------------------------------------------------
+# --- outcomes and abstention ----------------------------------------------
 
 
-def test_abstention_metrics():
+def test_outcome_of_maps_each_pipeline_result_to_one_label():
+    assert mx.outcome_of({"status": "skipped"}) == mx.OUTCOME_SKIPPED
+    assert mx.outcome_of({"status": "error", "error": "boom"}) == mx.OUTCOME_ERROR
+    assert mx.outcome_of({"emergency": True}) == mx.OUTCOME_EMERGENCY
+    assert mx.outcome_of({"redirected": True}) == mx.OUTCOME_REDIRECT
+    assert mx.outcome_of({"refused": True}) == mx.OUTCOME_REFUSE
+    assert mx.outcome_of({"abstained": True, "citation_validation_failed": True}) == mx.OUTCOME_CITATION_REJECTED
+    assert mx.outcome_of({"abstained": True, "abstain_reason": "insufficient_evidence"}) == mx.OUTCOME_INSUFFICIENT_EVIDENCE
+    assert mx.outcome_of({"abstained": True, "abstain_reason": "live_information"}) == mx.OUTCOME_LIVE_INFORMATION
+    assert mx.outcome_of({"abstained": True, "abstain_reason": "uncalibrated"}) == mx.OUTCOME_UNCALIBRATED
+    assert mx.outcome_of({"abstained": True, "abstain_reason": "safety_check_unavailable"}) == mx.OUTCOME_SAFETY_UNAVAILABLE
+    # results saved before abstain_reason existed still describe an evidence decision
+    assert mx.outcome_of({"abstained": True}) == mx.OUTCOME_INSUFFICIENT_EVIDENCE
+    assert mx.outcome_of({"answer": "ok"}) == mx.OUTCOME_ANSWER
+
+
+def test_outcome_metrics_use_hand_counted_denominators():
+    expected = ["answer", "answer", "insufficient_evidence", "insufficient_evidence", "refuse", "safety_redirect"]
+    outcomes = ["answer", "insufficient_evidence", "insufficient_evidence", "answer", "refuse",
+                "safety_check_unavailable"]
+    m = mx.outcome_metrics(expected, outcomes)
+    assert m["requested_questions"] == 6
+    assert m["decisive_questions"] == 5        # the failed safety check produced no outcome
+    assert m["correct"] == 3                   # answer, insufficient_evidence, refuse
+    assert m["incorrect"] == 2                 # answered a no-evidence row, abstained on an answerable one
+    assert m["accuracy"] == pytest.approx(3 / 5)
+    assert m["incomplete_by_outcome"] == {"safety_check_unavailable": 1}
+    assert m["by_expected"]["answer"] == {
+        "questions": 2, "correct": 1, "incorrect": 1, "incomplete": 0, "accuracy": 0.5,
+    }
+    assert m["by_actual_outcome"]["insufficient_evidence"] == 2
+
+
+def test_outcome_metrics_reject_an_unknown_label():
+    with pytest.raises(ValueError, match="Unknown expected_behavior"):
+        mx.outcome_metrics(["maybe"], ["answer"])
+
+
+def test_abstention_metrics_use_only_evidence_decisions():
     expected = ["answer", "answer", "answer", "insufficient_evidence", "insufficient_evidence", "emergency"]
-    declined = [False, True, False, True, False, False]
-    m = mx.abstention_metrics(expected, declined)
-    assert m["abstention_recall"] == pytest.approx(0.5)       # 1 of 2 unanswerable declined
-    assert m["abstention_precision"] == pytest.approx(0.5)    # 1 of 2 declined questions should have been
-    assert m["over_refusal"] == pytest.approx(1 / 3)          # 1 of 3 answerable declined
+    outcomes = ["answer", "insufficient_evidence", "answer", "insufficient_evidence", "answer", "emergency"]
+    m = mx.abstention_metrics(expected, outcomes)
+    assert m["eligible_questions"] == 5          # the emergency row never reached an evidence decision
+    assert m["abstention_recall"] == pytest.approx(0.5)       # 1 of 2 no-evidence rows withheld
+    assert m["abstention_precision"] == pytest.approx(0.5)    # 1 of 2 withheld rows should have been
+    assert m["over_refusal"] == pytest.approx(1 / 3)          # 1 of 3 answerable rows withheld
 
 
 def test_abstention_metrics_handle_missing_denominators():
-    m = mx.abstention_metrics(["answer", "answer"], [False, False])
-    assert m["abstention_recall"] is None and m["abstention_precision"] is None and m["over_refusal"] == 0.0
+    m = mx.abstention_metrics(["answer", "answer"], ["answer", "answer"])
+    assert m["abstention_recall"] is None and m["abstention_precision"] is None
+    assert m["over_refusal"] == 0.0
+
+
+def test_a_redirect_or_failed_safety_check_is_not_scored_as_missed_abstention():
+    """The old metric kept these rows in the denominator and reported a recall of 0.25."""
+    expected = ["insufficient_evidence"] * 4
+    outcomes = ["insufficient_evidence", "safety_redirect", "safety_check_unavailable", "answer"]
+    m = mx.abstention_metrics(expected, outcomes)
+    assert m["eligible_questions"] == 2 and m["abstention_recall"] == pytest.approx(0.5)
+    assert m["not_measured_questions"] == 2
+    assert m["not_measured_by_outcome"] == {"safety_check_unavailable": 1, "safety_redirect": 1}
 
 
 def test_abstention_metrics_report_the_scope_and_policy_slice_separately():
     """Drug and vague-symptom rows are not what the threshold is calibrated against."""
     expected = ["answer", "insufficient_evidence", "insufficient_evidence"]
     types = ["consumer", "unanswerable", "medication"]
-    m = mx.abstention_metrics(expected, [False, True, False], types)
+    m = mx.abstention_metrics(expected, ["answer", "insufficient_evidence", "answer"], types)
     assert m["abstention_recall"] == pytest.approx(0.5)
     assert m["true_no_evidence_abstention_recall"] == 1.0
     assert m["n_true_no_evidence"] == 1
     assert m["policy_scope_abstention"] == 0.0 and m["n_policy_scope"] == 1
-
-
-def test_a_citation_rejection_is_not_a_retrieval_abstention():
-    """Counting it as one turned a single rejected answer into over_refusal = 1.0."""
-    assert mx._retrieval_abstained({"abstained": True, "abstain_reason": "citation_validation_failed"}) is False
-    assert mx._retrieval_abstained({"abstained": True, "abstain_reason": "insufficient_evidence"}) is True
-    assert mx._retrieval_abstained({"abstained": True, "abstain_reason": "uncalibrated"}) is False
-    # results saved before abstain_reason existed still behave sensibly
-    assert mx._retrieval_abstained({"abstained": True, "citation_validation_failed": True}) is False
-    assert mx._retrieval_abstained({"abstained": True}) is True
 
 
 # --- judge and scoring -----------------------------------------------------
@@ -191,6 +231,73 @@ def test_score_answers_reports_three_rag_checks_and_behavior():
     assert scores["answer_relevance"].tolist() == ["fail", "not_applicable", "not_applicable"]
     assert behavior["ok"].tolist() == [True, True, True]
     assert grading["status"].tolist() == ["ok", "ok", "ok"]
+
+
+def test_evaluation_runs_without_a_judge_and_reports_its_coverage():
+    """Deterministic checks must not require a judge key or a judge provider call."""
+    results = {qid: result("Flu is viral [1].") for qid in QUESTIONS["id"]}
+
+    scored = ev.evaluate_pipeline_results(QUESTIONS, results)   # no judge on purpose
+
+    assert scored["judged"] is False
+    assert scored["rag_quality"] == {} and scored["graded_questions"] == 0
+    assert scored["rag_scores"].empty and scored["behavior"].empty
+    assert scored["outcomes"]["requested_questions"] == 3
+    assert scored["citations"]["answered_questions"] == 3
+
+
+def test_evaluation_reports_deterministic_outcome_accuracy():
+    frame = pd.DataFrame([
+        {"id": "a1", "type": "consumer", "question": "Q1", "expected_behavior": "answer"},
+        {"id": "a2", "type": "consumer", "question": "Q2", "expected_behavior": "answer"},
+        {"id": "u1", "type": "unanswerable", "question": "Q3", "expected_behavior": "insufficient_evidence"},
+    ])
+    results = {
+        "a1": result("Flu is viral [1]."),
+        "a2": {"status": "ok", "answer": "Ask your doctor.", "sources": [], "abstained": False,
+               "redirected": True, "retrieval_ms": None, "latency_ms": 10.0,
+               "passages": [], "retrieved_passages": [], "passage_count": 0},
+        "u1": {"status": "ok", "answer": "", "sources": [], "abstained": True,
+               "abstain_reason": "safety_check_unavailable", "retrieval_ms": None,
+               "latency_ms": 10.0, "passages": [], "retrieved_passages": [], "passage_count": 0},
+    }
+
+    scored = ev.evaluate_pipeline_results(frame, results)
+
+    assert scored["outcomes"]["correct"] == 1
+    assert scored["outcomes"]["incorrect"] == 1        # redirected an answerable question
+    assert scored["outcomes"]["incomplete_by_outcome"] == {"safety_check_unavailable": 1}
+    assert scored["outcomes"]["accuracy"] == pytest.approx(0.5)
+
+
+def test_run_evaluation_split_writes_a_complete_report_without_a_judge(tmp_path, monkeypatch, retriever):
+    """Integration check of the writer: the deterministic report needs no provider judge."""
+    import src.provider_clients as providers
+    from tests.conftest import FakeClient
+
+    monkeypatch.setattr(providers, "make_generator_client", lambda: FakeClient())
+    monkeypatch.setattr(providers, "make_safety_client", lambda: FakeClient())
+    monkeypatch.setattr(config, "REPORTS_DIR", tmp_path)
+
+    frame = pd.DataFrame([
+        {"id": "q1", "split": "dev", "type": "consumer", "category": "Symptoms",
+         "question": "What are the symptoms of type 2 diabetes?", "expected_behavior": "answer"},
+    ])
+
+    report = ev.run_evaluation_split(frame, "dev", retriever, threshold=1.0, calibrated=True)
+
+    assert report["coverage"]["requested_questions"] == 1
+    assert report["coverage"]["judge_enabled"] is False
+    assert report["outcome_checks"]["by_expected"]["answer"]["correct"] == 1
+    assert report["abstention_checks"]["eligible_questions"] == 1
+    assert "judge" not in report and "rag_judge_estimates" not in report
+    assert report["evaluation_version"] == ev.RAG_EVALUATION_VERSION
+    assert "logit" in report["threshold_meaning"]
+
+    evaluation_dir = tmp_path / "evaluation"
+    answers = pd.read_csv(evaluation_dir / "dev_answers.csv")
+    assert answers["outcome"].tolist() == ["answer"]
+    assert json.loads((evaluation_dir / "dev_metrics.json").read_text(encoding="utf-8"))["split"] == "dev"
 
 
 def test_malformed_judge_grade_is_not_counted_as_an_answer_failure():
@@ -311,7 +418,7 @@ def test_make_judge_client_builds_groq_client_with_sdk_retries_disabled(monkeypa
 
     monkeypatch.setenv("GROQ_API_KEY", "groq-single")
     monkeypatch.setattr(providers, "OpenAI", fake_openai)
-    client = ev.make_judge_client()
+    client = providers.make_judge_client()
     assert hasattr(client, "chat") and hasattr(client.chat, "completions")
     assert client.chat.completions.create(model="test-model") == {"model": "test-model"}
     assert seen["api_key"] == "groq-single"
@@ -321,20 +428,25 @@ def test_make_judge_client_builds_groq_client_with_sdk_retries_disabled(monkeypa
 
 def test_citation_metrics_report_valid_refs_and_fail_closed_rejections():
     metrics = mx.citation_metrics({
-        "good": {"answer": "Statement [1].", "sources": [{"n": 1}], "abstained": False},
+        "good": {"answer": "Statement [1].", "sources": [{"n": 1}], "passage_count": 3, "abstained": False},
         "bad": {"answer": "I couldn't verify the answer.", "sources": [], "abstained": True,
                 "citation_validation_failed": True},
-        "no-ref": {"answer": "Statement without a citation.", "sources": [{"n": 1}], "abstained": False},
+        "no-ref": {"answer": "Statement without a citation.", "sources": [{"n": 1}],
+                   "passage_count": 3, "abstained": False},
+        "impossible": {"answer": "Statement [1] and [9].", "sources": [{"n": 1}],
+                       "passage_count": 3, "abstained": False},
     })
-    assert metrics["generated_answers"] == 2
-    assert metrics["answers_with_valid_source_references"] == 1
-    assert metrics["valid_reference_rate"] == pytest.approx(0.5)
-    assert metrics["citation_validation_rejections"] == 1
+    assert metrics["answered_questions"] == 3
+    assert metrics["with_valid_source_references"] == 1
+    assert metrics["with_invalid_references"] == 2
+    assert metrics["valid_reference_rate"] == pytest.approx(1 / 3)
+    assert metrics["rejected_by_citation_check"] == 1
 
 
 def test_citation_metrics_accept_non_contiguous_prompt_citation_ids():
     metrics = mx.citation_metrics({
-        "answer": {"answer": "Claim [4].", "sources": [{"n": 4, "title": "Source"}], "abstained": False},
+        "answer": {"answer": "Claim [4].", "sources": [{"n": 4, "title": "Source"}],
+                   "passage_count": 5, "abstained": False},
     })
     assert metrics["valid_reference_rate"] == 1.0
 

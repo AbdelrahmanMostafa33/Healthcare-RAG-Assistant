@@ -11,14 +11,14 @@ from openai import APIError as OpenAIAPIError, RateLimitError
 
 from src import config
 from src.metrics import (
-    _retrieval_abstained,
     abstention_metrics,
     citation_metrics,
-    rag_quality_metrics,
     latency_component_metrics,
     latency_metrics,
+    outcome_metrics,
+    outcome_of,
+    rag_quality_metrics,
 )
-from src.provider_clients import make_judge_client
 from src.retry import (
     ProviderQuotaExceeded,
     ProviderRateLimitRejected,
@@ -140,7 +140,9 @@ RAG_VERDICTS = {"pass", "fail", "not_applicable"}
 RAG_SCORE_COLUMNS = ["id", "type", "judge_model"] + [
     field for check in RAG_CHECKS for field in (check, f"{check}_reason")
 ]
-RAG_EVALUATION_VERSION = "three-checks-v3"
+# Bumped whenever an outcome label, a metric definition or a denominator changes. Saved reports
+# with another version are treated as stale and their numbers are not displayed.
+RAG_EVALUATION_VERSION = "outcomes-v4"
 
 
 def _check_grade(value, check):
@@ -281,14 +283,27 @@ def choose_threshold(answerable_scores, unanswerable_scores, min_abstention_reca
         key=lambda item: item["threshold"],
     )
     best["min_abstention_recall"] = min_abstention_recall
+    # A short window around the choice is enough to explain the trade-off without dumping the full
+    # threshold search into a report. Each entry is a fresh dict: the chosen threshold is one of the
+    # window's rows, so reusing the dicts would make the result circular and unsaveable as JSON.
+    index = scored.index(best)
+    window = scored[max(index - 2, 0):index + 3]
+    best["nearby_candidates"] = [
+        {key: item[key] for key in (
+            "threshold", "balanced_accuracy", "answerable_answered", "unanswerable_abstained"
+        )}
+        for item in window
+    ]
+    best["candidate_count"] = len(scored)
     return best
 
 
 def _batch_status(status, error, latency_ms=None):
     """Give failed rows the same fields as successful pipeline results."""
     return {
-        "status": status, "answer": "", "abstained": False, "emergency": False,
-        "redirected": False, "refused": False, "citation_validation_failed": False,
+        "status": status, "answer": "", "abstained": False, "abstain_reason": None,
+        "emergency": False, "redirected": False, "refused": False,
+        "citation_validation_failed": False, "invalid_citations": [],
         "sources": [], "passages": [], "retrieved_passages": [], "passage_count": 0,
         "top_score": None, "retrieval_ms": None, "generation_ms": None,
         "latency_ms": round(latency_ms, 1) if latency_ms is not None else None,
@@ -353,59 +368,70 @@ def run_pipeline_batch(pipeline, df):
     return results
 
 
-def evaluate_pipeline_results(df, results, judge):
-    """Grade completed answers and report errors separately from quality metrics."""
-    question_ids = set(df["id"])
-    missing = question_ids - set(results)
+def evaluate_pipeline_results(df, results, judge=None):
+    """Score outcomes for every question and, when a judge is supplied, answer quality.
+
+    The deterministic part needs no provider: it only maps each result to an outcome label. The
+    judge part is optional and is reported with its own denominators.
+    """
+    question_ids = list(df["id"])
+    missing = set(question_ids) - set(results)
     if missing:
         raise ValueError(f"Pipeline results are missing question IDs: {sorted(missing)[:5]}")
+
+    expected = df["expected_behavior"].tolist()
+    types = df["type"].tolist() if "type" in df.columns else None
+    outcomes = [outcome_of(results[qid]) for qid in question_ids]
+    outcome_summary = outcome_metrics(expected, outcomes)
 
     skipped_ids = {qid for qid in question_ids if results[qid].get("status") == "skipped"}
     error_ids = {
         qid for qid in question_ids
-        if (results[qid].get("status") == "error" or results[qid].get("error")) and qid not in skipped_ids
+        if (results[qid].get("status") == "error" or results[qid].get("error"))
+        and qid not in skipped_ids
     }
-    valid_ids = question_ids - error_ids - skipped_ids
-    valid_df = df.loc[df["id"].isin(valid_ids)].copy()
-    scores, behavior, grading = score_answers(
-        judge, valid_df, results
-    )
-
-    grade_errors = int((grading["status"] == "error").sum())
-    ungraded = int((grading["status"] == "skipped").sum())
-    rag_quality = rag_quality_metrics(scores)
+    valid_df = df.loc[~df["id"].isin(error_ids | skipped_ids)].copy()
     valid_results = {qid: results[qid] for qid in valid_df["id"]}
-    latency_values = [r["latency_ms"] for r in valid_results.values() if r.get("latency_ms") is not None]
+
+    if judge is None:
+        scores = pd.DataFrame(columns=RAG_SCORE_COLUMNS)
+        behavior = pd.DataFrame(columns=["id", "type", "expected", "verdict", "reason",
+                                         "judge_model", "ok"])
+        grading = pd.DataFrame(columns=["id", "status", "error"])
+    else:
+        scores, behavior, grading = score_answers(judge, valid_df, results)
+
     return {
+        "outcomes": outcome_summary,
+        "abstention": abstention_metrics(expected, outcomes, types),
+        "citations": citation_metrics(results),
+        "latency": latency_metrics(results),
+        "latency_components": latency_component_metrics(results),
         "rag_scores": scores,
         "behavior": behavior,
         "grading": grading,
-        "grading_errors": grade_errors,
-        "ungraded_questions": ungraded,
-        "abstention": abstention_metrics(
-            valid_df["expected_behavior"].tolist(),
-            [_retrieval_abstained(results[qid]) for qid in valid_df["id"]],
-            valid_df["type"].tolist() if "type" in valid_df.columns else None,
-        ),
-        "citations": citation_metrics(valid_results),
+        "rag_quality": rag_quality_metrics(scores) if judge is not None else {},
+        "judged": judge is not None,
+        "grading_errors": int((grading["status"] == "error").sum()),
+        "ungraded_questions": int((grading["status"] == "skipped").sum()),
+        "graded_questions": int((grading["status"] == "ok").sum()),
         "pipeline_errors": len(error_ids),
         "skipped_questions": len(skipped_ids),
         "requested_questions": len(question_ids),
-        "attempted_questions": len(question_ids - skipped_ids),
-        "latency_ms": float(np.mean(latency_values)) if latency_values else None,
-        "latency": latency_metrics(valid_results),
-        "latency_components": latency_component_metrics(valid_results),
-        "rag_quality": rag_quality,
-        "graded_questions": int((grading["status"] == "ok").sum()),
+        "attempted_questions": len(question_ids) - len(skipped_ids),
     }
 
 
-def run_evaluation_split(questions, split, retriever, threshold, calibrated):
-    """Run and save a development or exploratory test split."""
+def run_evaluation_split(questions, split, retriever, threshold, calibrated, judge=None):
+    """Run and save a development or exploratory test split.
+
+    ``judge`` is optional. Without it the run still produces the deterministic outcome, abstention
+    and citation tables, and needs no judge API key or judge provider calls. Pass
+    ``make_judge(make_judge_client())`` to add the optional LLM-judge estimates.
+    """
     from src.calibration import validate_evaluation_data
-    from src.generator import make_generator_client
     from src.pipeline import RAGPipeline
-    from src.provider_clients import make_judge_client, make_safety_client
+    from src.provider_clients import make_generator_client, make_safety_client
 
     validate_evaluation_data(questions)
     if split not in {"dev", "test"}:
@@ -417,7 +443,6 @@ def run_evaluation_split(questions, split, retriever, threshold, calibrated):
     pipeline = RAGPipeline(
         retriever, make_generator_client(), threshold, calibrated, make_safety_client()
     )
-    judge = make_judge(make_judge_client())
     results = run_pipeline_batch(pipeline, frame)
     evaluation = evaluate_pipeline_results(frame, results, judge)
 
@@ -430,14 +455,19 @@ def run_evaluation_split(questions, split, retriever, threshold, calibrated):
         answer_rows.append({
             "id": row.id,
             "split": split,
+            "type": row.type,
             "expected_behavior": row.expected_behavior,
+            "outcome": outcome_of(result),
             "question": row.question,
             "status": result.get("status", "ok"),
             "answer": result.get("answer", ""),
             "abstained": result.get("abstained", False),
+            "abstain_reason": result.get("abstain_reason") or "",
+            "citation_validation_failed": result.get("citation_validation_failed", False),
             "emergency": result.get("emergency", False),
             "redirected": result.get("redirected", False),
             "refused": result.get("refused", False),
+            "top_score": result.get("top_score"),
             "retrieved_passages": json.dumps(
                 result.get("retrieved_passages", result.get("passages", [])),
                 ensure_ascii=False, default=str,
@@ -467,23 +497,37 @@ def run_evaluation_split(questions, split, retriever, threshold, calibrated):
             config.DEV_EVAL_PATH if split == "dev" else config.TEST_EVAL_PATH
         ),
         "generator_model": config.GENERATOR_MODEL,
-        "judge_provider": config.JUDGE_PROVIDER,
-        "judge_model": judge.model,
         "threshold": float(threshold),
+        "threshold_meaning": "raw reranker score (a logit); it is not a probability or a percentage",
         "rag_pipeline_version": config.RAG_PIPELINE_VERSION,
         "evaluation_version": RAG_EVALUATION_VERSION,
-        "pipeline_errors": int(evaluation["pipeline_errors"]),
-        "graded_questions": int(evaluation["graded_questions"]),
-        "judge_errors": int(evaluation["grading_errors"]),
-        "ungraded_questions": int(evaluation["ungraded_questions"]),
-        "date_utc": str(datetime.now(timezone.utc).date()),
-        "behavior_estimate": behavior_summary,
-        "rag_judge_estimates": evaluation["rag_quality"],
+        "coverage": {
+            "requested_questions": int(evaluation["requested_questions"]),
+            "attempted_questions": int(evaluation["attempted_questions"]),
+            "answered_questions": int(evaluation["outcomes"]["by_actual_outcome"].get("answer", 0)),
+            "pipeline_errors": int(evaluation["pipeline_errors"]),
+            "skipped_questions": int(evaluation["skipped_questions"]),
+            "judge_enabled": bool(evaluation["judged"]),
+            "judge_errors": int(evaluation["grading_errors"]),
+            "ungraded_questions": int(evaluation["ungraded_questions"]),
+            "graded_questions": int(evaluation["graded_questions"]),
+        },
+        "outcome_checks": evaluation["outcomes"],
         "abstention_checks": evaluation["abstention"],
         "citation_id_checks": evaluation["citations"],
         "latency": evaluation["latency"],
-        "note": "LLM-judge results are estimates, not verified answer accuracy.",
+        "latency_components": evaluation["latency_components"],
+        "date_utc": str(datetime.now(timezone.utc).date()),
+        "note": (
+            "Outcome and citation checks are deterministic. LLM-judge scores, when present, are "
+            "estimates over the graded subset, not verified medical accuracy."
+        ),
     }
+    if evaluation["judged"]:
+        report["judge"] = {"provider": config.JUDGE_PROVIDER, "model": judge.model,
+                          "rubric_version": RAG_EVALUATION_VERSION}
+        report["behavior_estimate"] = behavior_summary
+        report["rag_judge_estimates"] = evaluation["rag_quality"]
     (output_dir / f"{split}_metrics.json").write_text(
         json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8"
     )

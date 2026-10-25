@@ -7,6 +7,7 @@ from src.deadline import DeadlineExceeded
 from src.pipeline import (
     ABSTAIN_CITATION_VALIDATION_FAILED,
     ABSTAIN_INSUFFICIENT_EVIDENCE,
+    ABSTAIN_LIVE_INFORMATION,
     ABSTAIN_MESSAGE,
     ABSTAIN_SAFETY_CHECK_UNAVAILABLE,
     ABSTAIN_UNCALIBRATED,
@@ -39,15 +40,29 @@ def test_answers_when_the_best_score_reaches_the_threshold(make_pipeline):
     assert result["disclaimer"] == DISCLAIMER
 
 
-def test_valid_citation_keeps_answer_with_an_additional_invalid_id(make_pipeline):
+def test_an_impossible_citation_withholds_the_whole_answer(make_pipeline):
+    """One unusable reference is enough: it must not be shown next to the valid ones."""
     answer = "Fact [1]. Claim [9]."
     pipeline, _ = make_pipeline(answer=answer)
 
     result = pipeline.answer("diabetes insulin")
 
-    assert result["abstained"] is False
-    assert result["answer"] == answer
-    assert [source["n"] for source in result["sources"]] == [1]
+    assert result["abstained"] is True and result["citation_validation_failed"] is True
+    assert result["abstain_reason"] == ABSTAIN_CITATION_VALIDATION_FAILED
+    assert result["invalid_citations"] == ["[9]"]
+    assert result["answer"] != answer and answer not in result["answer"]
+    assert result["sources"] == []
+
+
+def test_a_time_sensitive_question_is_withheld_by_the_freshness_policy(make_pipeline):
+    pipeline, client = make_pipeline()
+
+    result = pipeline.answer("What is the latest guidance on flu vaccination?")
+
+    assert result["abstained"] is True
+    assert result["abstain_reason"] == ABSTAIN_LIVE_INFORMATION
+    assert result["sources"] == []
+    assert client.calls == []
 
 
 def test_a_score_equal_to_the_threshold_counts_as_enough_evidence(retriever):

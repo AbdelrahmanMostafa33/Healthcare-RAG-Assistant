@@ -27,7 +27,7 @@ def _citation_result(answer, source_ids, passage_count=5):
 def test_citation_metrics_use_the_runtime_parser(answer, source_ids):
     result = mx.citation_metrics({"q": _citation_result(answer, source_ids)})
     assert result["valid_reference_rate"] == 1.0
-    assert result["answers_with_valid_source_references"] == 1
+    assert result["with_valid_source_references"] == 1
 
 
 def test_citation_metrics_do_not_count_years_or_unreturned_sources():
@@ -42,8 +42,23 @@ def test_citation_metrics_include_fail_closed_rejections():
         "rejected": {"answer": "No sources could be cited.", "sources": [], "abstained": True,
                      "citation_validation_failed": True},
     })
-    assert metrics["generated_answers"] == 0
-    assert metrics["citation_validation_rejections"] == 1
+    assert metrics["answered_questions"] == 0
+    assert metrics["rejected_by_citation_check"] == 1
+
+
+def test_runtime_validation_and_evaluation_share_one_citation_parser():
+    """The pipeline and the metric must reject exactly the same answers."""
+    from src.generator import citations_are_valid
+
+    passages = [{"title": "T", "source": "S", "url": "", "text": "body"}] * 3
+    answers = ["Fact [1].", "Fact [1] and [9].", "Fact [2024].", "Fact [1-3].", "No citation."]
+    for answer in answers:
+        runtime = citations_are_valid(answer, passages)
+        metric = mx.citation_metrics({"q": {
+            "answer": answer, "sources": [{"n": 1}, {"n": 2}, {"n": 3}],
+            "passage_count": 3, "abstained": False,
+        }})["valid_reference_rate"] == 1.0
+        assert runtime == metric, answer
 
 
 def test_insufficient_evidence_rubric_does_not_require_a_fixed_template():
@@ -60,13 +75,13 @@ def test_rag_quality_metrics_show_pass_rate_and_denominator_for_each_check():
     })
     metrics = mx.rag_quality_metrics(scores)
     assert metrics["context_relevance"] == {
-        "pass_rate": 0.5, "passed": 1, "graded": 2,
+        "pass_rate": 0.5, "passed": 1, "graded": 2, "not_applicable": 1, "questions": 3,
     }
     assert metrics["faithfulness"] == {
-        "pass_rate": 1.0, "passed": 2, "graded": 2,
+        "pass_rate": 1.0, "passed": 2, "graded": 2, "not_applicable": 1, "questions": 3,
     }
     assert metrics["answer_relevance"] == {
-        "pass_rate": 0.5, "passed": 1, "graded": 2,
+        "pass_rate": 0.5, "passed": 1, "graded": 2, "not_applicable": 1, "questions": 3,
     }
 
 
@@ -76,9 +91,11 @@ def test_rag_checks_use_standard_names_and_no_manual_fact_labels():
 
 
 def test_abstention_does_not_count_safety_or_citation_blocks():
-    assert not mx._retrieval_abstained({"abstained": True, "abstain_reason": "citation_validation_failed"})
-    assert mx._retrieval_abstained({"abstained": True, "abstain_reason": "insufficient_evidence"})
-    assert not mx._retrieval_abstained({"abstained": True, "abstain_reason": "uncalibrated"})
+    assert mx.outcome_of({"abstained": True, "citation_validation_failed": True}) == mx.OUTCOME_CITATION_REJECTED
+    assert mx.outcome_of({"abstained": True, "abstain_reason": "insufficient_evidence"}) == mx.OUTCOME_INSUFFICIENT_EVIDENCE
+    assert mx.outcome_of({"abstained": True, "abstain_reason": "uncalibrated"}) == mx.OUTCOME_UNCALIBRATED
+    assert mx.OUTCOME_CITATION_REJECTED not in mx.EVIDENCE_DECISION_OUTCOMES
+    assert mx.OUTCOME_UNCALIBRATED not in mx.EVIDENCE_DECISION_OUTCOMES
 
 
 def test_evaluation_keeps_errors_out_of_quality_denominators():

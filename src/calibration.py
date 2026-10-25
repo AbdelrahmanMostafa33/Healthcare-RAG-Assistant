@@ -69,7 +69,7 @@ def score_dev_questions(retriever, questions: pd.DataFrame) -> pd.DataFrame:
 
 def calibration_from_scores(scores: pd.DataFrame, min_abstention_recall=0.90) -> dict:
     """Select a threshold from precomputed dev scores and attach compatibility fingerprints."""
-    required = {"id", "split", "type", "expected_behavior", "best_score"}
+    required = {"id", "split", "type", "expected_behavior", "question", "best_score"}
     missing = required - set(scores.columns)
     if missing:
         raise ValueError(f"Scored questions are missing columns: {sorted(missing)}")
@@ -92,8 +92,10 @@ def calibration_from_scores(scores: pd.DataFrame, min_abstention_recall=0.90) ->
             "No insufficient_evidence rows of type "
             f"{sorted(TRUE_NO_EVIDENCE_TYPES)} were scored, so the threshold cannot be calibrated"
         )
-    questions = no_evidence_rows.get("question", pd.Series("", index=no_evidence_rows.index))
-    forced_abstentions = questions.map(safety.requires_live_information).to_numpy()
+    # The freshness policy withholds these questions before retrieval, so they count as withheld
+    # whatever their reranker score is. That keeps the threshold from being pushed up to catch
+    # questions the pipeline handles elsewhere.
+    forced_abstentions = no_evidence_rows["question"].map(safety.requires_live_information).to_numpy()
     result = choose_threshold(
         answerable, no_evidence, min_abstention_recall=min_abstention_recall,
         forced_unanswerable=forced_abstentions,
@@ -104,19 +106,33 @@ def calibration_from_scores(scores: pd.DataFrame, min_abstention_recall=0.90) ->
     return {
         **result,
         **metadata,
-        "rule": (f"lowest threshold keeping effective abstention recall >= {min_abstention_recall:.2f} "
+        "rule": (f"lowest threshold keeping abstention recall >= {min_abstention_recall:.2f} "
                  f"on dev questions the base has no evidence for (types {sorted(TRUE_NO_EVIDENCE_TYPES)}); "
-                 "time-sensitive questions are withheld before retrieval; "
-                 "scope/policy questions are reported separately, not calibrated on; "
-                 "threshold is frozen before final test evaluation"),
+                 "time-sensitive questions count as withheld because the pipeline withholds them "
+                 "before retrieval; scope/policy questions are reported separately and are not "
+                 "calibrated on; the threshold is frozen before any test evaluation"),
+        "metric": "abstention_recall",
+        "metric_definition": (
+            "withheld no-evidence questions / all scored no-evidence questions, where withheld "
+            "means the question's reranker score is below the threshold or the question asks for "
+            "live information (the pipeline withholds those before retrieval)"
+        ),
+        "threshold_meaning": "raw reranker score (a logit); it is not a probability",
         "negatives_calibrated_on": ["true_no_evidence"],
         "negatives_excluded": ["policy_scope"],
+        "negatives_forced_by_policy": int(forced_abstentions.sum()),
         "answerable_answered_fraction": result["answerable_answered"],
         "scored_by_expected_behavior": scored.groupby("expected_behavior").size().to_dict(),
         "scored_by_type": scored.groupby("type").size().to_dict(),
         "calibrated_on": "dev",
         "dev_questions_scored": int(len(scored)),
-        "dev_question_ids": scored["id"].astype(str).tolist(),
+        "dev_questions_excluded_before_retrieval": int(len(scores) - len(scored)),
+        "measurement_note": (
+            "This is a score-based estimate over every dev question that reaches retrieval. At "
+            "runtime a safety redirect, a failed safety check or a provider error replaces the "
+            "evidence decision for some questions; evaluation reports those rows separately "
+            "instead of counting them as missed abstentions."
+        ),
         "date": str(date.today()),
     }
 

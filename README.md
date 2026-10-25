@@ -1,102 +1,80 @@
 # Healthcare RAG Assistant
 
-A small retrieval-augmented generation (RAG) assistant that answers general health questions from a
-curated knowledge base and shows the sources it used.
+A small, source-grounded **retrieval-augmented generation (RAG)** assistant for general health questions. It retrieves relevant passages from a curated knowledge base, generates an answer from that evidence, and checks that the answer's citation IDs point to sources that were actually supplied.
 
-> **Education only.** This is a graduation project, not a medical device or a clinical service. It
-> does not diagnose, does not recommend treatment, and has not been reviewed by clinicians.
+> **Educational project only.** This is a graduation project, not a medical device or clinical service. It is not intended to diagnose conditions, recommend treatment, or replace advice from a qualified healthcare professional. The project has not been clinically validated.
+
+## Why this project?
+
+The main engineering question is not simply how to call an LLM. It is how to decide **when the system has enough evidence to answer and when it should abstain**—and how to evaluate that behavior without presenting a score as proof of medical correctness.
 
 ## What it does
 
-Given a general health question, the assistant either:
-
-- answers from retrieved source passages, with `[n]` citations that resolve to the returned sources, or
-- withholds the answer and says why (weak evidence, a time-sensitive question, a failed safety
-  check, a citation that could not be validated, or an uncalibrated build), or
-- replaces the answer with a fixed safety message for an emergency, a harmful request, or a request
-  for personal medical advice.
-
-The interesting part of the project is not the model call. It is the decision path around it: when
-to answer, when to abstain, what "enough evidence" means, and how to measure that honestly.
+- Retrieves passages from a curated health knowledge base using dense search and a cross-encoder reranker.
+- Generates answers from retrieved evidence and returns source links with `[n]` citations.
+- Abstains when evidence is too weak, a question requires current information, the cutoff is uncalibrated, or citation validation fails.
+- Routes emergency, harmful, and personal-medical-advice requests to fixed safety messages rather than generating a medical response.
+- Uses one shared `RAGPipeline` implementation across the FastAPI app and the notebooks.
 
 ## Architecture
 
-```text
-OFFLINE (once, in order)
-
-  01_data_and_kb      MedQuAD, MedlinePlus XML, 3 USPSTF pages
-                      -> clean, de-duplicate, one row per document
-                      -> data/processed/kb_documents.csv
-  02_build_index      -> chunks (~1000 chars, question line repeated on each chunk)
-                      -> bge-m3 embeddings -> FAISS exact inner-product index
-                      -> data/index/kb.faiss + chunks.jsonl + manifest.json
-                      -> calibrate the evidence cutoff on dev questions only
-                      -> reports/abstention_threshold.json
-
-ONLINE (app.py, the notebooks and the evaluation all call this one pipeline)
-
-  question
-    | FastAPI validation (3-1000 characters)
-    | src/safety.py           emergencies, harmful requests, personal-advice requests  -> fixed reply
-    | src/safety_check.py     short Gemini classification for questions the rules do not match
-    |                         (a failed check withholds the answer; it never falls through)
-    | calibrated cutoff?      no -> withhold (fail closed)
-    | freshness check         "latest / this week / right now" -> withhold
-    | src/retriever.py        FAISS top 40 -> bge-reranker-v2-m3 -> up to 5 source pages
-    | best rerank score < cutoff -> withhold (insufficient evidence), no model call
-    | src/generator.py        Gemini, evidence-only prompt, citation instructions
-    | citation check          every [n] must resolve to a supplied passage; one is required
-    v
-  answer + cited sources + disclaimer, or a fixed withholding message
+```mermaid
+flowchart TD
+    A[Health question] --> B[FastAPI input validation]
+    B --> C[Local safety rules]
+    C -->|Safety case| S[Fixed safety response]
+    C -->|No rule match| D[Gemini safety check]
+    D -->|Failed or unsafe check| S
+    D -->|Continue| E{Cutoff calibrated?}
+    E -->|No| W[Withhold answer]
+    E -->|Yes| F[Freshness policy]
+    F -->|Needs current facts| W
+    F -->|Continue| G[FAISS: retrieve top 40]
+    G --> H[BGE reranker]
+    H --> I{Best score meets cutoff?}
+    I -->|No| W
+    I -->|Yes| J[Gemini: evidence-grounded answer]
+    J --> K[Validate citation IDs]
+    K -->|Invalid or missing citation| W
+    K -->|Valid citation structure| L[Answer + cited sources + disclaimer]
 ```
 
-Everything that matters is in `src/`, and there is exactly one implementation of each step: the API,
-notebook 03 and the evaluation runner call the same `RAGPipeline` and the same helpers.
+### Key design choices
 
-### Design decisions
-
-| Decision | Why it is here | Evidence |
+| Component | Purpose | Important limitation |
 |---|---|---|
-| Dense retrieval with `BAAI/bge-m3` | Strong multilingual encoder, but here it is simply a reasonable default for English health text | Not benchmarked against alternatives; a different encoder requires rebuilding the index **and** recalibrating |
-| Cross-encoder rerank with `BAAI/bge-reranker-v2-m3` | Dense search returns topically similar chunks; the reranker orders them for the actual question, and its score drives the abstention decision | Not benchmarked against reranker-free retrieval, because there are no relevance labels to measure the difference fairly. Notebook 02 shows the scores it produces |
-| Cutoff on the reranker score | One number that separates "the knowledge base covers this" from "it does not" | Calibrated on dev questions only (~0.9 target abstention recall). The value is a raw logit, **not** a probability |
-| Two-stage safety | Local rules are predictable and testable; the Gemini check covers rewordings the rules miss | The local rules alone catch only a small share of a 50-question crisis/harm holdout (see below); this is measured, not assumed |
-| Structural citation checking | Cheap, deterministic, and catches the failure that matters for trust: a source number that points at nothing | It does **not** prove that a passage supports a claim. See "Safety and limits" |
-| Fixed replies instead of generated safety text | No provider call, no chance of a reassuring but wrong answer | Covered by tests |
+| `BAAI/bge-m3` embeddings + FAISS | Find semantically related passages | Not benchmarked against alternative embedding models in this project |
+| `BAAI/bge-reranker-v2-m3` | Re-rank retrieved passages for the question | Retrieval relevance has not been measured against a ground-truth relevance set |
+| Reranker-score cutoff | Decide whether the evidence is strong enough to proceed | The score is a raw reranker logit, **not a probability**; changing retrieval models or settings requires recalibration |
+| Local rules + Gemini safety check | Catch known safety patterns and check unmatched questions | Neither layer is a guarantee of safety; the Gemini safety check has not been independently validated |
+| Structural citation validation | Reject citation IDs that do not map to supplied passages | A valid citation ID does not prove that the cited passage supports the associated claim |
+| Fixed safety responses | Avoid generating free-form replies for defined safety cases | The local rules are pattern-based and can miss unfamiliar wording |
 
-Deliberately **not** in the project: agents, a database, a vector service, authentication,
-deployment infrastructure, multiple provider frameworks. None of them is needed to demonstrate the
-idea, and each would add a component to explain.
+The implementation intentionally avoids agents, a separate database, a hosted vector service, authentication, and deployment infrastructure. Those additions are not required to demonstrate this project's core idea.
 
-## Data
+## Knowledge base
 
-| Source | What is used | Licence / attribution |
+| Source | Use | Attribution / licence notes |
 |---|---|---|
-| [MedQuAD](https://github.com/abachaa/MedQuAD) (`lavita/MedQuAD`, pinned revision in `src/config.py`) | Question/answer pairs from NIH sites (GARD, NIDDK, NIHSeniorHealth, ...) | CC BY 4.0 |
-| [MedlinePlus](https://medlineplus.gov/xml.html) health-topic XML | One document per English topic, plus its "also called" aliases | See [MedlinePlus reuse guidance](https://medlineplus.gov/about/using/usingcontent/) |
-| [USPSTF](https://www.uspreventiveservicestaskforce.org/) | Recommendation statements for breast, colorectal and blood-pressure screening | US federal government work |
+| [MedQuAD](https://github.com/abachaa/MedQuAD) (`lavita/MedQuAD`, revision pinned in `src/config.py`) | Health question-and-answer pairs collected from NIH-related websites | CC BY 4.0, as documented by the source dataset |
+| [MedlinePlus health-topic XML](https://medlineplus.gov/xml.html) | English health-topic documents and aliases | Follow [MedlinePlus reuse guidance](https://medlineplus.gov/about/using/usingcontent/) |
+| [USPSTF](https://www.uspreventiveservicestaskforce.org/) | Selected recommendations on breast, colorectal, and blood-pressure screening | Check source-specific reuse terms when redistributing content |
 
-Preprocessing (`src/kb.py`) is deliberately small and explainable:
+Preprocessing in `src/kb.py` is deliberately small and auditable:
 
-- MedQuAD rows without an answer are dropped; duplicate questions keep the longer answer.
-- MedQuAD's copy of the MedlinePlus health topics is dropped where the official XML already provides
-  the same topic, so the same article cannot appear twice in one context.
-- HTML is parsed (not regex-stripped); trailing navigation boilerplate is removed only when it looks
-  trailing, so words like "More on:" inside an answer are preserved.
-- Documents are split into ~1000-character chunks on sentence boundaries with a one-sentence overlap.
-  Every chunk starts with the document's question, because it is the cheapest way to keep a chunk
-  from the middle of a long answer interpretable — for an embedding and for a human reading it.
-- `save_index` writes the FAISS index, the chunk table and a manifest together, and `load_index`
-  refuses to load if the manifest, checksums, models or chunking settings disagree. A dataset change
-  therefore cannot be served silently against an old index.
+- Drops MedQuAD rows without answers and resolves duplicate questions by keeping the longer answer.
+- Avoids duplicating MedlinePlus topics when the official XML supplies the same topic.
+- Parses HTML and removes trailing navigation boilerplate only when it appears at the end of a document.
+- Splits documents into chunks of approximately 1,000 characters at sentence boundaries, with a one-sentence overlap. Each chunk starts with the document question to preserve context.
+- Saves the index, chunk table, manifest, and checksums together. Loading fails when key metadata or fingerprints disagree, rather than silently serving an incompatible index.
 
-Generated data (`data/raw`, `data/processed`, `data/index`, `reports/`) is **not committed**. A fresh
-clone has no knowledge base until you run the notebooks.
+Generated artifacts under `data/raw/`, `data/processed/`, `data/index/`, and `reports/` are created locally and are not committed. A fresh clone must build the knowledge base before the full app can answer questions.
 
-## Setup
+## Quick start
 
-Python 3.11 or 3.12. Building the knowledge base needs internet access and about 5 GB of disk. The
-index itself is ~125 MB; most of the space is the two model checkpoints in the Hugging Face cache.
+Requirements: **Python 3.11 or 3.12**, internet access for downloading source data and model weights, and several gigabytes of free disk space. Model downloads take substantially more space than the FAISS index itself.
+
+The commands below use Windows PowerShell:
 
 ```powershell
 py -3.12 -m venv .venv
@@ -106,44 +84,46 @@ python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Then put a [Google AI Studio](https://aistudio.google.com/app/apikey) key in `.env` as
-`GOOGLE_API_KEY`. That single key powers both answer generation and the safety check. A Groq or
-Cerebras key is needed only for the optional LLM-judge evaluation. Never commit `.env`.
+Add a Google AI Studio API key to `.env`:
 
-### Build the knowledge base and the index
+```dotenv
+GOOGLE_API_KEY=your_key_here
+```
 
-Run the notebooks from the activated environment, in order:
+The key is used for answer generation and for the Gemini safety check. The optional LLM-judge evaluation also supports a Groq or Cerebras provider key. Never commit `.env` or API keys.
 
-1. `notebooks/01_data_and_kb.ipynb` — download, clean and inspect the sources; writes
-   `data/processed/kb_documents.csv`.
-2. `notebooks/02_build_index.ipynb` — chunk, embed, build and self-check the index; then calibrate the
-   evidence cutoff on the dev questions and save `reports/abstention_threshold.json`.
+### Build the knowledge base and index
 
-Notebook 02 does not call any provider. On CPU, encoding ~32k chunks takes a while; a CUDA GPU makes
-it much faster.
+Run these notebooks in order from the activated environment:
 
-### Walk through one question
+1. `notebooks/01_data_and_kb.ipynb` — downloads and preprocesses the sources; writes `data/processed/kb_documents.csv`.
+2. `notebooks/02_build_index.ipynb` — chunks and embeds the documents, builds and checks the FAISS index, and selects an evidence cutoff using development questions only.
 
-`notebooks/03_rag_pipeline.ipynb` follows a single question through search, reranking, the cutoff
-decision and prompt construction, and then runs the same steps through `RAGPipeline` so you can see
-that the notebook and the app agree. Live generation is switched off in the saved notebook.
+Notebook 02 does not call an LLM provider. Encoding the full corpus can take time on CPU; a CUDA-capable GPU can speed it up.
 
 ### Run the web demo
+
+After building the index and generating a valid cutoff file:
 
 ```powershell
 uvicorn app:app --reload
 ```
 
-Open <http://127.0.0.1:8000/>. The page reports its own state from `/health`:
+Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/).
 
-- `loading` / `error` → HTTP 503
-- `ok` (index present, cutoff calibrated) and `degraded` (index present, cutoff missing or stale) →
-  HTTP 200. In `degraded` state the assistant withholds every answer rather than guessing.
+The API provides:
 
-`POST /query` has a 60-second budget. The deadline is passed into the pipeline, which checks it
-between stages and caps each provider request's HTTP timeout at the remaining time, so a timed-out
-request stops working instead of finishing in the background. A provider call already in progress
-cannot be interrupted; only its socket timeout bounds it.
+- `GET /` — static demo UI.
+- `GET /health` — app and index status.
+- `POST /query` — submit a question.
+
+The health endpoint reports `loading` or `error` as HTTP 503, and `ok` or `degraded` as HTTP 200. In a degraded state (for example, when the cutoff is absent or stale), the pipeline fails closed and withholds answers instead of guessing.
+
+Each `/query` request has a 60-second budget. The deadline is shared across pipeline stages and caps provider request timeouts at the remaining time. An in-flight provider request cannot be forcibly interrupted; its socket timeout is the practical limit.
+
+### Walk through the pipeline
+
+`notebooks/03_rag_pipeline.ipynb` shows retrieval, reranking, the cutoff decision, prompt construction, and how the notebook uses the same `RAGPipeline` as the app. Live generation is not required for the walkthrough.
 
 ## Tests
 
@@ -151,144 +131,103 @@ cannot be interrupted; only its socket timeout bounds it.
 python -m pytest -q
 ```
 
-The suite does not need an API key, a model download, a GPU or network access: it uses a small
-in-memory FAISS index, fake encoders/rerankers and fake provider clients. It covers the safety rules,
-the pipeline's decision path, citation parsing, deadline propagation, retry classification,
-calibration, the metric definitions, the API contract and the data validators.
+The test suite is designed to run without an API key, GPU, model download, or network access. It uses small test indexes and fake encoders, rerankers, and provider clients. Tests cover safety rules, pipeline decisions, citation parsing, deadlines, retries, calibration, metric definitions, API behavior, and data validation.
 
 ## Evaluation
 
-`data/eval/dev_questions.csv` (168 questions) is the development set and the **only** source used to
-choose the evidence cutoff. `data/eval/test_questions.csv` (87 questions) was reviewed during
-development, so it is a second exploratory set, not an untouched holdout. There is no clinician-
-reviewed or frozen holdout in this project, and the README does not claim one. The two files contain
-no exact duplicate question, but ~30 pairs share a template ("What are the side effects of X?",
-"I feel X. What is wrong with me?"), so test numbers say more about familiar phrasings than about a
-fresh distribution.
+Evaluation questions live in `data/eval/`:
 
-Creating a genuinely untouched holdout, and having a clinician check a sample of the labels and
-answers, is the most valuable next step for this project. It has not been done here.
+- `dev_questions.csv` — 168 questions used during development and for cutoff selection.
+- `test_questions.csv` — 87 questions reviewed during development. This is an **exploratory test set, not an untouched holdout**.
 
-Each question carries an `expected_behavior`: `answer`, `insufficient_evidence`, `emergency`,
-`safety_redirect` or `refuse`. The evaluation compares that expectation with the outcome the pipeline
-actually produced. The definitions live in `src/metrics.py`:
+The sets contain no exact duplicate questions, but some questions share templates. The question labels, generated answers, and LLM-judge rubric have not been reviewed by clinicians. Results therefore measure project-defined behavior on these fixtures; they do not establish medical correctness or clinical safety.
 
-| Check | Definition | Denominator |
+### Metrics
+
+The definitions are implemented in `src/metrics.py`.
+
+| Metric | What it measures | What it does not establish |
 |---|---|---|
-| Outcome accuracy | expected behaviour vs actual outcome | questions that produced a decisive outcome |
-| Abstention recall | no-evidence questions withheld | no-evidence questions that reached an evidence decision |
-| Abstention precision | withheld questions that should have been withheld | questions that were withheld for evidence/freshness reasons |
-| Over-refusal | answerable questions withheld | answerable questions that reached an evidence decision |
-| Citation validity | answers whose every `[n]` resolves to a supplied passage | answers that were returned |
-| Judge pass rates (optional) | three LLM-judge checks: context relevance, faithfulness, answer relevance | questions the judge graded (excluding `not_applicable`) |
+| Outcome accuracy | Whether the pipeline's outcome matches the question's `expected_behavior` label | Whether a generated medical answer is factually correct |
+| Abstention recall / precision | How consistently the pipeline withholds questions labelled as requiring abstention, over the eligible denominator | That all unsafe or unsupported questions will be caught |
+| Over-refusal | How often answerable questions are withheld for an evidence decision | The quality of answers that are returned |
+| Citation-ID validity | Whether every returned `[n]` citation points to a supplied passage | Whether the passage actually supports the claim |
+| Optional LLM-judge scores | Model-estimated context relevance, faithfulness, and answer relevance | A validated substitute for human or clinical review |
 
-Three details that are easy to get wrong, and that this version handles explicitly:
+Safety redirects, refusals, provider errors, and evidence-based abstentions are tracked as different outcomes. They should not all be counted as the same kind of abstention. Similarly, the calibration score and runtime abstention metrics have different denominators: calibration selects a reranker cutoff on the relevant development subset, while the runtime pipeline can make earlier safety or freshness decisions.
 
-1. **Safety replies are not evidence abstentions.** A redirect, a refused request, a failed safety
-   check, a provider error and a citation rejection are reported as their own outcomes. They leave
-   the abstention denominator instead of being scored as missed abstentions.
-2. **The calibration figure and the evaluation figure are not the same quantity.** Calibration is a
-   score-based estimate: is this question's best reranker score below the cutoff (or does the
-   freshness policy withhold it)? It covers every dev question that reaches retrieval. At runtime a
-   safety redirect or a failed safety check can replace that decision, so evaluation reports how many
-   no-evidence questions were actually measurable and what happened to the rest. The calibration file
-   records both numbers.
-3. **A pass rate needs its denominator.** Judge scores are computed over the rows that were graded.
-   100% on a small graded subset is not 100% system accuracy, and it says nothing about medical
-   correctness.
+### Previously saved exploratory output
 
-Run the optional evaluation from `notebooks/04_evaluation.ipynb`. Provider-calling cells are off by
-default and print the planned call count first. The deterministic run needs the generator key only;
-set `USE_JUDGE = True` to add the LLM judge. Reports are written to
-`reports/evaluation/<split>_answers.csv`, `<split>_metrics.json` and the judge CSVs. Notebook 04 only
-displays a saved report when its evaluation version and cutoff match the current build.
+The notebook's saved output dated **25 October 2026** recorded the following. These figures have **not been re-verified against the latest code changes**, so rerun Notebook 04 before presenting them as results for a current build.
 
-**Reporting status:** this repository does not contain a verified end-to-end evaluation run for the
-current code. The reports directory is generated locally and is not committed; run notebook 04 to
-produce numbers for your own machine, and quote them together with the question count, the cutoff and
-the model names. The judge is an unvalidated language model, so its scores are estimates.
+| Measure in saved output | Development set | Exploratory test set |
+|---|---:|---:|
+| Outcome accuracy | 153/168 (**91.1%**) | 79/87 (**90.8%**) |
+| Abstention recall over eligible evidence decisions | 19/23 (**82.6%**) | 11/14 (**78.6%**) |
+| Returned answers with structurally valid citation IDs | 96/96 (**100%**) | 48/48 (**100%**) |
 
-## Safety and limits
+**Interpret these carefully:** outcome accuracy is agreement with the project's expected-behavior labels, not medical answer accuracy. Citation validity is structural only. The test set was used during development, and neither set has clinician-reviewed labels. The saved LLM-judge results are omitted from this headline table because the judge is unvalidated and those values are estimates.
 
-The assistant is English-only. Local rules in `src/safety.py` run first, then a Gemini safety check
-handles the rest. Every submitted question is checked; an unanswered-by-rules question is sent to
-Gemini for that check, and a question that continues may also be sent to Gemini for generation.
-Avoid entering names or other identifying details: those texts go to the provider.
+To produce a fresh report, open `notebooks/04_evaluation.ipynb` and review its run flags before executing cells. Enabling development/test evaluations or the optional LLM judge can make live provider calls; check the planned call count and provider costs before running. Reports are written under `reports/evaluation/` and are generated locally, not committed.
 
-Fixed safety messages are deliberately blunt, because a missed emergency is worse than an unnecessary
-one. The local rules are keyword patterns, not a classifier.
+### Cutoff calibration
 
-**Regex-only development baseline** on the two frozen fixtures written for this project:
+Notebook 02 selects the reranker-score cutoff from development questions only. The saved calibration output used 94 answerable questions and 16 true no-evidence questions for the cutoff calculation; 16 policy-scope `insufficient_evidence` examples were excluded from that optimization. The previously saved cutoff was approximately `-0.497`, with a reported calibration target of `0.90` and achieved value of `0.938` on that calibration subset. These figures are from the saved run and should be recomputed after changes to the data, index, retrieval models, score-producing settings, or relevant pipeline/safety versions.
 
-- 50-question holdout: urgent cases escalated were **2/24**
-- 50-question holdout: harmful requests withheld were **1/10**
-- 50-question holdout: educational questions left alone were **16/16**
-- different-wording probes: urgent cases escalated were **6/42**
-- different-wording probes: harmful requests withheld were **1/9**
-- different-wording probes: educational questions left alone were **8/12**
+A genuinely untouched holdout, labelled retrieval-relevance examples, and clinician review of a sample of questions and answers are the highest-value next evaluation steps.
 
-These are small development fixtures, not evidence of clinical safety.
+## Safety and limitations
 
-That is the honest baseline for the rules alone: they are reliable on the phrasings they were written
-for and weak on new ones, which is why the pipeline also calls the Gemini safety check. The check's
-own accuracy is **not** measured by this project; it is a second chance, not a guarantee.
+- **English only.** The current knowledge base and evaluation fixtures are English-language.
+- **Not real-time.** The knowledge base is static and some source pages may have changed or been retired. Questions requiring current facts are withheld by policy.
+- **Safety checks are not a guarantee.** Local rules are pattern-based. The Gemini check is a second layer, but its independent accuracy has not been measured by this project.
+- **No clinical validation.** The question labels, answers, and judge rubric have not been reviewed by clinicians.
+- **No semantic citation verification.** Citation validation checks source references, not whether the cited text entails the answer.
+- **Privacy.** Unmatched questions may be sent to the configured provider for safety classification, and questions that proceed may also be sent for generation. Do not submit names, identifying details, or private medical information.
 
-Other limits worth stating plainly:
+The project's regex-only development fixtures also show why local patterns should not be treated as a complete safety classifier:
 
-- **Citation checks are structural.** A valid `[n]` proves the passage was in the prompt and is
-  returned as a source; it does not prove the passage supports the sentence. An answer containing any
-  impossible reference (for example `[99]` next to a valid `[1]`) is withheld entirely rather than
-  shown with a dangling source number.
-- **Retrieval quality has no ground-truth labels here**, so no recall@k or precision@k is reported.
-  Notebook 02 shows what retrieval returns for a few questions; the judge's context-relevance score
-  is a fallback estimate, not a measurement.
-- **The knowledge base is static and partially old.** MedQuAD republishes NIH pages that have since
-  moved or been retired; some links are hidden in the UI and the app suggests searching for a current
-  page instead. Questions that need current facts are withheld.
-- **No clinical validation.** The question labels, the answers and the judge were all produced inside
-  this project. None of it has been checked by a clinician, and none of it is a basis for real health
-  decisions.
+| Fixture | Urgent cases escalated | Harmful requests withheld | Educational questions left alone |
+|---|---:|---:|---:|
+| 50-question holdout | 2/24 | 1/10 | 16/16 |
+| Different-wording probes | 6/42 | 1/9 | 8/12 |
 
-## Project files
+These are small development fixtures, not evidence of clinical safety. They show that the local rules are strongest on familiar wording and weak on many rephrasings; the Gemini check is an additional layer, not a guarantee.
+
+## Project structure
 
 ```text
-app.py                 FastAPI app: /, /query, /health
-frontend/              Static demo page (no framework, no build step)
-src/pipeline.py        The one orchestration path shared by app, notebooks and evaluation
-src/safety.py          Local emergency / harmful / personal-advice rules and fixed messages
-src/safety_check.py    Short Gemini safety classification for unmatched questions
-src/retriever.py       FAISS search, reranking, source grouping, context selection
-src/generator.py       Grounded generation, deadline-bounded retries, citation parsing
-src/kb.py              Data cleaning, chunking, embeddings, index build/load
-src/calibration.py     Dev-only cutoff selection and its metadata
-src/metrics.py         Outcome, abstention, citation and judge metrics
-src/evaluation.py      Evaluation runner and report writer
-src/deadline.py        One absolute request deadline shared across stages
-src/retry.py           Bounded retries for transient provider failures
-src/config.py          Paths, model pins, provider settings, threshold validation
-notebooks/             01 data+KB, 02 index+calibration, 03 walkthrough, 04 evaluation
-data/eval/             Development and exploratory test questions (committed)
-tests/                 Local tests and the safety fixtures (committed)
-reports/               Generated calibration and evaluation output (not committed)
+app.py                    FastAPI endpoints and static demo
+frontend/                 Static UI; no frontend build step
+src/pipeline.py           Shared RAG orchestration path
+src/safety.py             Local safety rules and fixed responses
+src/safety_check.py       Gemini safety classification for unmatched questions
+src/retriever.py          FAISS retrieval, reranking, source grouping
+src/generator.py          Grounded generation, retries, citation parsing
+src/kb.py                 Data cleaning, chunking, index build/load
+src/calibration.py        Development-only cutoff selection and metadata
+src/metrics.py            Outcome, abstention, citation, and judge metrics
+src/evaluation.py         Evaluation runner and report writer
+src/deadline.py           Shared request deadline
+src/retry.py              Bounded retries for transient provider errors
+src/config.py             Paths, model pins, provider settings, validation
+notebooks/                Data, index, pipeline walkthrough, evaluation
+data/eval/                 Development and exploratory test questions
+tests/                     Automated tests and safety fixtures
 ```
 
-## Rebuilding after a change
+## Rebuilding after changes
 
-| You changed | Rebuild |
+| Change | Required follow-up |
 |---|---|
-| Source data or cleaning/chunking in `src/kb.py` | Notebooks 01 and 02, then recalibrate |
-| Embedding or reranker model pin | Notebook 02 (index and cutoff) |
-| `RAG_PIPELINE_VERSION` or anything that changes reranker scores | Notebook 02 calibration |
-| Safety rules (`src/safety.py`) | Bump `SAFETY_RULES_VERSION`, then recalibrate |
-| Prompt or generation settings | Re-run the evaluation; the cutoff does not depend on them |
-| Evaluation questions | Notebook 02 calibration, then notebook 04 |
+| Source data, preprocessing, or chunking in `src/kb.py` | Rerun Notebooks 01 and 02, then recalibrate |
+| Embedding model, reranker model, or settings that change reranker scores | Rebuild the index and recalibrate in Notebook 02 |
+| `RAG_PIPELINE_VERSION` or safety-rule behavior/version | Recalibrate and verify the cutoff metadata |
+| Prompt or generation settings | Rerun evaluation; the cutoff does not directly depend on prompt wording |
+| Evaluation questions or expected-behavior labels | Review the labels and rerun calibration/evaluation as applicable |
 
-`config.load_threshold()` fails closed: a threshold whose fingerprint does not match the current
-index, models, dev file, pipeline version or safety-rule version is ignored, the app reports
-`degraded`, and every question is withheld until you recalibrate. That is a correctness safeguard, not
-a formality — a cutoff measured against a different retriever is meaningless.
+The app validates cutoff metadata against the current build. If the threshold fingerprint does not match the index, model settings, development data, or relevant version values, the app should fail closed rather than use a cutoff from a different configuration. Treat recalibration as a correctness requirement, not a formality.
 
 ## Licence
 
-Project code is MIT licensed; see `LICENSE`. The datasets and model weights keep their own licences;
-see the table under "Data".
+The project code is MIT licensed; see [`LICENSE`](LICENSE). The datasets and model weights have their own terms. Review the linked source guidance and model licences before redistribution.

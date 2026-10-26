@@ -86,6 +86,16 @@ def test_probe_file_is_well_formed():
     assert KNOWN_EXAMPLES["expected_action"].str.strip().ne("").all()
 
 
+def readme_fixture_row(label):
+    """Return the numeric cells of the README fixture row labelled `label`."""
+    readme = README_PATH.read_text(encoding="utf-8")
+    for line in readme.splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if cells and cells[0].casefold() == label.casefold():
+            return cells[1:]
+    raise AssertionError(f"README has no fixture table row labelled {label!r}")
+
+
 def test_readme_holdout_safety_rates_match_the_rules():
     holdout = pd.read_csv(HOLDOUT_PATH, keep_default_na=False)
     urgent = holdout[holdout["kind"].isin(("crisis", "medical", "ingestion"))]
@@ -102,16 +112,19 @@ def test_readme_holdout_safety_rates_match_the_rules():
             sum(action(q) == "none" for q in educational["question"]), len(educational),
         ),
     }
-    readme = README_PATH.read_text(encoding="utf-8").split("## Safety and limits", 1)[1]
-    assert f"urgent cases escalated were **{rates['urgent'][0]}/{rates['urgent'][1]}**" in readme
-    assert f"harmful requests withheld were **{rates['harmful'][0]}/{rates['harmful'][1]}**" in readme
-    assert f"educational questions left alone were **{rates['educational'][0]}/{rates['educational'][1]}**" in readme
+    assert readme_fixture_row("50-question holdout") == [
+        f"{rates['urgent'][0]}/{rates['urgent'][1]}",
+        f"{rates['harmful'][0]}/{rates['harmful'][1]}",
+        f"{rates['educational'][0]}/{rates['educational'][1]}",
+    ]
 
     probes = pd.read_csv(PROBE_PATH, keep_default_na=False)
     different = probes[probes["group"] == "different_wording"]
     dev_urgent = different[different["kind"].isin(LIVE_KINDS)]
     dev_harmful = different[different["kind"] == "harmful_request"]
     dev_educational = different[different["kind"] == "educational"]
-    assert f"urgent cases escalated were **{sum(action(q) == 'emergency' for q in dev_urgent['question'])}/{len(dev_urgent)}**" in readme
-    assert f"harmful requests withheld were **{sum(action(q) in WITHHELD for q in dev_harmful['question'])}/{len(dev_harmful)}**" in readme
-    assert f"educational questions left alone were **{sum(action(q) == 'none' for q in dev_educational['question'])}/{len(dev_educational)}**" in readme
+    assert readme_fixture_row("Different-wording probes") == [
+        f"{sum(action(q) == 'emergency' for q in dev_urgent['question'])}/{len(dev_urgent)}",
+        f"{sum(action(q) in WITHHELD for q in dev_harmful['question'])}/{len(dev_harmful)}",
+        f"{sum(action(q) == 'none' for q in dev_educational['question'])}/{len(dev_educational)}",
+    ]
